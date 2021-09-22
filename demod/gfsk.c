@@ -1,41 +1,38 @@
 #include <math.h>
+#include <stdio.h>
 #include "dsp/agc.h"
-#include "dsp/filter.h"
-#include "dsp/timing.h"
 #include "gfsk.h"
-
-static int _samplerate;
-static int _symrate;
-static Filter _lpf;
+#include "utils.h"
 
 int
-gfsk_init(int samplerate, int symrate)
+gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 {
-	const float sym_freq = 2.0*M_PI*symrate/samplerate;
+	const float sym_freq = (float)symrate/samplerate;
 
 	/* Save input settings */
-	_samplerate = samplerate;
-	_symrate = symrate;
+	g->samplerate = samplerate;
+	g->symrate = symrate;
 
 	/* Initialize a low-pass filter with the appropriate bandwidth */
-	if (filter_init_lpf(&_lpf, GFSK_FILTER_ORDER, sym_freq)) return 1;
+	if (filter_init_lpf(&g->lpf, GFSK_FILTER_ORDER, 2*sym_freq)) return 1;
 
 	/* Initialize symbol timing recovery */
-	timing_init(sym_freq, SYM_BW);
+	timing_init(&g->timing, sym_freq, 1/1e9);
 
 	return 0;
 }
 
 void
-gfsk_deinit()
+gfsk_deinit(GFSKDemod *g)
 {
-	filter_deinit(&_lpf);
+	filter_deinit(&g->lpf);
 }
 
 int
-gfsk_decode(uint8_t *dst, int bit_offset, size_t len, int (*read)(float *dst, size_t len))
+gfsk_decode(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(float *dst))
 {
 	float symbol;
+	float interm;
 	uint8_t tmp;
 
 	/* Normalize bit offset */
@@ -50,27 +47,39 @@ gfsk_decode(uint8_t *dst, int bit_offset, size_t len, int (*read)(float *dst, si
 	}
 
 	tmp = 0;
+	interm = 0;
 	while (len > 0) {
 		/* Read a new sample and filter it */
-		if (!read(&symbol, 1)) break;
-		filter_fwd_sample(&_lpf, symbol);
+		if (!read(&symbol)) break;
+		symbol = agc_apply(symbol);
+		filter_fwd_sample(&g->lpf, symbol);
 
-		/* Check if we should sample a new symbol at this time */
-		if (advance_timeslot()) {
-			symbol = filter_get(&_lpf);
-			retime(symbol);
 
-			/* Slice to get bit value */
-			tmp = (tmp << 1) | (symbol > 0);
-			bit_offset++;
-			len--;
+		switch (advance_timeslot(&g->timing)) {
+			case 1:
+				/* Intermediate slot */
+				interm = filter_get(&g->lpf);
+				break;
+			case 2:
+				/* Correct slot */
+				symbol = filter_get(&g->lpf);
+				retime(&g->timing, interm, symbol);
 
-			/* If a byte boundary is crossed, write to dst */
-			if (!(bit_offset % 8)) {
-				*dst++ |= tmp;
-				tmp = 0;
-				*dst = 0;
-			}
+				/* Slice to get bit value */
+				tmp = (tmp << 1) | (symbol > 0 ? 1 : 0);
+				bit_offset++;
+				len--;
+
+				/* If a byte boundary is crossed, write to dst */
+				if (!(bit_offset % 8)) {
+					*dst++ |= tmp;
+					tmp = 0;
+					*dst = 0;
+				}
+				break;
+			default:
+				break;
+
 		}
 	}
 

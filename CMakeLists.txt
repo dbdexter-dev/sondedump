@@ -25,11 +25,17 @@ endif()
 
 
 set(LIBRARY_SOURCES
+	correlator/correlator.c correlator/correlator.h
+
 	dsp/filter.c dsp/filter.h
 	dsp/timing.c dsp/timing.h
 	dsp/agc.c dsp/agc.h
 
 	demod/gfsk.c demod/gfsk.h
+
+	decoder/rs41/rs41.c decoder/rs41/rs41.h
+	decoder/rs41/protocol.h
+
 	wavfile.h wavfile.c
 	utils.h utils.c
 )

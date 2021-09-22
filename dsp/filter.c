@@ -76,12 +76,12 @@ sinc_coeff(float cutoff, int stage_no, unsigned taps, float osf)
 	t = abs(order - stage_no) / osf;
 
 	/* Sinc coefficient */
-	sinc_coeff = sinf(2*t*cutoff)/(2*t*cutoff);
+	sinc_coeff = sinf(2*M_PI*t*cutoff)/(2*M_PI*t*cutoff);
 
 	/* Hamming windowing function */
 	hamming_coeff = 0.42
 		- 0.5*cosf(2*M_PI*stage_no/(taps-1))
 		+ 0.08*cosf(4*M_PI*stage_no/(taps-1));
 
-	return sinc_coeff * hamming_coeff;
+	return norm * sinc_coeff * hamming_coeff;
 }

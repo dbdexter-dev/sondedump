@@ -4,6 +4,36 @@
 
 static char _generated_fname[sizeof("LRPT_YYYY_MM_DD_HH_MM.s") + 1];
 
+void
+bitcpy(uint8_t *dst, uint8_t *src, size_t src_offset, size_t num_bits)
+{
+	const uint8_t src_mask = (1 << (8 - src_offset)) - 1;
+	size_t i;
+	int left;
+	uint8_t byte;
+
+	src += src_offset / 8;
+	src_offset %= 8;
+
+	/* First few bits */
+	byte = (src[0] & src_mask) << src_offset;
+
+	/* Main loop: one byte at a time */
+	for (i=1; i<num_bits/8; i++) {
+		byte |= (src[i] >> (8 - src_offset));
+		dst[i-1] = byte;
+		byte = (src[i] & src_mask) << src_offset;
+	}
+
+	/* Last few bits */
+	left = num_bits - (i*8 - src_offset);
+	if (left > 0) {
+		byte |= src[i] >> (8 - src_offset);
+		byte &= ~((1 << left) - 1);
+		dst[i-1] = byte;
+	}
+}
+
 char*
 gen_fname()
 {

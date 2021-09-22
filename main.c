@@ -1,17 +1,17 @@
 #include <getopt.h>
 #include <stdio.h>
-#include "demod/gfsk.h"
+#include "decoder/rs41/rs41.h"
 #include "wavfile.h"
 
-static int read_wrapper(float *dst, size_t len);
+static int read_wrapper(float *dst);
 static FILE *_wav;
 static int _bps;
 
 int
 main(int argc, char *argv[])
 {
-	uint8_t data[128];
 	int samplerate;
+	RS41Decoder rs41decoder;
 
 	if (!(_wav = fopen(argv[1], "rb"))) {
 		fprintf(stderr, "Could not open input file\n");
@@ -23,25 +23,19 @@ main(int argc, char *argv[])
 		return 2;
 	}
 
+	rs41_decoder_init(&rs41decoder, samplerate);
+	while (rs41_decode(&rs41decoder, &read_wrapper))
+		;
 
-	gfsk_init(samplerate, 4800);
-	FILE *out = fopen("/tmp/gfsk.data", "wb");
 
-	while (gfsk_decode(data, 0, 128*8, &read_wrapper)) {
-		printf(".");
-		fflush(stdout);
-		fwrite(data, 128, 1, out);
-	}
-
-	fclose(out);
-	gfsk_deinit();
+	rs41_decoder_deinit(&rs41decoder);
 	fclose(_wav);
 
 	return 0;
 }
 
 static int
-read_wrapper(float *dst, size_t len)
+read_wrapper(float *dst)
 {
 	return wav_read(dst, _bps, _wav);
 }

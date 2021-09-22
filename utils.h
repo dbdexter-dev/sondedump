@@ -2,6 +2,7 @@
 #define utils_h
 
 #include <stdlib.h>
+#include <stdint.h>
 
 #ifndef VERSION
 #define VERSION "(unknown version)"
@@ -70,5 +71,7 @@ void  usage(const char *progname);
  * Write version info to stdout
  */
 void  version();
+
+void bitcpy(uint8_t *dst, uint8_t *src, size_t src_offset, size_t num_bits);
 
 #endif
