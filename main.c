@@ -1,6 +1,6 @@
 #include <getopt.h>
 #include <stdio.h>
-#include "decoder/rs41/rs41.h"
+#include "decode/rs41/rs41.h"
 #include "wavfile.h"
 
 static int read_wrapper(float *dst);

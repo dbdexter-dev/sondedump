@@ -33,8 +33,8 @@ set(LIBRARY_SOURCES
 
 	demod/gfsk.c demod/gfsk.h
 
-	decoder/rs41/rs41.c decoder/rs41/rs41.h
-	decoder/rs41/protocol.h
+	decode/rs41/rs41.c decode/rs41/rs41.h
+	decode/rs41/protocol.h
 
 	wavfile.h wavfile.c
 	utils.h utils.c
@@ -42,7 +42,6 @@ set(LIBRARY_SOURCES
 
 set(COMMON_INC_DIRS
 	${PROJECT_SOURCE_DIR}
-	demod/ dsp/
 )
 
 
@@ -54,6 +53,7 @@ target_link_libraries(sondedump_static PRIVATE m)
 # Shared library target
 add_library(sonde SHARED ${LIBRARY_SOURCES})
 target_include_directories(sonde PRIVATE ${COMMON_INC_DIRS})
+set_target_properties(sonde PROPERTIES EXCLUDE_FROM_ALL 1)
 
 # Main executable target
 add_executable(sondedump main.c ${EXEC_SOURCES})
