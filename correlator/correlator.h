@@ -25,6 +25,6 @@ void correlator_init(Correlator *c, uint64_t syncword, int sync_len);
  * @param len length of the byte buffer, in bytes
  * @return the offset with the highest correlation to the syncword
  */
-int  correlate(Correlator *c, uint8_t *hard, int len);
+int  correlate(Correlator *c, int *inverted, uint8_t *hard, int len);
 
 #endif /* correlator_h */

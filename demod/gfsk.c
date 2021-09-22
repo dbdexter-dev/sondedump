@@ -14,7 +14,7 @@ gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 	g->symrate = symrate;
 
 	/* Initialize a low-pass filter with the appropriate bandwidth */
-	if (filter_init_lpf(&g->lpf, GFSK_FILTER_ORDER, 2*sym_freq)) return 1;
+	if (filter_init_lpf(&g->lpf, GFSK_FILTER_ORDER, sym_freq)) return 1;
 
 	/* Initialize symbol timing recovery */
 	timing_init(&g->timing, sym_freq, 1/1e9);
@@ -53,17 +53,26 @@ gfsk_decode(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(
 		if (!read(&symbol)) break;
 		symbol = agc_apply(symbol);
 		filter_fwd_sample(&g->lpf, symbol);
+		symbol = filter_get(&g->lpf);
+
+		//printf("%f ", symbol);
+
 
 
 		switch (advance_timeslot(&g->timing)) {
+			case 0:
+				//printf("0\n");
+				break;
 			case 1:
 				/* Intermediate slot */
 				interm = filter_get(&g->lpf);
+				//printf("0\n");
 				break;
 			case 2:
 				/* Correct slot */
 				symbol = filter_get(&g->lpf);
 				retime(&g->timing, interm, symbol);
+				//printf("%f\n", symbol);
 
 				/* Slice to get bit value */
 				tmp = (tmp << 1) | (symbol > 0 ? 1 : 0);

@@ -14,9 +14,10 @@ correlator_init(Correlator *c, uint64_t syncword, int sync_len)
 
 
 int
-correlate(Correlator *c, uint8_t *restrict hard_frame, int len)
+correlate(Correlator *c, int *inverted, uint8_t *restrict hard_frame, int len)
 {
 	const uint64_t syncword = c->syncword;
+	const uint64_t inverse_syncword = syncword ^ ~(uint64_t)0;
 	const int sync_len = c->sync_len;
 	int corr, best_corr, best_offset;
 	int i, j;
@@ -46,6 +47,15 @@ correlate(Correlator *c, uint8_t *restrict hard_frame, int len)
 			if (corr < best_corr) {
 				best_corr = corr;
 				best_offset = i*8 + j;
+				*inverted = 0;
+			}
+
+			/* Check correlation for the inverted syncword */
+			corr = inverse_correlate_u64(inverse_syncword, window);
+			if (corr < best_corr) {
+				best_corr = corr;
+				best_offset = i*8 + j;
+				*inverted = 1;
 			}
 
 			/* Advance window by one */
