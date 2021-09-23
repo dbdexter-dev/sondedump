@@ -34,6 +34,11 @@ correlate(Correlator *c, int *inverted, uint8_t *restrict hard_frame, int len)
 		hard_frame++;
 	}
 
+	/* If the syncword is found at offset 0, we're already sync'd up: return */
+	if (inverse_correlate_u64(syncword, window) == 0) {
+		return 0;
+	}
+
 	/* For each byte in the frame */
 	for (i=0; i<len-sync_len; i++) {
 		/* Fetch a byte from the frame */

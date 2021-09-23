@@ -33,11 +33,17 @@ set(LIBRARY_SOURCES
 
 	demod/gfsk.c demod/gfsk.h
 
-	decode/rs41/rs41.c decode/rs41/rs41.h
-	decode/rs41/protocol.h
+	decode/prng.c decode/prng.h
 
-	wavfile.h wavfile.c
-	utils.h utils.c
+	decode/rs41/rs41.c decode/rs41/rs41.h
+	decode/rs41/frame.c decode/rs41/frame.h
+	decode/rs41/subframe.c decode/rs41/subframe.h
+	decode/rs41/protocol.c decode/rs41/protocol.h
+
+	ecc/crc.c ecc/crc.h
+
+	wavfile.c wavfile.h
+	utils.c utils.h
 )
 
 set(COMMON_INC_DIRS

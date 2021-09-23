@@ -19,6 +19,7 @@ timing_init(Timing *t, float sym_freq, float alpha)
 	t->alpha = alpha;
 	t->phase = 0;
 	t->state = 1;
+	t->prev = 0;
 }
 
 int

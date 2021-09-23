@@ -7,7 +7,7 @@
 #include "dsp/filter.h"
 
 #define GFSK_FILTER_ORDER 32
-#define SYM_BW 0.000005
+#define SYM_ALPHA (1.0/1e10)
 
 typedef struct {
 	int samplerate, symrate;
