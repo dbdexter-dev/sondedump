@@ -1,5 +1,7 @@
 #include <stdint.h>
+#include <string.h>
 #include "frame.h"
+#include "protocol.h"
 #include "utils.h"
 
 /* Obtained by autocorrelating the extra data in an ozonosonde */
@@ -33,8 +35,48 @@ rs41_frame_descramble(RS41Frame *frame)
 }
 
 int
-rs41_frame_correct(RS41Frame *frame)
+rs41_frame_correct(RS41Frame *frame, RSDecoder *rs)
 {
-	/* TODO implement RS (255,231)? */
-	return 0;
+	int i, block, chunk_len;
+	int errors, new_errors;
+	uint8_t rs_block[RS41_REEDSOLOMON_N];
+
+	if (!rs41_frame_is_extended(frame)) {
+		chunk_len = (RS41_DATA_LEN + 1) / RS41_REEDSOLOMON_INTERLEAVING;
+		memset(rs_block, 0, LEN(rs_block));
+	} else {
+		chunk_len = RS41_REEDSOLOMON_K;
+	}
+
+	errors = 0;
+	for (block=0; block<RS41_REEDSOLOMON_INTERLEAVING; block++) {
+		/* Deinterleave */
+		for (i=0; i<chunk_len; i++) {
+			rs_block[i] = frame->data[RS41_REEDSOLOMON_INTERLEAVING*i + block - 1];
+		}
+		for (i=0; i<RS41_REEDSOLOMON_T; i++) {
+			rs_block[RS41_REEDSOLOMON_K+i] = frame->rs_checksum[i + RS41_REEDSOLOMON_T*block];
+		}
+
+		/* Error correct */
+		new_errors = rs_fix_block(rs, rs_block);
+		if (new_errors < 0 || errors < 0) errors = -1;
+		else errors += new_errors;
+
+		/* Reinterleave */
+		for (i=0; i<chunk_len; i++) {
+			frame->data[RS41_REEDSOLOMON_INTERLEAVING*i + block - 1] = rs_block[i];
+		}
+		for (i=0; i<RS41_REEDSOLOMON_T; i++) {
+			frame->rs_checksum[i + RS41_REEDSOLOMON_T*block] = rs_block[RS41_REEDSOLOMON_K+i];
+		}
+	}
+
+	return errors;
+}
+
+int
+rs41_frame_is_extended(RS41Frame *f)
+{
+	return f->extended_flag == RS41_FLAG_EXTENDED;
 }

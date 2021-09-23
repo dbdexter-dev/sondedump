@@ -3,14 +3,24 @@
 
 #include "correlator/correlator.h"
 #include "demod/gfsk.h"
+#include "ecc/rs.h"
 #include "protocol.h"
+
+typedef struct {
+	uint8_t *data;
+	size_t len;
+	uint64_t missing;
+} RS41Metadata;
 
 typedef struct {
 	GFSKDemod gfsk;
 	Correlator correlator;
+	RSDecoder rs;
+
+	RS41Frame frame[2];
 	enum { READ, PARSE_SUBFRAME } state;
 	int offset;
-	uint8_t raw_frame[2 * RS41_MAX_FRAME_LEN];
+	RS41Metadata metadata;
 } RS41Decoder;
 
 /**

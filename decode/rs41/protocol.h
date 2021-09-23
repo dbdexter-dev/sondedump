@@ -15,6 +15,14 @@
 #define RS41_XDATA_LEN 198
 #define RS41_MAX_FRAME_LEN (RS41_SYNC_LEN + RS41_RS_LEN + 1 + RS41_DATA_LEN + RS41_XDATA_LEN)
 
+#define RS41_REEDSOLOMON_INTERLEAVING 2
+#define RS41_REEDSOLOMON_N 255
+#define RS41_REEDSOLOMON_K 231
+#define RS41_REEDSOLOMON_T (RS41_REEDSOLOMON_N - RS41_REEDSOLOMON_K)
+#define RS41_REEDSOLOMON_POLY 0x11D
+#define RS41_REEDSOLOMON_FIRST_ROOT 0x00
+#define RS41_REEDSOLOMON_ROOT_SKIP 1
+
 #define RS41_PRN_PERIOD 64
 #define RS41_SUBFRAME_MAX_LEN 255 + 2   /* uint8_t max plus crc16 */
 
@@ -22,6 +30,12 @@
 
 #define RS41_SFTYPE_EMPTY 0x76
 #define RS41_SFTYPE_INFO 0x79
+#define RS41_SFTYPE_PTU 0x7A
+#define RS41_SFTYPE_GPSPOS 0x7B
+#define RS41_SFTYPE_GPSINFO 0x7C
+#define RS41_SFTYPE_GPSRAW 0x7D
+
+#define RS41_SERIAL_LEN 8
 
 #define RS41_FLIGHT_STATUS_MODE_MSK 0x1         /* 0 = preparing, 1 = in flight */
 #define RS41_FLIGHT_STATUS_DESCEND_MSK 0x2      /* 0 = ascending, 1 = descending */
@@ -46,7 +60,7 @@ typedef struct {
 
 	/* Status frame specific fields */
 	uint16_t frame_seq;
-	char serial[8];
+	char serial[RS41_SERIAL_LEN];
 	uint8_t bat_voltage;
 		uint8_t _unknown[2];
 	uint16_t flight_status;
@@ -56,10 +70,37 @@ typedef struct {
 	uint16_t humidity_heating_pwm;
 	uint8_t tx_power;
 
-	uint8_t shard_count;
-	uint8_t shard_num;
-	uint8_t shard_data[16];
-}__attribute__((packed)) RS41Subframe_Status;
+	uint8_t frag_count;
+	uint8_t frag_seq;
+	uint8_t frag_data[16];
+} __attribute__((packed)) RS41Subframe_Status;
 
-inline int rs41_frame_is_extended(RS41Frame *f) { return f->extended_flag == RS41_FLAG_EXTENDED; }
+typedef struct {
+	uint8_t type;
+	uint8_t len;
+
+	/* PTU frame specific fields */
+	uint8_t temp_main[3];
+	uint8_t temp_ref1[3];
+	uint8_t temp_ref2[3];
+
+	uint8_t humidity_main[3];
+	uint8_t humidity_ref1[3];
+	uint8_t humidity_ref2[3];
+
+	uint8_t temp_humidity_main[3];
+	uint8_t temp_humidity_ref1[3];
+	uint8_t temp_humidity_ref2[3];
+
+	uint8_t pressure_main[3];
+	uint8_t pressure_ref1[3];
+	uint8_t pressure_ref2[3];
+
+	uint8_t _zero[3];
+
+	int16_t pressure_temp;
+
+	uint8_t _zero2[3];
+} __attribute__((packed)) RS41Subframe_PTU;
+
 #endif

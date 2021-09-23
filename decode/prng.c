@@ -10,6 +10,7 @@ prng_generate(uint8_t *dst, size_t len, const unsigned *poly, size_t poly_len)
 	size_t i;
 
 	bit_idx = 0;
+	byte = 0;
 	state = (1 << poly[0]) - 1;         /* Initialize state to ones */
 	while (len) {
 		/* Generate bit */
