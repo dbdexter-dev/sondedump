@@ -5,14 +5,14 @@
 #include <stdlib.h>
 
 typedef struct {
-	int n, k, t, first_root;
+	int n, k, first_root;
 	uint8_t *alpha, *logtable, *zeroes, *gaproots;
 } RSDecoder;
 
 /**
  * Initialize the given Reed-Solomon decoder
  */
-void rs_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t first_root, int root_skip);
+int rs_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t first_root, int root_skip);
 void rs_deinit(RSDecoder *d);
 
 /**

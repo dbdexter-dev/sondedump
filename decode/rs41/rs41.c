@@ -80,6 +80,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 			/* Descramble and error correct */
 			rs41_frame_descramble(self->frame);
 			errors = rs41_frame_correct(self->frame, &self->rs);
+			printf("%d\n", errors);
 			if (errors < 0) return 2;
 
 #ifndef NDEBUG

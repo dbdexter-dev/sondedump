@@ -6,7 +6,7 @@
 /* Physical parameters */
 #define RS41_BAUDRATE 4800
 
-/* Data-link parameters */
+/* Frame parameters */
 #define RS41_SYNCWORD 0x086d53884469481f
 //#define RS41_SYNCWORD 0x10b6ca11229612f8
 #define RS41_SYNC_LEN 8
@@ -15,6 +15,11 @@
 #define RS41_XDATA_LEN 198
 #define RS41_MAX_FRAME_LEN (RS41_SYNC_LEN + RS41_RS_LEN + 1 + RS41_DATA_LEN + RS41_XDATA_LEN)
 
+#define RS41_PRN_PERIOD 64
+#define RS41_FLAG_EXTENDED 0xF0
+
+/* Reed-Solomon ECC parameters, found by bruteforcing the RS code on a known
+ * good frame */
 #define RS41_REEDSOLOMON_INTERLEAVING 2
 #define RS41_REEDSOLOMON_N 255
 #define RS41_REEDSOLOMON_K 231
@@ -23,10 +28,8 @@
 #define RS41_REEDSOLOMON_FIRST_ROOT 0x00
 #define RS41_REEDSOLOMON_ROOT_SKIP 1
 
-#define RS41_PRN_PERIOD 64
+/* Subframe parameters */
 #define RS41_SUBFRAME_MAX_LEN 255 + 2   /* uint8_t max plus crc16 */
-
-#define RS41_FLAG_EXTENDED 0xF0
 
 #define RS41_SFTYPE_EMPTY 0x76
 #define RS41_SFTYPE_INFO 0x79
@@ -62,11 +65,11 @@ typedef struct {
 	uint16_t frame_seq;
 	char serial[RS41_SERIAL_LEN];
 	uint8_t bat_voltage;
-		uint8_t _unknown[2];
+	uint8_t _unknown[2];
 	uint16_t flight_status;
-		uint8_t _unknown2;
+	uint8_t _unknown2;
 	uint8_t pcb_temp;
-		uint8_t _unknown3[2];
+	uint8_t _unknown3[2];
 	uint16_t humidity_heating_pwm;
 	uint8_t tx_power;
 

@@ -4,7 +4,8 @@
 #include "protocol.h"
 #include "utils.h"
 
-/* Obtained by autocorrelating the extra data in an ozonosonde */
+/* Obtained by autocorrelating the extra data found at the end of frames from a
+ * radiosonde with ozone sensor */
 static const uint8_t prn[RS41_PRN_PERIOD] = {
 	0x96, 0x83, 0x3e, 0x51, 0xb1, 0x49, 0x08, 0x98,
 	0x32, 0x05, 0x59, 0x0e, 0xf9, 0x44, 0xc6, 0x26,
