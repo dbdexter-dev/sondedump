@@ -34,6 +34,7 @@ set(LIBRARY_SOURCES
 	demod/gfsk.c demod/gfsk.h
 
 	decode/prng.c decode/prng.h
+	decode/common.h
 
 	decode/rs41/rs41.c decode/rs41/rs41.h
 	decode/rs41/frame.c decode/rs41/frame.h
@@ -42,6 +43,8 @@ set(LIBRARY_SOURCES
 
 	ecc/crc.c ecc/crc.h
 	ecc/rs.c ecc/rs.h
+
+	gps/ecef.c gps/ecef.h
 
 	wavfile.c wavfile.h
 	utils.c utils.h

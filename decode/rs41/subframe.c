@@ -5,54 +5,116 @@
 #include "subframe.h"
 #include "utils.h"
 
-static void print_status(RS41Subframe_Status *status);
-static void print_ptu(RS41Subframe_PTU *status);
-static void print_unknown(RS41Subframe *sf);
-
 float
-rs41_subframe_temp(RS41Subframe_PTU *ptu)
+rs41_subframe_temp(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 {
-	uint32_t temp_main = (uint32_t)ptu->temp_main[0]
-	                   | (uint32_t)ptu->temp_main[1] << 8
-	                   | (uint32_t)ptu->temp_main[2] << 16;
-	uint32_t temp_ref1 = (uint32_t)ptu->temp_ref1[0]
-	                   | (uint32_t)ptu->temp_ref1[1] << 8
-	                   | (uint32_t)ptu->temp_ref1[2] << 16;
-	uint32_t temp_ref2 = (uint32_t)ptu->temp_ref2[0]
-	                   | (uint32_t)ptu->temp_ref2[1] << 8
-	                   | (uint32_t)ptu->temp_ref2[2] << 16;
+	const float adc_main = (uint32_t)ptu->temp_main[0]
+	                      | (uint32_t)ptu->temp_main[1] << 8
+	                      | (uint32_t)ptu->temp_main[2] << 16;
+	const float adc_ref1 = (uint32_t)ptu->temp_ref1[0]
+	                      | (uint32_t)ptu->temp_ref1[1] << 8
+	                      | (uint32_t)ptu->temp_ref1[2] << 16;
+	const float adc_ref2 = (uint32_t)ptu->temp_ref2[0]
+	                      | (uint32_t)ptu->temp_ref2[1] << 8
+	                      | (uint32_t)ptu->temp_ref2[2] << 16;
+
+	float adc_gain, adc_bias, r_raw, r_t, temp;
+
+	/* If no reference or no calibration data, retern */
+	if (adc_ref2 - adc_ref1 == 0) return -1;
+	if (!calib->rt_ref[0] || !calib->rt_ref[1]) return -1;
+
+	/* Compute ADC gain and bias */
+	adc_gain = ((adc_ref2 - adc_ref1) / (calib->rt_ref[1] - calib->rt_ref[0]));
+	adc_bias = adc_ref2 - adc_gain*calib->rt_ref[1];
+
+	/* Compute resistance */
+	r_raw = (adc_main - adc_bias) / adc_gain;
+	r_t = r_raw * calib->rt_resist_coeff[0];
+
+	/* Compute temperature based on corrected resistance */
+	temp = calib->rt_temp_poly[0]
+	     + calib->rt_temp_poly[1]*r_t
+	     + calib->rt_temp_poly[2]*r_t*r_t;
+
+	return calib->rt_resist_coeff[1] + temp*(1+calib->rt_resist_coeff[2]);
 }
 
 float
-rs41_subframe_humidity(RS41Subframe_PTU *ptu)
+rs41_subframe_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 {
-	uint32_t humidity_main = (uint32_t)ptu->humidity_main[0]
+	float adc_main = (uint32_t)ptu->humidity_main[0]
 	                       | (uint32_t)ptu->humidity_main[1] << 8
 	                       | (uint32_t)ptu->humidity_main[2] << 16;
-	uint32_t humidity_ref1 = (uint32_t)ptu->humidity_ref1[0]
+	float adc_ref1 = (uint32_t)ptu->humidity_ref1[0]
 	                       | (uint32_t)ptu->humidity_ref1[1] << 8
 	                       | (uint32_t)ptu->humidity_ref1[2] << 16;
-	uint32_t humidity_ref2 = (uint32_t)ptu->humidity_ref2[0]
+	float adc_ref2 = (uint32_t)ptu->humidity_ref2[0]
 	                       | (uint32_t)ptu->humidity_ref2[1] << 8
 	                       | (uint32_t)ptu->humidity_ref2[2] << 16;
+
+	float rh_measure, rh, temp;
+
+	if (adc_ref2 - adc_ref1 == 0) return -1;
+
+	/*
+	rh_measure = (adc_main - adc_ref2) / (adc_ref2 - adc_ref1);
+	rh = 8 * rh_measure;
+	rh = rh * 100 + calib->rh_cap_coeff[0];
+	*/
+
+	temp = rs41_subframe_temp_humidity(ptu, calib);
+
+	rh_measure = (adc_main - adc_ref1) / (adc_ref2 - adc_ref1);
+	rh = 100 * (350/calib->rh_cap_coeff[0]*rh_measure - 7.5);
+	rh += -temp/5.5;
+	if (temp < -25) rh *= 1 -25/90;
+
+
+	/* Temperature compensation */
+	rh += rh*calib->rh_cap_coeff[1]/100;
+
+	return MAX(0, MIN(100, rh));
 }
 
 float
-rs41_subframe_temp_humidity(RS41Subframe_PTU *ptu)
+rs41_subframe_temp_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 {
-	uint32_t temp_humidity_main = (uint32_t)ptu->temp_humidity_main[0]
-	                            | (uint32_t)ptu->temp_humidity_main[1] << 8
-	                            | (uint32_t)ptu->temp_humidity_main[2] << 16;
-	uint32_t temp_humidity_ref1 = (uint32_t)ptu->temp_humidity_ref1[0]
-	                            | (uint32_t)ptu->temp_humidity_ref1[1] << 8
-	                            | (uint32_t)ptu->temp_humidity_ref1[2] << 16;
-	uint32_t temp_humidity_ref2 = (uint32_t)ptu->temp_humidity_ref2[0]
-	                            | (uint32_t)ptu->temp_humidity_ref2[1] << 8
-	                            | (uint32_t)ptu->temp_humidity_ref2[2] << 16;
+	const float adc_main = (uint32_t)ptu->temp_humidity_main[0]
+	                      | (uint32_t)ptu->temp_humidity_main[1] << 8
+	                      | (uint32_t)ptu->temp_humidity_main[2] << 16;
+	const float adc_ref1 = (uint32_t)ptu->temp_humidity_ref1[0]
+	                      | (uint32_t)ptu->temp_humidity_ref1[1] << 8
+	                      | (uint32_t)ptu->temp_humidity_ref1[2] << 16;
+	const float adc_ref2 = (uint32_t)ptu->temp_humidity_ref2[0]
+	                      | (uint32_t)ptu->temp_humidity_ref2[1] << 8
+	                      | (uint32_t)ptu->temp_humidity_ref2[2] << 16;
+
+	float adc_gain, adc_bias, r_raw, r_t, temp;
+
+	/* If no reference or no calibration data, retern */
+	if (adc_ref2 - adc_ref1 == 0) return -1;
+	if (!calib->rt_ref[0] || !calib->rt_ref[1]) return -1;
+
+
+	/* Compute ADC gain and bias */
+	adc_gain = ((adc_ref2 - adc_ref1) / (calib->rt_ref[1] - calib->rt_ref[0]));
+	adc_bias = adc_ref2 - adc_gain*calib->rt_ref[1];
+
+	/* Compute resistance */
+	r_raw = (adc_main - adc_bias) / adc_gain;
+	r_t = r_raw * calib->rh_resist_coeff[0];
+
+	/* Compute temperature based on corrected resistance */
+	temp = calib->rh_temp_poly[0]
+	     + calib->rh_temp_poly[1]*r_t
+	     + calib->rh_temp_poly[2]*r_t*r_t;
+
+	return calib->rh_resist_coeff[1] + temp*(1+calib->rh_resist_coeff[2]);
 }
 
 float
-rs41_subframe_pressure(RS41Subframe_PTU *ptu)
+rs41_subframe_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 {
 	uint32_t pressure_main = (uint32_t)ptu->pressure_main[0]
 	                       | (uint32_t)ptu->pressure_main[1] << 8
@@ -63,90 +125,49 @@ rs41_subframe_pressure(RS41Subframe_PTU *ptu)
 	uint32_t pressure_ref2 = (uint32_t)ptu->pressure_ref2[0]
 	                       | (uint32_t)ptu->pressure_ref2[1] << 8
 	                       | (uint32_t)ptu->pressure_ref2[2] << 16;
+
+	if (pressure_ref2 - pressure_ref1 == 0) return -1;
+
+	float percent = ((float)pressure_main - pressure_ref1) / (pressure_ref2 - pressure_ref1);
+	return percent;
 }
 
 float
-rs41_subframe_pressure_temp(RS41Subframe_PTU *ptu)
+rs41_subframe_temp_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 {
 	return ptu->pressure_temp/100.0;
 }
 
-/* Static functions {{{ */
-static void
-print_status(RS41Subframe_Status *status)
+float
+rs41_subframe_x(RS41Subframe_GPSPos *gps)
 {
-	char serial_str[RS41_SERIAL_LEN+1];
-
-	strncpy(serial_str, status->serial, 8);
-	serial_str[LEN(serial_str)-1] = 0;
-
-	printf("[%s] %05d, %2.1fV, %s. Board temp: %d'C\n",
-			serial_str,
-			status->frame_seq,
-			status->bat_voltage/10.0f,
-			status->flight_status & RS41_FLIGHT_STATUS_DESCEND_MSK ? "descending" : "ascending",
-			status->pcb_temp
-		  );
+	return gps->x / 100.0;
 }
 
-static void
-print_unknown(RS41Subframe *sub)
+float
+rs41_subframe_y(RS41Subframe_GPSPos *gps)
 {
-	int i;
-
-	printf("Unknown 0x%02x, length %d: ", sub->type, sub->len);
-	for (i=0; i<sub->len; i++) {
-		printf("%02x ", sub->data[i]);
-	}
-	printf("\n");
+	return gps->y / 100.0;
 }
 
-static void
-print_ptu(RS41Subframe_PTU *ptu)
+float
+rs41_subframe_z(RS41Subframe_GPSPos *gps)
 {
-	uint32_t temp_main = (uint32_t)ptu->temp_main[0]
-	                   | (uint32_t)ptu->temp_main[1] << 8
-	                   | (uint32_t)ptu->temp_main[2] << 16;
-	uint32_t temp_ref1 = (uint32_t)ptu->temp_ref1[0]
-	                   | (uint32_t)ptu->temp_ref1[1] << 8
-	                   | (uint32_t)ptu->temp_ref1[2] << 16;
-	uint32_t temp_ref2 = (uint32_t)ptu->temp_ref2[0]
-	                   | (uint32_t)ptu->temp_ref2[1] << 8
-	                   | (uint32_t)ptu->temp_ref2[2] << 16;
-	uint32_t humidity_main = (uint32_t)ptu->humidity_main[0]
-	                       | (uint32_t)ptu->humidity_main[1] << 8
-	                       | (uint32_t)ptu->humidity_main[2] << 16;
-	uint32_t humidity_ref1 = (uint32_t)ptu->humidity_ref1[0]
-	                       | (uint32_t)ptu->humidity_ref1[1] << 8
-	                       | (uint32_t)ptu->humidity_ref1[2] << 16;
-	uint32_t humidity_ref2 = (uint32_t)ptu->humidity_ref2[0]
-	                       | (uint32_t)ptu->humidity_ref2[1] << 8
-	                       | (uint32_t)ptu->humidity_ref2[2] << 16;
-	uint32_t temp_humidity_main = (uint32_t)ptu->temp_humidity_main[0]
-	                            | (uint32_t)ptu->temp_humidity_main[1] << 8
-	                            | (uint32_t)ptu->temp_humidity_main[2] << 16;
-	uint32_t temp_humidity_ref1 = (uint32_t)ptu->temp_humidity_ref1[0]
-	                            | (uint32_t)ptu->temp_humidity_ref1[1] << 8
-	                            | (uint32_t)ptu->temp_humidity_ref1[2] << 16;
-	uint32_t temp_humidity_ref2 = (uint32_t)ptu->temp_humidity_ref2[0]
-	                            | (uint32_t)ptu->temp_humidity_ref2[1] << 8
-	                            | (uint32_t)ptu->temp_humidity_ref2[2] << 16;
-	uint32_t pressure_main = (uint32_t)ptu->pressure_main[0]
-	                       | (uint32_t)ptu->pressure_main[1] << 8
-	                       | (uint32_t)ptu->pressure_main[2] << 16;
-	uint32_t pressure_ref1 = (uint32_t)ptu->pressure_ref1[0]
-	                       | (uint32_t)ptu->pressure_ref1[1] << 8
-	                       | (uint32_t)ptu->pressure_ref1[2] << 16;
-	uint32_t pressure_ref2 = (uint32_t)ptu->pressure_ref2[0]
-	                       | (uint32_t)ptu->pressure_ref2[1] << 8
-	                       | (uint32_t)ptu->pressure_ref2[2] << 16;
-
-
-	printf("Temp: %d %d %d\t Humidity: %d %d %d\t Temp humidity: %d %d %d\t Pressure: %d %d %d\n",
-			temp_main, temp_ref1, temp_ref2,
-			humidity_main, humidity_ref1, humidity_ref2,
-			temp_humidity_main, temp_humidity_ref1, temp_humidity_ref2,
-			pressure_main, pressure_ref1, pressure_ref2);
-
+	return gps->z / 100.0;
 }
-/* }}} */
+
+float
+rs41_subframe_dx(RS41Subframe_GPSPos *gps)
+{
+	return gps->dx / 100.0;
+}
+float
+rs41_subframe_dy(RS41Subframe_GPSPos *gps)
+{
+	return gps->dy / 100.0;
+}
+float
+rs41_subframe_dz(RS41Subframe_GPSPos *gps)
+{
+	return gps->dz / 100.0;
+}

@@ -2,14 +2,15 @@
 #define rs41_h
 
 #include "correlator/correlator.h"
+#include "decode/common.h"
 #include "demod/gfsk.h"
 #include "ecc/rs.h"
 #include "protocol.h"
 
 typedef struct {
-	uint8_t *data;
-	size_t len;
-	uint64_t missing;
+	int initialized;
+	RS41Calibration data;
+	uint8_t missing[sizeof(RS41Calibration)/8/RS41_CALIB_FRAGSIZE];
 } RS41Metadata;
 
 typedef struct {
@@ -44,6 +45,6 @@ void rs41_decoder_deinit(RS41Decoder *d);
  * @param d decoder to use
  * @param read function to use to pull in new raw samples
  */
-int rs41_decode(RS41Decoder *d, int (*read)(float *dst));
+SondeData rs41_decode(RS41Decoder *d, int (*read)(float *dst));
 
 #endif

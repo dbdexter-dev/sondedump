@@ -37,6 +37,9 @@
 #define RS41_SFTYPE_GPSPOS 0x7B
 #define RS41_SFTYPE_GPSINFO 0x7C
 #define RS41_SFTYPE_GPSRAW 0x7D
+#define RS41_SFTYPE_XDATA 0x7E
+
+#define RS41_CALIB_FRAGSIZE 16
 
 #define RS41_SERIAL_LEN 8
 
@@ -57,6 +60,7 @@ typedef struct {
 	uint8_t data[RS41_SUBFRAME_MAX_LEN];
 } __attribute__((packed)) RS41Subframe;
 
+/* Specific subframe types {{{ */
 typedef struct {
 	uint8_t type;
 	uint8_t len;
@@ -105,5 +109,45 @@ typedef struct {
 
 	uint8_t _zero2[3];
 } __attribute__((packed)) RS41Subframe_PTU;
+
+typedef struct {
+	uint8_t type;
+	uint8_t len;
+
+	/* GPS position specific fields */
+	uint32_t x;
+	uint32_t y;
+	uint32_t z;
+	int16_t dx;
+	int16_t dy;
+	int16_t dz;
+	uint8_t sv_count;
+	uint8_t speed_acc_estimate;
+	uint8_t pdop;
+} __attribute__((packed)) RS41Subframe_GPSPos;
+/* }}} */
+
+typedef struct {
+	uint8_t _pad0[13];
+	char sonde_serial[8];       /* Sonde serial number, ASCII */
+	uint8_t _pad1[40];
+
+	float rt_ref[2];            /* Value of the temperature ref. resistances (ohm) */
+	float _unknown[2];
+	float rt_temp_poly[3];      /* Resistance -> temp 2nd degree polynomial */
+	float rt_resist_coeff[3];   /* Resistance correction coefficients */
+	float _zero[4];
+	float rh_cap_coeff[2];
+	float floatdata[42];
+	float rh_temp_poly[3];      /* Resistance -> temp humidity 2nd degree poly */
+	float rh_resist_coeff[3];   /* Resistance correction coefficients */
+	float _pad3[5];
+
+	uint8_t _endpad[463];
+	uint16_t burstkill_timer;
+	uint8_t _pad5[12];
+
+
+} __attribute__((packed)) RS41Calibration;
 
 #endif
