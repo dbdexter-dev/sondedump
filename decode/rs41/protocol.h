@@ -144,8 +144,10 @@ typedef struct {
 	float _pad3[5];
 
 	uint8_t _endpad[463];
-	uint16_t burstkill_timer;
-	uint8_t _pad5[12];
+	uint16_t burstkill_timer;   /* Time to shutdown after balloon burst */
+	uint8_t _pad5[6];
+	uint8_t _unk_dynamic0[4];   /* Unknown, counter-like */
+	uint8_t _unk_dynamic1[2];   /* Unknown, last byte probably flags */
 
 
 } __attribute__((packed)) RS41Calibration;

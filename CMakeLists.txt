@@ -46,7 +46,9 @@ set(LIBRARY_SOURCES
 
 	gps/ecef.c gps/ecef.h
 
-	wavfile.c wavfile.h
+	io/wavfile.c io/wavfile.h
+	io/gpx.c io/gpx.h
+
 	utils.c utils.h
 )
 

@@ -33,6 +33,13 @@ ecef_to_spd_hdg(float *speed, float *heading, float *v_climb, float lat, float l
 	lat *= M_PI/180;
 	lon *= M_PI/180;
 
+	if (dx == 0 && dy == 0 && dz == 0) {
+		*speed = 0;
+		*heading = 0;
+		*v_climb = 0;
+		return 0;
+	}
+
 	*v_climb = dx*cosf(lat)*cosf(lon) + dy*cosf(lat)*sinf(lon) + dz*sinf(lat);
 	v_north = -dx*sinf(lat)*cosf(lon) - dy*sinf(lat)*sinf(lon) + dz*cosf(lat);
 	v_east = -dx*sinf(lon) + dy*cosf(lon);

@@ -4,24 +4,27 @@
 #include "decode/common.h"
 #include "decode/rs41/rs41.h"
 #include "gps/ecef.h"
-#include "wavfile.h"
+#include "io/gpx.h"
+#include "io/wavfile.h"
 
 #define SEPARATOR "     "
 
+static void printf_packet(SondeData *data, GPXFile *gpx);
 static int wav_read_wrapper(float *dst);
 static int raw_read_wrapper(float *dst);
+
 static FILE *_wav;
 static int _bps;
 
-static void printf_packet(SondeData *data);
 
 int
 main(int argc, char *argv[])
 {
-	int samplerate;
-	int (*read_wrapper)(float *dst);
 	RS41Decoder rs41decoder;
 	SondeData data;
+	GPXFile gpx;
+	int samplerate;
+	int (*read_wrapper)(float *dst);
 
 	if (!(_wav = fopen(argv[1], "rb"))) {
 		fprintf(stderr, "Could not open input file\n");
@@ -38,11 +41,14 @@ main(int argc, char *argv[])
 	}
 
 	rs41_decoder_init(&rs41decoder, samplerate);
+	gpx_init(&gpx, "/tmp/track_sonde.gpx");
+	gpx_start_track(&gpx, "Sonde path");
 	while (1) {
 		data = rs41_decode(&rs41decoder, read_wrapper);
 		if (data.type == SOURCE_END) break;
-		printf_packet(&data);
+		printf_packet(&data, &gpx);
 	}
+	gpx_close(&gpx);
 
 	rs41_decoder_deinit(&rs41decoder);
 	fclose(_wav);
@@ -68,7 +74,7 @@ raw_read_wrapper(float *dst)
 }
 
 static void
-printf_packet(SondeData *data)
+printf_packet(SondeData *data, GPXFile *gpx)
 {
 	float lat, lon, alt, spd, hdg, climb;
 	static int newline = 0;
@@ -99,7 +105,7 @@ printf_packet(SondeData *data)
 					data->data.ptu.rh
 				  );
 			if (data->data.ptu.pressure > 0) {
-				printf(" %.0f mB", data->data.ptu.pressure);
+				printf(" %.0f hPa", data->data.ptu.pressure);
 			}
 			printf(SEPARATOR);
 			break;
@@ -107,7 +113,9 @@ printf_packet(SondeData *data)
 			ecef_to_lla(&lat, &lon, &alt, data->data.pos.x, data->data.pos.y, data->data.pos.z);
 			ecef_to_spd_hdg(&spd, &hdg, &climb, lat, lon, data->data.pos.dx, data->data.pos.dy, data->data.pos.dz);
 
-			printf("%7.4f%s %7.4f%s %5.0fm  Spd: %5.1fm/s Hdg: %3.0f' Climb: %+5.1fm/s",
+			gpx_add_trackpoint(gpx, lat, lon, alt);
+
+			printf("%7.4f%s %7.4f%s  %5.0fm  Spd: %5.1fm/s Hdg: %3.0f' Climb: %+5.1fm/s",
 					fabs(lat), lat >= 0 ? "N" : "S",
 					fabs(lon), lon >= 0 ? "E" : "W",
 					alt, spd, hdg, climb

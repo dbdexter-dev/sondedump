@@ -14,12 +14,11 @@ typedef enum {
 } DataType;
 
 typedef struct {
-	char sonde_serial[8];   /* Sonde serial number */
-	char board_model[8];
-	char board_serial[8];
+	char *sonde_serial;   /* Sonde serial number */
+	char *board_model;    /* Board model */
+	char *board_serial;   /* Board serial number */
 
 	int seq;                /* Frame sequence number */
-
 	int burstkill_status;   /* -1 if not active, > 0 if active (seconds left) */
 } SondeInfo;
 

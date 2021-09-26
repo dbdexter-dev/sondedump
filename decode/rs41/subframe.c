@@ -57,13 +57,9 @@ rs41_subframe_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 
 	if (adc_ref2 - adc_ref1 == 0) return -1;
 
-	/*
-	rh_measure = (adc_main - adc_ref2) / (adc_ref2 - adc_ref1);
-	rh = 8 * rh_measure;
-	rh = rh * 100 + calib->rh_cap_coeff[0];
-	*/
 
 	temp = rs41_subframe_temp_humidity(ptu, calib);
+	//printf("%f %f %f %f ", adc_main, adc_ref1, adc_ref2, temp);
 
 	rh_measure = (adc_main - adc_ref1) / (adc_ref2 - adc_ref1);
 	rh = 100 * (350/calib->rh_cap_coeff[0]*rh_measure - 7.5);
@@ -129,7 +125,7 @@ rs41_subframe_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 	if (pressure_ref2 - pressure_ref1 == 0) return -1;
 
 	float percent = ((float)pressure_main - pressure_ref1) / (pressure_ref2 - pressure_ref1);
-	return percent;
+	return -1;
 }
 
 float

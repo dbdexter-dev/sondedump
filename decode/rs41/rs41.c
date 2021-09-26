@@ -6,6 +6,7 @@
 #include "frame.h"
 #include "rs41.h"
 #include "subframe.h"
+#include "gps/ecef.h"
 
 static void rs41_update_metadata(RS41Metadata *m, RS41Subframe_Status *s);
 
@@ -54,6 +55,8 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 	int offset;
 	int inverted;
 	int i, errors;
+
+	float lat, lon, alt;
 
 	RS41Subframe_Status *status;
 	RS41Subframe_PTU *ptu;
@@ -167,6 +170,9 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					data.data.pos.dx = rs41_subframe_dx((RS41Subframe_GPSPos*)subframe);
 					data.data.pos.dy = rs41_subframe_dy((RS41Subframe_GPSPos*)subframe);
 					data.data.pos.dz = rs41_subframe_dz((RS41Subframe_GPSPos*)subframe);
+
+					ecef_to_lla(&lat, &lon, &alt, data.data.pos.x, data.data.pos.y, data.data.pos.z);
+					//printf("%.0f\n", alt);
 					break;
 				default:
 					/* Unknown */
@@ -204,7 +210,6 @@ rs41_update_metadata(RS41Metadata *m, RS41Subframe_Status *s)
 	memcpy((uint8_t*)&m->data + frag_offset, s->frag_data, LEN(s->frag_data));
 	m->missing[s->frag_seq/8] &= ~(1 << s->frag_seq%8);
 
-
 	/* Check if we have all the sub-segments populated */
 	for (i=0; i<sizeof(m->missing); i++) {
 		if (m->missing[i]) return;
@@ -214,9 +219,12 @@ rs41_update_metadata(RS41Metadata *m, RS41Subframe_Status *s)
 	fwrite(&m->data, sizeof(m->data), 1, metafile);
 #endif
 	/*
+	printf("{%d} ", s->frag_seq);
 	for (i=0; i<69; i++) {
-		printf("%f ", ((float*)cal->rt_ref)[i]);
+		printf("%f ", ((float*)m->data.rt_ref)[i]);
 	}
 	printf("\n");
 	*/
+
+
 }
