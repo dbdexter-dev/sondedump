@@ -1,6 +1,7 @@
 #ifndef common_h
 #define common_h
 
+#include <time.h>
 #include <stdint.h>
 
 typedef enum {
@@ -10,6 +11,7 @@ typedef enum {
 	UNKNOWN,                /* Unknown subframe format */
 	INFO,                   /* Generic info (serial nr, burstkill...) */
 	POSITION,               /* GPS position and velocity */
+	DATETIME,               /* GPS date and time */
 	PTU,                    /* Sensor data */
 } DataType;
 
@@ -28,6 +30,10 @@ typedef struct {
 } SondePosition;
 
 typedef struct {
+	time_t datetime;
+} SondeDateTime;
+
+typedef struct {
 	int calibrated;         /* 0 if uncalibrated, nonzero otherwise */
 	float temp;             /* Temperature, degrees Celsius */
 	float rh;               /* Relative humidity % */
@@ -40,8 +46,8 @@ typedef struct {
 		SondeInfo info;
 		SondePosition pos;
 		SondePTU ptu;
+		SondeDateTime datetime;
 	} data;
 } SondeData;
-
 
 #endif

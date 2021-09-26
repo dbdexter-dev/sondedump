@@ -7,6 +7,7 @@
 #include "rs41.h"
 #include "subframe.h"
 #include "gps/ecef.h"
+#include "gps/time.h"
 
 static void rs41_update_metadata(RS41Metadata *m, RS41Subframe_Status *s);
 
@@ -60,6 +61,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 
 	RS41Subframe_Status *status;
 	RS41Subframe_PTU *ptu;
+	RS41Subframe_GPSInfo *gpsinfo;
 
 	switch (self->state) {
 		case READ:
@@ -173,6 +175,13 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 
 					ecef_to_lla(&lat, &lon, &alt, data.data.pos.x, data.data.pos.y, data.data.pos.z);
 					//printf("%.0f\n", alt);
+					break;
+				case RS41_SFTYPE_GPSINFO:
+					/* GPS date/time and RSSI */
+					gpsinfo = (RS41Subframe_GPSInfo*)subframe;
+
+					data.type = DATETIME;
+					data.data.datetime.datetime = gps_time_to_utc(gpsinfo->week, gpsinfo->ms);
 					break;
 				default:
 					/* Unknown */

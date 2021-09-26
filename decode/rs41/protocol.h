@@ -125,6 +125,17 @@ typedef struct {
 	uint8_t speed_acc_estimate;
 	uint8_t pdop;
 } __attribute__((packed)) RS41Subframe_GPSPos;
+
+typedef struct {
+	uint8_t type;
+	uint8_t len;
+
+	/* GPS position specific fields */
+	uint16_t week;
+	uint32_t ms;
+	uint16_t satellite[12];
+} __attribute__((packed)) RS41Subframe_GPSInfo;
+
 /* }}} */
 
 typedef struct {

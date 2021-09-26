@@ -42,11 +42,23 @@ types:
             0x79: subframe_data_info
             0x7a: subframe_data_7a
             0x7b: subframe_data_7b
+            0x7c: subframe_data_7c
             0x7e: subframe_data_xdata
             _: subframe_data_generic
       - id: crc
         type: u2
         doc: CRC16, CCITT-FALSE parameters
+
+  subframe_data_7c:
+    seq:
+      - id: gps_week
+        type: u2
+      - id: gps_time_ms
+        type: u4
+      - id: gps_info
+        type: u2
+        repeat: expr
+        repeat-expr: 12
 
   subframe_data_7b:
     seq:
@@ -74,9 +86,9 @@ types:
       - id: somevalue
         type: subframe_7a_datachunk
         repeat: expr
-        repeat-expr: 3
+        repeat-expr: 4
       - id: endpad
-        size: _parent.len - 9*3
+        size: _parent.len - 9*4
 
   subframe_data_generic:
     seq:

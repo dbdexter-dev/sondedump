@@ -78,6 +78,7 @@ printf_packet(SondeData *data, GPXFile *gpx)
 {
 	float lat, lon, alt, spd, hdg, climb;
 	static int newline = 0;
+	static time_t time;
 
 	switch (data->type) {
 		case EMPTY:
@@ -87,6 +88,9 @@ printf_packet(SondeData *data, GPXFile *gpx)
 			newline = 0;
 			return;
 		case UNKNOWN:
+			break;
+		case DATETIME:
+			time = data->data.datetime.datetime;
 			break;
 		case INFO:
 			printf("[%5d] ", data->data.info.seq);
@@ -113,7 +117,7 @@ printf_packet(SondeData *data, GPXFile *gpx)
 			ecef_to_lla(&lat, &lon, &alt, data->data.pos.x, data->data.pos.y, data->data.pos.z);
 			ecef_to_spd_hdg(&spd, &hdg, &climb, lat, lon, data->data.pos.dx, data->data.pos.dy, data->data.pos.dz);
 
-			gpx_add_trackpoint(gpx, lat, lon, alt);
+			gpx_add_trackpoint(gpx, lat, lon, alt, time);
 
 			printf("%7.4f%s %7.4f%s  %5.0fm  Spd: %5.1fm/s Hdg: %3.0f' Climb: %+5.1fm/s",
 					fabs(lat), lat >= 0 ? "N" : "S",
