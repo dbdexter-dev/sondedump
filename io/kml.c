@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "kml.h"
+#include "utils.h"
 
 static void kml_add_point(KMLFile *kml, float lat, float lon, float alt);
 static void kml_temp_close(KMLFile *kml);
@@ -8,9 +9,16 @@ static void kml_temp_close(KMLFile *kml);
 int
 kml_init(KMLFile *kml, char *fname, int live_update)
 {
-	FILE *live_fd;
+	FILE *tmpfd;
+	char live_fname[256];
 
-	kml->fd = fopen(fname, "wb");
+	if (live_update) {
+		snprintf(live_fname, LEN(live_fname)-1, "%s-live.kml", fname);
+		live_fname[LEN(live_fname)-1] = 0;
+		kml->fd = fopen(live_fname, "wb");
+	} else {
+		kml->fd = fopen(fname, "wb");
+	}
 	kml->track_active = 0;
 	kml->sonde_serial = NULL;
 	kml->live_update = live_update;
@@ -31,14 +39,14 @@ kml_init(KMLFile *kml, char *fname, int live_update)
 
 	/* Generate a kml pointing to the live feed */
 	if (live_update) {
-		live_fd = fopen("live.kml", "wb");
+		tmpfd = fopen(fname, "wb");
 
-		if (!live_fd) {
+		if (!tmpfd) {
 			kml_close(kml);
 			return 2;
 		}
 
-		fprintf(live_fd,
+		fprintf(tmpfd,
 			"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?>\n"
 			"<kml xmlns=\"http://www.opengis.net/kml/2.2\">\n"
 			"<Document>\n"
@@ -54,11 +62,11 @@ kml_init(KMLFile *kml, char *fname, int live_update)
 				"</NetworkLink>\n"
 			"</Document>\n"
 			"</kml>\n",
-			fname,
+			live_fname,
 			KML_REFRESH_INTERVAL
 			);
 
-		fclose(live_fd);
+		fclose(tmpfd);
 		kml_temp_close(kml);
 	}
 
