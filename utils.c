@@ -120,25 +120,31 @@ usage(const char *pname)
 {
 	fprintf(stderr, "Usage: %s [options] file_in\n", pname);
 	fprintf(stderr,
-	        "   -B, --batch             Disable TUI and all control characters (aka \"script-friendly mode\")\n"
-	        "   -m, --mode <mode>       Specify the signal modulation scheme (default: qpsk, valid modes: qpsk, oqpsk)\n"
-	        "   -o, --output <file>     Output decoded symbols to <file>\n"
-	        "   -q, --quiet             Do not print status information\n"
-	        "   -r, --symrate <rate>    Set the symbol rate to <rate> (default: 72000)\n"
-	        "   -R, --refresh-rate <ms> Refresh the status screen every <ms> ms (default: 50ms in TUI mode, 2000ms in batch mode)\n"
-	        "   -s, --samplerate <samp> Force the input samplerate to <samp> (default: auto)\n"
-	        "       --bps <bps>         Force the input bits per sample to <bps> (default: 16)\n"
-	        "       --stdout            Write output symbols to stdout (implies -B, -q)\n"
+			"   -f, --fmt <format>      Format output lines as <format> (default: [f]\\tt r\\tl o a\\ts h c)\n"
+			"   -g, --gpx <file>        Output GPX track to <file>\n"
+			"   -k, --kml <file>        Output KML track to <file>\n"
+			"   -l, --live-kml <file>   Output live KML track to <file>\n"
+
 	        "\n"
 	        "   -h, --help              Print this help screen\n"
 	        "   -v, --version           Print version info\n"
-	        "\n"
-	        "Advanced options:\n"
-	        "   -b, --pll-bw <bw>       Set the PLL bandwidth to <bw> (default: 1)\n"
-	        "   -d, --freq-delta <freq> Set the maximum carrier deviation to <freq> (default: +-3.5kHz)\n"
-	        "   -f, --fir-order <ord>   Set the RRC filter order to <ord> (default: 32)\n"
-	        "   -O, --oversamp <mult>   Set the interpolation factor to <mult> (default: 5)\n"
 	        );
+	fprintf(stderr,
+			"\nAvailable format specifiers:\n"
+			"   a      Altitude (m)\n"
+			"   c      Climb rate (m/s)\n"
+			"   d      Date and time (yyyy-mm-dd hh:mm::ss, local)\n"
+			"   f      Frame counter\n"
+			"   h      Heading (degrees)\n"
+			"   l      Latitude (decimal degrees + N/S)\n"
+			"   o      Longitude (decimal degrees + E/W)\n"
+			"   p      Pressure (hPa)\n"
+			"   r      Relative humidity (%%)\n"
+			"   s      Speed (m/s)\n"
+			"   S      Sonde serial number\n"
+			"   t      Temperature (degrees Celsius)\n"
+			"   \\      Escape sequence\n"
+		   );
 }
 
 void
