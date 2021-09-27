@@ -145,6 +145,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					data.type = INFO;
 
 					data.data.info.seq = status->frame_seq;
+					data.data.info.sonde_serial = status->serial;
 
 					if (self->metadata.data.burstkill_timer == 0xFFFF) {
 						data.data.info.burstkill_status = -1;

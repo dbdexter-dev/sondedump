@@ -8,13 +8,15 @@ gpx_init(GPXFile *file, char *fname)
 	file->fd = fopen(fname, "wb");
 	file->track_active = 0;
 
+	if (!file->fd) return 1;
+
 	fprintf(file->fd,
 			"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?>\n"
-			"<gpx xmlns=\"http://www.topografix.com/GPX/1/1\" creator=\"SondeDump\">\n"
+			"<gpx xmlns=\"http://www.topografix.com/GPX/1/1\" version=\"1.1\" creator=\"SondeDump\">\n"
 
 			);
 
-	return file->fd == NULL ? 0 : 1;
+	return 0;
 }
 
 void
@@ -53,6 +55,7 @@ gpx_add_trackpoint(GPXFile *file, float lat, float lon, float alt, time_t time)
 	fprintf(file->fd, "<ele>%f</ele>\n", alt);
 	fprintf(file->fd, "<time>%s</time>\n", timestr);
 	fprintf(file->fd, "</trkpt>\n");
+	fflush(file->fd);
 }
 
 void

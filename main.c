@@ -1,15 +1,17 @@
 #include <getopt.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 #include "decode/common.h"
 #include "decode/rs41/rs41.h"
 #include "gps/ecef.h"
 #include "io/gpx.h"
+#include "io/kml.h"
 #include "io/wavfile.h"
 
 #define SEPARATOR "     "
 
-static void printf_packet(SondeData *data, GPXFile *gpx);
+static void printf_packet(SondeData *data, KMLFile *kml);
 static int wav_read_wrapper(float *dst);
 static int raw_read_wrapper(float *dst);
 
@@ -22,7 +24,7 @@ main(int argc, char *argv[])
 {
 	RS41Decoder rs41decoder;
 	SondeData data;
-	GPXFile gpx;
+	KMLFile kml;
 	int samplerate;
 	int (*read_wrapper)(float *dst);
 
@@ -41,14 +43,13 @@ main(int argc, char *argv[])
 	}
 
 	rs41_decoder_init(&rs41decoder, samplerate);
-	gpx_init(&gpx, "/tmp/track_sonde.gpx");
-	gpx_start_track(&gpx, "Sonde path");
+	kml_init(&kml, "/tmp/track_sonde.kml", 1);
 	while (1) {
 		data = rs41_decode(&rs41decoder, read_wrapper);
 		if (data.type == SOURCE_END) break;
-		printf_packet(&data, &gpx);
+		printf_packet(&data, &kml);
 	}
-	gpx_close(&gpx);
+	kml_close(&kml);
 
 	rs41_decoder_deinit(&rs41decoder);
 	fclose(_wav);
@@ -74,11 +75,12 @@ raw_read_wrapper(float *dst)
 }
 
 static void
-printf_packet(SondeData *data, GPXFile *gpx)
+printf_packet(SondeData *data, KMLFile *kml)
 {
 	float lat, lon, alt, spd, hdg, climb;
 	static int newline = 0;
 	static time_t time;
+	static char serial[9];
 
 	switch (data->type) {
 		case EMPTY:
@@ -93,6 +95,7 @@ printf_packet(SondeData *data, GPXFile *gpx)
 			time = data->data.datetime.datetime;
 			break;
 		case INFO:
+			strncpy(serial, data->data.info.sonde_serial, 8);
 			printf("[%5d] ", data->data.info.seq);
 			if (data->data.info.burstkill_status > 0) {
 				printf("Burstkill: %d:%02d:%02d ",
@@ -117,7 +120,9 @@ printf_packet(SondeData *data, GPXFile *gpx)
 			ecef_to_lla(&lat, &lon, &alt, data->data.pos.x, data->data.pos.y, data->data.pos.z);
 			ecef_to_spd_hdg(&spd, &hdg, &climb, lat, lon, data->data.pos.dx, data->data.pos.dy, data->data.pos.dz);
 
-			gpx_add_trackpoint(gpx, lat, lon, alt, time);
+			/* Add point to GPS track */
+			if (!kml->track_active) kml_start_track(kml, serial);
+			kml_add_trackpoint(kml, lat, lon, alt, time);
 
 			printf("%7.4f%s %7.4f%s  %5.0fm  Spd: %5.1fm/s Hdg: %3.0f' Climb: %+5.1fm/s",
 					fabs(lat), lat >= 0 ? "N" : "S",

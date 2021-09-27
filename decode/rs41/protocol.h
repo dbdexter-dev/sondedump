@@ -155,7 +155,7 @@ typedef struct {
 	float _pad3[5];
 
 	uint8_t _endpad[463];
-	uint16_t burstkill_timer;   /* Time to shutdown after balloon burst */
+	uint16_t burstkill_timer;   /* Time to shutdown after balloon burst (or maybe just time to shutdown in general) */
 	uint8_t _pad5[6];
 	uint8_t _unk_dynamic0[4];   /* Unknown, counter-like */
 	uint8_t _unk_dynamic1[2];   /* Unknown, last byte probably flags */
