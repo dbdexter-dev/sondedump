@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdio.h>
 #include <time.h>
 #include "utils.h"
@@ -115,12 +116,25 @@ human_to_float(const char *human)
 
 }
 
+float
+altitude_to_pressure(float alt)
+{
+	return 1013.25f * powf(1.0f - 2.25577f * 1e-5f * alt, 5.25588f);
+}
+
+float
+dewpt(float temp, float rh)
+{
+	const float tmp = (logf(rh / 100.0f) + (17.27f * temp / (237.3f + temp))) / 17.27f;
+	return 237.3f * tmp  / (1 + tmp);
+}
+
 void
 usage(const char *pname)
 {
 	fprintf(stderr, "Usage: %s [options] file_in\n", pname);
 	fprintf(stderr,
-			"   -f, --fmt <format>      Format output lines as <format> (default: [f]\\tt r\\tl o a\\ts h c)\n"
+			"   -f, --fmt <format>      Format output lines as <format>"
 			"   -g, --gpx <file>        Output GPX track to <file>\n"
 			"   -k, --kml <file>        Output KML track to <file>\n"
 			"   -l, --live-kml <file>   Output live KML track to <file>\n"
@@ -131,19 +145,19 @@ usage(const char *pname)
 	        );
 	fprintf(stderr,
 			"\nAvailable format specifiers:\n"
-			"   a      Altitude (m)\n"
-			"   c      Climb rate (m/s)\n"
-			"   d      Date and time (yyyy-mm-dd hh:mm::ss, local)\n"
-			"   f      Frame counter\n"
-			"   h      Heading (degrees)\n"
-			"   l      Latitude (decimal degrees + N/S)\n"
-			"   o      Longitude (decimal degrees + E/W)\n"
-			"   p      Pressure (hPa)\n"
-			"   r      Relative humidity (%%)\n"
-			"   s      Speed (m/s)\n"
-			"   S      Sonde serial number\n"
-			"   t      Temperature (degrees Celsius)\n"
-			"   \\      Escape sequence\n"
+			"   %%a      Altitude (m)\n"
+			"   %%c      Climb rate (m/s)\n"
+			"   %%d      Dew point (degrees Celsius)\n"
+			"   %%f      Frame counter\n"
+			"   %%h      Heading (degrees)\n"
+			"   %%l      Latitude (decimal degrees + N/S)\n"
+			"   %%o      Longitude (decimal degrees + E/W)\n"
+			"   %%p      Pressure (hPa)\n"
+			"   %%r      Relative humidity (%%)\n"
+			"   %%s      Speed (m/s)\n"
+			"   %%S      Sonde serial number\n"
+			"   %%t      Temperature (degrees Celsius)\n"
+			"   %%T      Timestamp (yyyy-mm-dd hh:mm::ss, local)\n"
 		   );
 }
 

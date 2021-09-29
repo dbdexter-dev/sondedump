@@ -1,9 +1,12 @@
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include "ecc/crc.h"
 #include "subframe.h"
 #include "utils.h"
+
+static float wv_sat_pressure(float temp);
 
 float
 rs41_subframe_temp(RS41Subframe_PTU *ptu, RS41Calibration *calib)
@@ -18,26 +21,32 @@ rs41_subframe_temp(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 	                      | (uint32_t)ptu->temp_ref2[1] << 8
 	                      | (uint32_t)ptu->temp_ref2[2] << 16;
 
-	float adc_gain, adc_bias, r_raw, r_t, temp;
+	float adc_raw, r_raw, r_t, t_uncal, t_cal;
+	int i;
 
 	/* If no reference or no calibration data, retern */
-	if (adc_ref2 - adc_ref1 == 0) return -1;
-	if (!calib->rt_ref[0] || !calib->rt_ref[1]) return -1;
+	if (adc_ref2 - adc_ref1 == 0) return NAN;
 
 	/* Compute ADC gain and bias */
-	adc_gain = ((adc_ref2 - adc_ref1) / (calib->rt_ref[1] - calib->rt_ref[0]));
-	adc_bias = adc_ref2 - adc_gain*calib->rt_ref[1];
+	adc_raw = (adc_main - adc_ref1) / (adc_ref2 - adc_ref1);
 
 	/* Compute resistance */
-	r_raw = (adc_main - adc_bias) / adc_gain;
-	r_t = r_raw * calib->rt_resist_coeff[0];
+	r_raw = calib->t_ref[0] + (calib->t_ref[1] - calib->t_ref[0])*adc_raw;
+	r_t = r_raw * calib->t_calib_coeff[0];
 
 	/* Compute temperature based on corrected resistance */
-	temp = calib->rt_temp_poly[0]
-	     + calib->rt_temp_poly[1]*r_t
-	     + calib->rt_temp_poly[2]*r_t*r_t;
+	t_uncal = calib->t_temp_poly[0]
+	     + calib->t_temp_poly[1]*r_t
+	     + calib->t_temp_poly[2]*r_t*r_t;
 
-	return calib->rt_resist_coeff[1] + temp*(1+calib->rt_resist_coeff[2]);
+	t_cal = 0;
+	for (i=6; i>0; i--) {
+		t_cal *= t_uncal;
+		t_cal += calib->t_calib_coeff[i];
+	}
+	t_cal += t_uncal;
+
+	return t_cal;
 }
 
 float
@@ -53,24 +62,44 @@ rs41_subframe_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 	                       | (uint32_t)ptu->humidity_ref2[1] << 8
 	                       | (uint32_t)ptu->humidity_ref2[2] << 16;
 
-	float rh_measure, rh, temp;
+	int i, j;
+	float f1, f2;
+	float adc_raw, c_raw, c_cal, rh_uncal, rh_cal, rh_temp_uncal, rh_temp, t_temp;
 
-	if (adc_ref2 - adc_ref1 == 0) return -1;
+	if (adc_ref2 - adc_ref1 == 0) return NAN;
+
+	rh_temp_uncal = rs41_subframe_temp_humidity(ptu, calib);
+	t_temp = rs41_subframe_temp(ptu, calib);
+
+	rh_temp = 0;
+	for (i=6; i>0; i--) {
+		rh_temp *= rh_temp_uncal;
+		rh_temp += calib->th_calib_coeff[i];
+	}
+	rh_temp += rh_temp_uncal;
 
 
-	temp = rs41_subframe_temp_humidity(ptu, calib);
-	//printf("%f %f %f %f ", adc_main, adc_ref1, adc_ref2, temp);
-
-	rh_measure = (adc_main - adc_ref1) / (adc_ref2 - adc_ref1);
-	rh = 100 * (350/calib->rh_cap_coeff[0]*rh_measure - 7.5);
-	rh += -temp/5.5;
-	if (temp < -25) rh *= 1 -25/90;
+	adc_raw = (adc_main - adc_ref1) / (adc_ref2 - adc_ref1);
+	c_raw = calib->rh_ref[0] + adc_raw * (calib->rh_ref[1] - calib->rh_ref[0]);
+	c_cal = (c_raw / calib->rh_cap_calib[0] - 1) * calib->rh_cap_calib[1];
 
 
-	/* Temperature compensation */
-	rh += rh*calib->rh_cap_coeff[1]/100;
+	rh_uncal = 0;
+	rh_temp = (rh_temp - 20) / 180;
+	f1 = 1;
+	for (i=0; i<7; i++) {
+		f2 = 1;
+		for (j=0; j<6; j++) {
+			rh_uncal += f1 * f2 * calib->rh_calib_coeff[i][j];
+			//printf("%10.4f ", calib->rh_calib_coeff[i][j]);
+			f2 *= rh_temp;
+		}
+		//printf("\n");
+		f1 *= c_cal;
+	}
 
-	return MAX(0, MIN(100, rh));
+	rh_cal = rh_uncal * wv_sat_pressure(rh_temp_uncal) / wv_sat_pressure(t_temp);
+	return rh_cal; /* FIXME this 2* should not be there */
 }
 
 float
@@ -86,27 +115,25 @@ rs41_subframe_temp_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 	                      | (uint32_t)ptu->temp_humidity_ref2[1] << 8
 	                      | (uint32_t)ptu->temp_humidity_ref2[2] << 16;
 
-	float adc_gain, adc_bias, r_raw, r_t, temp;
+	float adc_raw, r_raw, r_t, t_uncal;
 
 	/* If no reference or no calibration data, retern */
-	if (adc_ref2 - adc_ref1 == 0) return -1;
-	if (!calib->rt_ref[0] || !calib->rt_ref[1]) return -1;
-
+	if (adc_ref2 - adc_ref1 == 0) return NAN;
+	if (!calib->t_ref[0] || !calib->t_ref[1]) return NAN;
 
 	/* Compute ADC gain and bias */
-	adc_gain = ((adc_ref2 - adc_ref1) / (calib->rt_ref[1] - calib->rt_ref[0]));
-	adc_bias = adc_ref2 - adc_gain*calib->rt_ref[1];
+	adc_raw = (adc_main - adc_ref1) / (adc_ref2 - adc_ref1);
 
 	/* Compute resistance */
-	r_raw = (adc_main - adc_bias) / adc_gain;
-	r_t = r_raw * calib->rh_resist_coeff[0];
+	r_raw = calib->t_ref[0] + adc_raw * (calib->t_ref[1] - calib->t_ref[0]);
+	r_t = r_raw * calib->th_calib_coeff[0];
 
 	/* Compute temperature based on corrected resistance */
-	temp = calib->rh_temp_poly[0]
-	     + calib->rh_temp_poly[1]*r_t
-	     + calib->rh_temp_poly[2]*r_t*r_t;
+	t_uncal = calib->th_temp_poly[0]
+	     + calib->th_temp_poly[1]*r_t
+	     + calib->th_temp_poly[2]*r_t*r_t;
 
-	return calib->rh_resist_coeff[1] + temp*(1+calib->rh_resist_coeff[2]);
+	return t_uncal;
 }
 
 float
@@ -122,7 +149,7 @@ rs41_subframe_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 	                       | (uint32_t)ptu->pressure_ref2[1] << 8
 	                       | (uint32_t)ptu->pressure_ref2[2] << 16;
 
-	if (pressure_ref2 - pressure_ref1 == 0) return -1;
+	if (pressure_ref2 - pressure_ref1 == 0) return NAN;
 
 	float percent = ((float)pressure_main - pressure_ref1) / (pressure_ref2 - pressure_ref1);
 	return -1;
@@ -167,3 +194,30 @@ rs41_subframe_dz(RS41Subframe_GPSPos *gps)
 {
 	return gps->dz / 100.0;
 }
+
+static float
+wv_sat_pressure(float temp)
+{
+	const float coeffs[] = {-0.493158, 1 + 4.6094296e-3, -1.3746454e-5, 1.2743214e-8};
+	float T, p;
+	int i;
+
+	temp += 273.15f;
+
+	T = 0;
+	for (i=LEN(coeffs)-1; i>=0; i--) {
+		T *= temp;
+		T += coeffs[i];
+	}
+
+	p = expf(-5800.2206f / T
+		  + 1.3914993f
+		  + 6.5459673f * logf(T)
+		  - 4.8640239e-2f * T
+		  + 4.1764768e-5f * T * T
+		  - 1.4452093e-8f * T * T * T);
+
+	return p / 100.0f;
+
+}
+

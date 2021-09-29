@@ -74,4 +74,23 @@ void  version();
 
 void bitcpy(uint8_t *dst, uint8_t *src, size_t src_offset, size_t num_bits);
 
+/**
+ * Calculate pressure at a given altitude
+ *
+ * @param alt altitude
+ * @return pressure at that altitude (hPa)
+ */
+float altitude_to_pressure(float alt);
+
+/**
+ * Calculate dew point
+ *
+ * @param temp temperature (degrees Celsius)
+ * @param rh relative humidity (0-100%)
+ * @return dew point (degrees Celsius)
+ */
+float dewpt(float temp, float rh);
+
 #endif
+
+

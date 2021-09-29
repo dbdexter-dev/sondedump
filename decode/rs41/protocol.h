@@ -138,25 +138,31 @@ typedef struct {
 
 /* }}} */
 
+/* Credits to @einergehtnochrein (https://github.com/einergehtnochrein/ra-firmware)
+ * for figuring out what each calibration field does */
 typedef struct {
 	uint8_t _pad0[13];
 	char sonde_serial[8];       /* Sonde serial number, ASCII */
 	uint8_t _pad1[40];
 
-	float rt_ref[2];            /* Value of the temperature ref. resistances (ohm) */
-	float _unknown[2];
-	float rt_temp_poly[3];      /* Resistance -> temp 2nd degree polynomial */
-	float rt_resist_coeff[3];   /* Resistance correction coefficients */
-	float _zero[4];
-	float rh_cap_coeff[2];
-	float floatdata[42];
-	float rh_temp_poly[3];      /* Resistance -> temp humidity 2nd degree poly */
-	float rh_resist_coeff[3];   /* Resistance correction coefficients */
-	float _pad3[5];
+	float t_ref[2];            /* Value of the temperature ref. resistances (ohm) */
+	float rh_ref[2];           /* Value of the rel. hum. capacitance reference values (pF) */
+	float t_temp_poly[3];      /* Resistance -> temp 2nd degree polynomial */
+	float t_calib_coeff[7];    /* Resistance correction coefficients */
+	float rh_cap_calib[2];
+	float rh_calib_coeff[7][6];
+	float th_temp_poly[3];      /* Resistance -> temp humidity 2nd degree poly */
+	float th_calib_coeff[7];   /* Resistance correction coefficients */
 
-	uint8_t _endpad[463];
+	uint8_t _midpad[273];
+
+	float p_calib_coeff[18];
+	float vector_bp[3];
+	uint8_t _pad4[8];
+	float matrix_bt[12];
+	uint8_t _pad5[54];
 	uint16_t burstkill_timer;   /* Time to shutdown after balloon burst (or maybe just time to shutdown in general) */
-	uint8_t _pad5[6];
+	uint8_t _pad6[6];
 	uint8_t _unk_dynamic0[4];   /* Unknown, counter-like */
 	uint8_t _unk_dynamic1[2];   /* Unknown, last byte probably flags */
 

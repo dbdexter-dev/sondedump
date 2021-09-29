@@ -31,13 +31,14 @@ static int raw_read_wrapper(float *dst);
 static FILE *_wav;
 static int _bps;
 static struct option longopts[] = {
-	{ "format",   1, NULL, 'f' },
+	{ "fmt",      1, NULL, 'f' },
 	{ "gpx",      1, NULL, 'g' },
 	{ "help",     0, NULL, 'h' },
 	{ "kml",      1, NULL, 'k' },
 	{ "live-kml", 1, NULL, 'l' },
 	{ "output",   1, NULL, 'o' },
 	{ "version",  0, NULL, 'v' },
+	{ NULL,       0, NULL, 0   }
 };
 
 
@@ -55,7 +56,7 @@ main(int argc, char *argv[])
 	int has_data;
 
 	/* Command-line changeable parameters {{{ */
-	char *output_fmt = "[f]\tt r\tl o a\ts h c";
+	char *output_fmt = "[%f] %t'C %r%%    %l %o %am    %sm/s %h' %cm/s";
 	char *live_kml_fname = NULL;
 	char *kml_fname = NULL;
 	char *gpx_fname = NULL;
@@ -221,7 +222,7 @@ fill_printable_data(PrintableData *to_print, SondeData *data)
 		case PTU:
 			to_print->temp = data->data.ptu.temp;
 			to_print->rh = data->data.ptu.rh;
-			to_print->pressure  = data->data.ptu.rh;
+			to_print->pressure  = data->data.ptu.pressure;
 			break;
 		case POSITION:
 			ecef_to_lla(&lat, &lon, &alt, data->data.pos.x, data->data.pos.y, data->data.pos.z);
@@ -241,34 +242,30 @@ static int
 printf_data(const char *fmt, PrintableData *data)
 {
 	size_t i;
-	int is_literal;
+	int escape_seq;
 	char time[64];
 
-
-	is_literal = 0;
+	escape_seq = 0;
 	for (i=0; i<strlen(fmt); i++) {
-		if (is_literal) {
-			putchar(fmt[i]);
-		} else {
+		if (fmt[i] == '%' && !escape_seq) {
+			escape_seq = 1;
+		} else if (escape_seq) {
+			escape_seq = 0;
 			switch (fmt[i]) {
-				case '\\':
-					is_literal = 1;
-					break;
 				case 'a':
-					printf("%6.0fm", data->alt);
+					printf("%6.0f", data->alt);
 					break;
 				case 'c':
-					printf("%+5.1fm/s", data->climb);
+					printf("%+5.1f", data->climb);
 					break;
 				case 'd':
-					strftime(time, LEN(time), "%a %b %d %Y %H:%M:%S", gmtime(&data->utc_time));
-					printf("%s", time);
+					printf("%6.1f", dewpt(data->temp, data->rh));
 					break;
 				case 'f':
 					printf("%5d", data->seq);
 					break;
 				case 'h':
-					printf("%3.0f'", data->heading);
+					printf("%3.0f", data->heading);
 					break;
 				case 'l':
 					printf("%7.4f%c", data->lat, (data->lat >= 0 ? 'N' : 'S'));
@@ -277,27 +274,32 @@ printf_data(const char *fmt, PrintableData *data)
 					printf("%7.4f%c", data->lon, (data->lon >= 0 ? 'E' : 'W'));
 					break;
 				case 'p':
-					printf("%4.0f hPa", data->pressure);
+					printf("%4.0f", data->pressure != data->pressure ? altitude_to_pressure(data->alt) : data->pressure);
 					break;
 				case 'r':
-					printf("%3.0f%%", data->rh);
+					printf("%3.0f", data->rh);
 					break;
 				case 's':
-					printf("%4.1fm/s", data->speed);
+					printf("%4.1f", data->speed);
 					break;
 				case 'S':
 					printf("%s", data->serial);
 					break;
 				case 't':
-					printf("%5.1f'C", data->temp);
+					printf("%5.1f", data->temp);
+					break;
+				case 'T':
+					strftime(time, LEN(time), "%a %b %d %Y %H:%M:%S", gmtime(&data->utc_time));
+					printf("%s", time);
 					break;
 				default:
 					putchar(fmt[i]);
 					break;
 			}
+		} else {
+			putchar(fmt[i]);
 		}
-		is_literal = 0;
 	}
-	printf("\n");
+	if (i > 0) printf("\n");
 	return 0;
 }

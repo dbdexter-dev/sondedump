@@ -162,6 +162,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					data.data.ptu.temp = rs41_subframe_temp(ptu, &self->metadata.data);
 					data.data.ptu.rh = rs41_subframe_humidity(ptu, &self->metadata.data);
 					data.data.ptu.pressure = rs41_subframe_pressure(ptu, &self->metadata.data);
+
 					break;
 				case RS41_SFTYPE_GPSPOS:
 					/* GPS position */

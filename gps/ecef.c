@@ -12,7 +12,10 @@ ecef_to_lla(float *lat, float *lon, float *alt, float x, float y, float z)
 	int i;
 	float n, h, phi, sinphi;
 
-	if (x == 0 || y == 0 || z == 0) return 1;
+	if (x == 0 || y == 0 || z == 0) {
+		*lat = *lon = *alt = 0;
+		return 1;
+	}
 
 	phi = atan2f(z + WGS84_E_PRIME_SQR*WGS84_B*(sintheta*sintheta*sintheta),
 				(p - WGS84_E_SQR*WGS84_A*(costheta*costheta*costheta)));
@@ -34,9 +37,7 @@ ecef_to_spd_hdg(float *speed, float *heading, float *v_climb, float lat, float l
 	lon *= M_PI/180;
 
 	if (dx == 0 && dy == 0 && dz == 0) {
-		*speed = 0;
-		*heading = 0;
-		*v_climb = 0;
+		*speed = *heading = *v_climb = 0;
 		return 0;
 	}
 
