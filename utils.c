@@ -166,6 +166,7 @@ usage(const char *pname)
 	fprintf(stderr,
 			"\nAvailable format specifiers:\n"
 			"   %%a      Altitude (m)\n"
+			"   %%b      Burstkill/shutdown timer\n"
 			"   %%c      Climb rate (m/s)\n"
 			"   %%d      Dew point (degrees Celsius)\n"
 			"   %%f      Frame counter\n"

@@ -21,6 +21,7 @@ typedef struct {
 	float speed, heading, climb;
 	float temp, rh, pressure;
 	time_t utc_time;
+	int shutdown_timer;
 	char serial[8+1];
 } PrintableData;
 
@@ -234,15 +235,7 @@ fill_printable_data(PrintableData *to_print, SondeData *data)
 			strncpy(to_print->serial, data->data.info.sonde_serial, LEN(to_print->serial)-1);
 			to_print->serial[8] = 0;
 			to_print->seq = data->data.info.seq;
-			/*
-			if (data->data.info.burstkill_status > 0) {
-				printf("Burstkill: %d:%02d:%02d ",
-						data->data.info.burstkill_status/3600,
-						data->data.info.burstkill_status/60%60,
-						data->data.info.burstkill_status%60
-					  );
-			}
-			*/
+			to_print->shutdown_timer = data->data.info.burstkill_status;
 			break;
 		case PTU:
 			to_print->temp = data->data.ptu.temp;
@@ -279,6 +272,17 @@ printf_data(const char *fmt, PrintableData *data)
 			switch (fmt[i]) {
 				case 'a':
 					printf("%6.0f", data->alt);
+					break;
+				case 'b':
+					if (data->shutdown_timer > 0) {
+						printf("%d:%02d:%02d",
+								data->shutdown_timer/3600,
+								data->shutdown_timer/60%60,
+								data->shutdown_timer%60
+								);
+					} else {
+						printf("(disabled)");
+					}
 					break;
 				case 'c':
 					printf("%+5.1f", data->climb);
