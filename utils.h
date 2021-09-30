@@ -81,6 +81,7 @@ void bitcpy(uint8_t *dst, uint8_t *src, size_t src_offset, size_t num_bits);
  * @return pressure at that altitude (hPa)
  */
 float altitude_to_pressure(float alt);
+float pressure_to_altitude(float p);
 
 /**
  * Calculate dew point
@@ -90,6 +91,8 @@ float altitude_to_pressure(float alt);
  * @return dew point (degrees Celsius)
  */
 float dewpt(float temp, float rh);
+
+float sat_mixing_ratio(float temp, float p);
 
 #endif
 

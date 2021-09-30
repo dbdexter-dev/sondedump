@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include "decode/common.h"
+#include "diagrams/stuve.h"
 #include "decode/rs41/rs41.h"
 #include "gps/time.h"
 #include "gps/ecef.h"
@@ -37,19 +38,22 @@ static struct option longopts[] = {
 	{ "kml",      1, NULL, 'k' },
 	{ "live-kml", 1, NULL, 'l' },
 	{ "output",   1, NULL, 'o' },
+	{ "stuve",    1, NULL, 0x01},
 	{ "version",  0, NULL, 'v' },
-	{ NULL,       0, NULL, 0   }
+	{ NULL,       0, NULL,  0  }
 };
 
 
 int
 main(int argc, char *argv[])
 {
+	const struct { float tmin, tmax, pmin, pmax; } stuve_bounds = {-80, 40, 100, 1000};
 	PrintableData printable;
 	RS41Decoder rs41decoder;
 	SondeData data;
 	KMLFile kml, live_kml;
 	GPXFile gpx;
+	cairo_surface_t *stuve = NULL;
 	int samplerate;
 	int (*read_wrapper)(float *dst);
 	int c;
@@ -60,11 +64,15 @@ main(int argc, char *argv[])
 	char *live_kml_fname = NULL;
 	char *kml_fname = NULL;
 	char *gpx_fname = NULL;
-	char *input_fname;
+	char *stuve_fname = NULL;
+	char *input_fname = NULL;
 	/* }}} */
 	/* Parse command-line args {{{ */
 	while ((c = getopt_long(argc, argv, SHORTOPTS, longopts, NULL)) != -1) {
 		switch (c) {
+			case 0x01:
+				stuve_fname = optarg;
+				break;
 			case 'g':
 				gpx_fname = optarg;
 				break;
@@ -124,6 +132,12 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Error creating GPX file %s\n", gpx_fname);
 		return 1;
 	}
+	if (stuve_fname) {
+		stuve = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 500, 1000);
+		stuve_draw_backdrop(stuve, stuve_bounds.tmin, stuve_bounds.tmax, stuve_bounds.pmin, stuve_bounds.pmax);
+	}
+
+
 
 
 	rs41_decoder_init(&rs41decoder, samplerate);
@@ -138,6 +152,13 @@ main(int argc, char *argv[])
 				/* Write line at the end of the frame */
 				if (has_data) {
 					printf_data(output_fmt, &printable);
+					if (stuve) {
+						stuve_draw_point(stuve,
+								stuve_bounds.tmin, stuve_bounds.tmax, stuve_bounds.pmin, stuve_bounds.pmax,
+								printable.temp,
+								altitude_to_pressure(printable.alt),
+								dewpt(printable.temp, printable.rh));
+					}
 					has_data = 0;
 				}
 				break;
@@ -168,6 +189,10 @@ main(int argc, char *argv[])
 	if (live_kml_fname) kml_close(&live_kml);
 	if (gpx_fname) gpx_close(&gpx);
 
+	if (stuve) {
+		cairo_surface_write_to_png(stuve, stuve_fname);
+		cairo_surface_destroy(stuve);
+	}
 	rs41_decoder_deinit(&rs41decoder);
 	fclose(_wav);
 
@@ -268,10 +293,10 @@ printf_data(const char *fmt, PrintableData *data)
 					printf("%3.0f", data->heading);
 					break;
 				case 'l':
-					printf("%7.4f%c", data->lat, (data->lat >= 0 ? 'N' : 'S'));
+					printf("%8.5f%c", data->lat, (data->lat >= 0 ? 'N' : 'S'));
 					break;
 				case 'o':
-					printf("%7.4f%c", data->lon, (data->lon >= 0 ? 'E' : 'W'));
+					printf("%8.5f%c", data->lon, (data->lon >= 0 ? 'E' : 'W'));
 					break;
 				case 'p':
 					printf("%4.0f", data->pressure != data->pressure ? altitude_to_pressure(data->alt) : data->pressure);

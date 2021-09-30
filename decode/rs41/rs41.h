@@ -10,7 +10,7 @@
 typedef struct {
 	int initialized;
 	RS41Calibration data;
-	uint8_t missing[sizeof(RS41Calibration)/8/RS41_CALIB_FRAGSIZE];
+	uint8_t missing[sizeof(RS41Calibration)/8/RS41_CALIB_FRAGSIZE+1];
 } RS41Metadata;
 
 typedef struct {

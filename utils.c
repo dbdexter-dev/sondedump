@@ -123,10 +123,29 @@ altitude_to_pressure(float alt)
 }
 
 float
+pressure_to_altitude(float pressure)
+{
+	return 44330 * (1 - powf((pressure / 1013.25f), 1/5.25588f));
+}
+
+float
 dewpt(float temp, float rh)
 {
 	const float tmp = (logf(rh / 100.0f) + (17.27f * temp / (237.3f + temp))) / 17.27f;
 	return 237.3f * tmp  / (1 + tmp);
+}
+
+float
+sat_mixing_ratio(float temp, float p)
+{
+	const float wv_pressure = 610.97e-3 * expf((17.625*temp)/(temp+243.04));
+	const float wice_pressure = 611.21e-3 * expf((22.587*temp)/(temp+273.86));
+
+	if (temp < 0) {
+		return 621.97 * wice_pressure / (p - wice_pressure);
+	} else {
+		return 621.97 * wv_pressure / (p - wv_pressure);
+	}
 }
 
 void
@@ -134,10 +153,11 @@ usage(const char *pname)
 {
 	fprintf(stderr, "Usage: %s [options] file_in\n", pname);
 	fprintf(stderr,
-			"   -f, --fmt <format>      Format output lines as <format>"
+			"   -f, --fmt <format>      Format output lines as <format>\n"
 			"   -g, --gpx <file>        Output GPX track to <file>\n"
 			"   -k, --kml <file>        Output KML track to <file>\n"
 			"   -l, --live-kml <file>   Output live KML track to <file>\n"
+			"       --stuve <file>      Generate Stuve diagram and output to <file>\n"
 
 	        "\n"
 	        "   -h, --help              Print this help screen\n"

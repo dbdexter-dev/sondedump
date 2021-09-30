@@ -47,6 +47,8 @@ set(LIBRARY_SOURCES
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h
 
+	diagrams/stuve.c diagrams/stuve.h
+
 	io/gpx.c io/gpx.h
 	io/kml.c io/kml.h
 	io/wavfile.c io/wavfile.h
@@ -57,6 +59,9 @@ set(LIBRARY_SOURCES
 set(COMMON_INC_DIRS
 	${PROJECT_SOURCE_DIR}
 )
+
+# Libraries required
+find_library(CAIRO_LIBRARY NAMES cairo libcairo REQUIRED)
 
 
 # Main library target
@@ -72,7 +77,7 @@ set_target_properties(sonde PROPERTIES EXCLUDE_FROM_ALL 1)
 # Main executable target
 add_executable(sondedump main.c ${EXEC_SOURCES})
 target_include_directories(sondedump PRIVATE ${COMMON_INC_DIRS})
-target_link_libraries(sondedump PRIVATE m sondedump_static)
+target_link_libraries(sondedump PRIVATE m sondedump_static ${CAIRO_LIBRARY})
 
 # Install targets
 install(TARGETS sondedump DESTINATION bin)
