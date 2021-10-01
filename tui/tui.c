@@ -28,9 +28,10 @@ static struct {
 	struct {
 		float temp, rh, pressure;
 		float lat, lon, alt, spd, hdg, climb;
-		char serial[8];
+		char serial[8+1];
 		char time[32];
 		char shutdown_timer[16];
+		int changed;
 	} data;
 } tui;
 
@@ -59,6 +60,7 @@ tui_init(int update_interval)
 	tui.data.shutdown_timer[0] = 0;
 
 	_running = 1;
+	tui.data.changed = 1;
 	pthread_create(&_tid, NULL, main_loop, NULL);
 }
 
@@ -108,6 +110,7 @@ tui_update(SondeData *data)
 			break;
 
 	}
+	tui.data.changed = 1;
 	return 0;
 }
 
@@ -123,7 +126,10 @@ main_loop(void *args)
 			default:
 				break;
 		}
-		redraw();
+
+		if (tui.data.changed) {
+			redraw();
+		}
 	}
 	return NULL;
 }

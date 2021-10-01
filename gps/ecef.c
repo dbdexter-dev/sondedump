@@ -13,7 +13,7 @@ ecef_to_lla(float *lat, float *lon, float *alt, float x, float y, float z)
 	float n, h, phi, sinphi;
 
 	if (x == 0 || y == 0 || z == 0) {
-		*lat = *lon = *alt = 0;
+		*lat = *lon = *alt = NAN;
 		return 1;
 	}
 

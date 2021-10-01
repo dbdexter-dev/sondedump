@@ -28,50 +28,16 @@
 #define sgn(x) ((x) < 0 ? -1 : 1)
 #endif
 
+
 /**
- * Generate a symbol filename based on the current date and time
+ * Copy bits from one place to the other. Starting bit may or may not be
+ * byte-aligned.
  *
- * @return filename
+ * @param dst buffer to write bits to
+ * @param src buffer to read bits from
+ * @param src_offset offset of the first bit to copy
+ * @param num_bits number of bits to copy
  */
-char* gen_fname();
-
-/**
- * Format a number into a more readable format
- *
- * @param value value to
- * @param buf buffer to write the resulting string to
- */
-void humanize(size_t value, char *buf);
-
-/**
- * Format a number of seconds into HH:MM:SS format
- *
- * @param secs seconds
- * @param buf buffer to write the resulting string to
- */
-void seconds_to_str(unsigned secs, char *buf);
-
-/**
- * Convert a "human-readable" number into a float
- * e.g. 137.1M = 137100.0
- *
- * @param human string to parse
- * @return parsed float
- */
-float human_to_float(const char *human);
-
-/**
- * Write usage info to stdout
- *
- * @param progname executable name
- */
-void  usage(const char *progname);
-
-/**
- * Write version info to stdout
- */
-void  version();
-
 void bitcpy(uint8_t *dst, uint8_t *src, size_t src_offset, size_t num_bits);
 
 /**
@@ -92,8 +58,35 @@ float pressure_to_altitude(float p);
  */
 float dewpt(float temp, float rh);
 
+/**
+ * Calculate saturation mixing ratio given temperature and pressure
+ *
+ * @param temp temperature (degrees Celsius)
+ * @param p pressure (hPa)
+ * @return saturation mixing ratio (g/kg)
+ */
 float sat_mixing_ratio(float temp, float p);
 
+/**
+ * strdup, but portable since it's not part of the C standard and has a
+ * different name based on the platform
+ *
+ * @param str string to duplicate
+ * @return duplicated string, allocated on the heap with malloc(0
+ */
+char *my_strdup(char *str);
+
+/**
+ * Write usage info to stdout
+ *
+ * @param progname executable name
+ */
+void  usage(const char *progname);
+
+/**
+ * Write version info to stdout
+ */
+void  version();
 #endif
 
 

@@ -344,7 +344,7 @@ printf_data(const char *fmt, PrintableData *data)
 					printf("%8.5f%c", fabs(data->lon), (data->lon >= 0 ? 'E' : 'W'));
 					break;
 				case 'p':
-					printf("%4.0f", isnan(data->pressure) ? altitude_to_pressure(data->alt) : data->pressure);
+					printf("%4.0f", isnormal(data->pressure) ? data->pressure : altitude_to_pressure(data->alt) );
 					break;
 				case 'r':
 					printf("%3.0f", data->rh);

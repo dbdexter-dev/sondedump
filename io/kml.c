@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include "kml.h"
@@ -86,7 +87,7 @@ void
 kml_start_track(KMLFile *kml, char *name)
 {
 	if (kml->live_update) fseek(kml->fd, kml->next_update_fseek, SEEK_SET);
-	kml->sonde_serial = strdup(name);
+	kml->sonde_serial = my_strdup(name);
 	fprintf(kml->fd,
 			"<name>%s</name>"
 			"<styleUrl>#sondepath</styleUrl>\n"
@@ -103,7 +104,8 @@ void
 kml_add_trackpoint(KMLFile *kml, float lat, float lon, float alt, time_t time)
 {
 	if (!kml->track_active) return;
-	if (lat != lat || lon != lon || lat != lat) return;
+	if (isnan(lat) || isnan(lon) || isnan(alt)) return;
+
 	if (kml->live_update) fseek(kml->fd, kml->next_update_fseek, SEEK_SET);
 	fprintf(kml->fd, "%f,%f,%f\n", lon, lat, alt);
 	kml->lat = lat;
@@ -121,6 +123,8 @@ kml_end_track(KMLFile *kml)
 			"</LineString>\n"
 		  );
 	kml->track_active = 0;
+	free(kml->sonde_serial);
+	kml->sonde_serial = NULL;
 	if (kml->live_update) kml_temp_close(kml);
 }
 

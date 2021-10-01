@@ -1,3 +1,4 @@
+#include <math.h>
 #include "gpx.h"
 
 #define GPX_TIME_FORMAT "%Y-%m-%dT%H:%M:%SZ"
@@ -47,7 +48,7 @@ gpx_add_trackpoint(GPXFile *file, float lat, float lon, float alt, time_t time)
 	char timestr[sizeof("YYYY-MM-DDThh:mm:ssZ")+1];
 
 	/* Prevent NaNs from breaking the GPX specification */
-	if (lat != lat || lon != lon || alt != alt) return;
+	if (isnan(lat) || isnan(lon) || isnan(alt)) return;
 
 	strftime(timestr, sizeof(timestr), GPX_TIME_FORMAT, gmtime(&time));
 

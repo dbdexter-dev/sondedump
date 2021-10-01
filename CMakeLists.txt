@@ -15,7 +15,7 @@ endif()
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -pipe -Wextra -Wimplicit-fallthrough")
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -ffast-math -ftree-vectorize")
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -ftree-vectorize")
 
 # ARM architectures need -mfpu=auto in order to enable NEON when available,
 # but that option is unrecognized by x86 gcc (and possibly others): only

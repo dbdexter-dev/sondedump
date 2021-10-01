@@ -1,5 +1,6 @@
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 #include "utils.h"
 
@@ -35,85 +36,19 @@ bitcpy(uint8_t *dst, uint8_t *src, size_t src_offset, size_t num_bits)
 	}
 }
 
-char*
-gen_fname()
+char
+*my_strdup(char *str)
 {
-	time_t t;
-	struct tm *tm;
+	size_t len;
+	char *ret;
 
-	t = time(NULL);
-	tm = localtime(&t);
-
-	strftime(_generated_fname, sizeof(_generated_fname), "LRPT_%Y_%m_%d-%H_%M.s", tm);
-
-	return _generated_fname;
-}
-
-void
-humanize(size_t count, char *buf)
-{
-	const char suffix[] = " kMGTPE";
-	float fcount;
-	int exp_3;
-
-	if (count < 1000) {
-		sprintf(buf, "%lu %c", count, suffix[0]);
-	} else {
-		for (exp_3 = 0, fcount = count; fcount > 1000; fcount /= 1000, exp_3++)
-			;
-		if (fcount > 99.9) {
-			sprintf(buf, "%3.f %c", fcount, suffix[exp_3]);
-		} else if (fcount > 9.99) {
-			sprintf(buf, "%3.1f %c", fcount, suffix[exp_3]);
-		} else {
-			sprintf(buf, "%3.2f %c", fcount, suffix[exp_3]);
-		}
-	}
-}
-
-void
-seconds_to_str(unsigned secs, char *buf)
-{
-	unsigned h, m, s;
-
-	if (secs > 99*60*60) {
-		sprintf(buf, "00:00:00");
-		return;
-	}
-
-	s = secs % 60;
-	m = (secs / 60) % 60;
-	h = secs / 3600;
-	sprintf(buf, "%02u:%02u:%02u", h, m, s);
-}
-
-float
-human_to_float(const char *human)
-{
-	int ret;
-	float tmp;
-	const char *suffix;
-
-	tmp = atof(human);
-
-	/* Search for the suffix */
-	for (suffix=human; (*suffix >= '0' && *suffix <= '9') || *suffix == '.'; suffix++);
-
-	switch(*suffix) {
-		case 'k':
-		case 'K':
-			ret = tmp * 1000;
-			break;
-		case 'M':
-			ret = tmp * 1000000;
-			break;
-		default:
-			ret = tmp;
-			break;
+	len = strlen(str) + 1;
+	ret = malloc(len);
+	if (ret) {
+		memcpy(ret, str, len);
 	}
 
 	return ret;
-
 }
 
 float
