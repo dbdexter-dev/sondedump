@@ -18,10 +18,10 @@ rs_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t first_root, int r
 	int i, exp;
 	unsigned tmp;
 
-	if (!(d->alpha = malloc(n))) return 1;
-	if (!(d->logtable = malloc(n))) return 1;
-	if (!(d->zeroes = malloc(t))) return 1;
-	if (!(d->gaproots = malloc(n))) return 1;
+	if (!(d->alpha = malloc(0x100))) return 1;
+	if (!(d->logtable = malloc(0x100))) return 1;
+	if (!(d->zeroes = malloc(0x100))) return 1;
+	if (!(d->gaproots = malloc(0x100))) return 1;
 
 	d->n = n;
 	d->k = k;

@@ -4,13 +4,18 @@
 #include <string.h>
 #include <time.h>
 #include "decode/common.h"
-#include "diagrams/stuve.h"
 #include "decode/rs41/rs41.h"
 #include "gps/time.h"
 #include "gps/ecef.h"
 #include "io/gpx.h"
 #include "io/kml.h"
 #include "io/wavfile.h"
+#ifdef ENABLE_DIAGRAMS
+#include "diagrams/stuve.h"
+#endif
+#ifdef ENABLE_TUI
+#include "tui/tui.h"
+#endif
 
 #define SEPARATOR "     "
 #define SHORTOPTS "f:gh:k:l:o:v"
@@ -54,7 +59,12 @@ main(int argc, char *argv[])
 	SondeData data;
 	KMLFile kml, live_kml;
 	GPXFile gpx;
+#ifdef ENABLE_DIAGRAMS
 	cairo_surface_t *stuve = NULL;
+#endif
+#ifdef ENABLE_TUI
+	pthread_t tid;
+#endif
 	int samplerate;
 	int (*read_wrapper)(float *dst);
 	int c;
@@ -67,6 +77,9 @@ main(int argc, char *argv[])
 	char *gpx_fname = NULL;
 	char *stuve_fname = NULL;
 	char *input_fname = NULL;
+#ifdef ENABLE_TUI
+	int tui_enabled = 1;
+#endif
 	/* }}} */
 	/* Parse command-line args {{{ */
 	while ((c = getopt_long(argc, argv, SHORTOPTS, longopts, NULL)) != -1) {
@@ -91,6 +104,9 @@ main(int argc, char *argv[])
 				return 0;
 			case 'f':
 				output_fmt = optarg;
+#ifdef ENABLE_TUI
+				tui_enabled = 0;
+#endif
 				break;
 			default:
 				usage(argv[0]);
@@ -133,13 +149,18 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Error creating GPX file %s\n", gpx_fname);
 		return 1;
 	}
+#ifdef ENABLE_DIAGRAMS
 	if (stuve_fname) {
 		stuve = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 500, 1000);
 		stuve_draw_backdrop(stuve, stuve_bounds.tmin, stuve_bounds.tmax, stuve_bounds.pmin, stuve_bounds.pmax);
 	}
+#endif
 
-
-
+#ifdef ENABLE_TUI
+	if (tui_enabled) {
+		tui_init(-1);
+	}
+#endif
 
 	rs41_decoder_init(&rs41decoder, samplerate);
 	has_data = 0;
@@ -148,11 +169,23 @@ main(int argc, char *argv[])
 		fill_printable_data(&printable, &data);
 
 		if (data.type == SOURCE_END) break;
+#ifdef ENABLE_TUI
+		tui_update(&data);
+#endif
+
 		switch (data.type) {
 			case FRAME_END:
 				/* Write line at the end of the frame */
 				if (has_data) {
+#ifdef ENABLE_TUI
+					if (!tui_enabled) {
+						printf_data(output_fmt, &printable);
+					}
+#else
 					printf_data(output_fmt, &printable);
+#endif
+
+#ifdef ENABLE_DIAGRAMS
 					if (stuve) {
 						stuve_draw_point(stuve,
 								stuve_bounds.tmin, stuve_bounds.tmax, stuve_bounds.pmin, stuve_bounds.pmax,
@@ -160,6 +193,7 @@ main(int argc, char *argv[])
 								altitude_to_pressure(printable.alt),
 								dewpt(printable.temp, printable.rh));
 					}
+#endif
 					has_data = 0;
 				}
 				break;
@@ -190,12 +224,19 @@ main(int argc, char *argv[])
 	if (live_kml_fname) kml_close(&live_kml);
 	if (gpx_fname) gpx_close(&gpx);
 
+#ifdef ENABLE_DIAGRAMS
 	if (stuve) {
 		cairo_surface_write_to_png(stuve, stuve_fname);
 		cairo_surface_destroy(stuve);
 	}
+#endif
 	rs41_decoder_deinit(&rs41decoder);
 	fclose(_wav);
+#ifdef ENABLE_TUI
+	if (tui_enabled) {
+		tui_deinit();
+	}
+#endif
 
 	return 0;
 }
@@ -297,13 +338,13 @@ printf_data(const char *fmt, PrintableData *data)
 					printf("%3.0f", data->heading);
 					break;
 				case 'l':
-					printf("%8.5f%c", data->lat, (data->lat >= 0 ? 'N' : 'S'));
+					printf("%8.5f%c", fabs(data->lat), (data->lat >= 0 ? 'N' : 'S'));
 					break;
 				case 'o':
-					printf("%8.5f%c", data->lon, (data->lon >= 0 ? 'E' : 'W'));
+					printf("%8.5f%c", fabs(data->lon), (data->lon >= 0 ? 'E' : 'W'));
 					break;
 				case 'p':
-					printf("%4.0f", data->pressure != data->pressure ? altitude_to_pressure(data->alt) : data->pressure);
+					printf("%4.0f", isnan(data->pressure) ? altitude_to_pressure(data->alt) : data->pressure);
 					break;
 				case 'r':
 					printf("%3.0f", data->rh);

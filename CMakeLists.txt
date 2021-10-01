@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
+option(ENABLE_CAIRO "Enable thermodynamic diagrams" ON)
+option(ENABLE_GUI "Enable GUI" ON)
+
 project(sondedump
 	VERSION 0.1
 	DESCRIPTION "Radiosonde decoder"
@@ -11,7 +14,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -Wextra -Wimplicit-fallthrough")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -pipe -Wextra -Wimplicit-fallthrough")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -ffast-math -ftree-vectorize")
 
 # ARM architectures need -mfpu=auto in order to enable NEON when available,
@@ -47,8 +50,6 @@ set(LIBRARY_SOURCES
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h
 
-	diagrams/stuve.c diagrams/stuve.h
-
 	io/gpx.c io/gpx.h
 	io/kml.c io/kml.h
 	io/wavfile.c io/wavfile.h
@@ -56,12 +57,33 @@ set(LIBRARY_SOURCES
 	utils.c utils.h
 )
 
+set(CAIRO_SOURCES
+	diagrams/stuve.c diagrams/stuve.h
+)
+
+set(TUI_SOURCES
+	tui/tui.c tui/tui.h
+)
+
+set(EXEC_SOURCES
+	main.c
+)
+
 set(COMMON_INC_DIRS
 	${PROJECT_SOURCE_DIR}
 )
 
-# Libraries required
-find_library(CAIRO_LIBRARY NAMES cairo libcairo REQUIRED)
+# Extra functionality libraries
+find_library(CAIRO_LIBRARY NAMES cairo libcairo OPTIONAL)
+if (CAIRO_LIBRARY)
+	add_definitions(-DENABLE_DIAGRAMS)
+	set(EXEC_SOURCES ${EXEC_SOURCES} ${CAIRO_SOURCES})
+endif()
+find_library(NCURSES_LIBRARY NAMES ncursesw libncursesw ncurses libncurses OPTIONAL)
+if (NCURSES_LIBRARY)
+	add_definitions(-DENABLE_TUI)
+	set(EXEC_SOURCES ${EXEC_SOURCES} ${TUI_SOURCES})
+endif()
 
 
 # Main library target
@@ -75,9 +97,9 @@ target_include_directories(sonde PRIVATE ${COMMON_INC_DIRS})
 set_target_properties(sonde PROPERTIES EXCLUDE_FROM_ALL 1)
 
 # Main executable target
-add_executable(sondedump main.c ${EXEC_SOURCES})
+add_executable(sondedump ${EXEC_SOURCES})
 target_include_directories(sondedump PRIVATE ${COMMON_INC_DIRS})
-target_link_libraries(sondedump PRIVATE m sondedump_static ${CAIRO_LIBRARY})
+target_link_libraries(sondedump PRIVATE m pthread sondedump_static ${CAIRO_LIBRARY} ${NCURSES_LIBRARY})
 
 # Install targets
 install(TARGETS sondedump DESTINATION bin)
