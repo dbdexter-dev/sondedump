@@ -89,7 +89,7 @@ usage(const char *pname)
 	fprintf(stderr, "Usage: %s [options] file_in\n", pname);
 	fprintf(stderr,
 #ifdef ENABLE_AUDIO
-			"   -a, --audio-device <id> Use PortAudio device <id> as input (default: -1)\n"
+			"   -a, --audio-device <id> Use PortAudio device <id> as input (default: choose interactively)\n"
 #endif
 			"   -c, --csv <file>        Output data to <file> in CSV format\n"
 			"   -f, --fmt <format>      Format output lines as <format>\n"
@@ -126,5 +126,16 @@ usage(const char *pname)
 void
 version()
 {
-	fprintf(stderr, "meteor_demod v" VERSION "\n");
+	fprintf(stderr,
+			"sondedump v" VERSION
+#ifdef ENABLE_AUDIO
+			" +portaudio"
+#endif
+#ifdef ENABLE_DIAGRAMS
+			" +cairo"
+#endif
+#ifdef ENABLE_TUI
+			" +ncurses"
+#endif
+			"\n");
 }

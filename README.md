@@ -11,6 +11,7 @@ Features:
 - GPX and KML output
 - Live KML output (realtime position in Google Earth)
 - Stuve diagram generation (requires `cairo`)
+- Read FM-demodulated data from audio (requires `portaudio`)
 
 Supported models:
 - RS41-SG(P)
@@ -20,6 +21,7 @@ Build/install instructions
 Optional libraries:
 - `cairo`: Thermodynamic diagram generation
 - `ncurses`: Simple TUI with data summary
+- `portaudio`: Live streaming of samples from audio device
 
 Compilation:
 ```
@@ -32,6 +34,11 @@ Usage
 -----
 ```
 sondedump [options] file_in
+If no filename is specified and PortAudio support has been enabled during
+compilation, samples will be read from an audio device instead.
+
+   -a, --audio-device <id> Use PortAudio device <id> as input (default: choose interactively)
+   -c, --csv <file>        Output data to <file> in CSV format
    -f, --fmt <format>      Format output lines as <format>
    -g, --gpx <file>        Output GPX track to <file>
    -k, --kml <file>        Output KML track to <file>
@@ -62,5 +69,5 @@ Available format specifiers:
 Examples:
 - Stuve diagram + live KML track: `sondedump --live-kml sonde-live.kml --stuve
   stuve.png <input file>`
-- PTU data in CSV format: `echo "Temperature,Pressure,RH,Dewpoint" > data.csv;
-sondedump --fmt "%t,%p,%r,%d" <input file> >> data.csv`
+- Use Portaudio device 1 and output to CSV: `sondedump --audio-device 1 --csv
+  data.csv`
