@@ -12,7 +12,7 @@
 
 #define PTU_INFO_COUNT 4    /* Temp, RH, pressure, dewpt */
 #define GPS_INFO_COUNT 6    /* lat, lot, alt, speed, heading, climb */
-#define SONDE_INFO_COUNT 3  /* Serial, burstkill, date/time */
+#define SONDE_INFO_COUNT 4  /* Serial, burstkill, frame seq, date/time */
 #define INFO_COUNT (PTU_INFO_COUNT + GPS_INFO_COUNT + SONDE_INFO_COUNT)
 
 static void init_windows(int rows, int cols);
@@ -26,6 +26,7 @@ static pthread_t _tid;
 static struct {
 	WINDOW *win;
 	struct {
+		int seq;
 		float temp, rh, pressure;
 		float lat, lon, alt, spd, hdg, climb;
 		char serial[8+1];
@@ -95,6 +96,7 @@ tui_update(SondeData *data)
 						data->data.info.burstkill_status%60
 						);
 			}
+			tui.data.seq = data->data.info.seq;
 			break;
 		case PTU:
 			tui.data.temp = data->data.ptu.temp;
@@ -170,6 +172,8 @@ redraw()
 
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Serial no.:"),
 			"Serial no.: %s", tui.data.serial);
+	mvwprintw(tui.win, start_row++, start_col - sizeof("Frame no.:"),
+			"Frame no.: %d", tui.data.seq);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Onboard time:"),
 			"Onboard time: %s", tui.data.time);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Shutdown in:"),

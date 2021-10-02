@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
-option(ENABLE_CAIRO "Enable thermodynamic diagrams" ON)
-option(ENABLE_GUI "Enable GUI" ON)
+option(ENABLE_DIAGRAMS "Enable thermodynamic diagrams" ON)
+option(ENABLE_TUI "Enable Ncurses TUI" ON)
+option(ENABLE_AUDIO "Enable audio input" ON)
 
 project(sondedump
 	VERSION 0.1
@@ -65,6 +66,10 @@ set(TUI_SOURCES
 	tui/tui.c tui/tui.h
 )
 
+set(AUDIO_SOURCES
+	io/audio.c io/audio.h
+)
+
 set(EXEC_SOURCES
 	main.c
 )
@@ -75,14 +80,19 @@ set(COMMON_INC_DIRS
 
 # Extra functionality libraries
 find_library(CAIRO_LIBRARY NAMES cairo libcairo OPTIONAL)
-if (CAIRO_LIBRARY)
+if (ENABLE_DIAGRAMS AND CAIRO_LIBRARY)
 	add_definitions(-DENABLE_DIAGRAMS)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${CAIRO_SOURCES})
 endif()
 find_library(NCURSES_LIBRARY NAMES ncursesw libncursesw ncurses libncurses OPTIONAL)
-if (NCURSES_LIBRARY)
+if (ENABLE_TUI AND NCURSES_LIBRARY)
 	add_definitions(-DENABLE_TUI)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${TUI_SOURCES})
+endif()
+find_library(PORTAUDIO_LIBRARY NAMES portaudio libportaudio OPTIONAL)
+if(ENABLE_AUDIO AND PORTAUDIO_LIBRARY)
+	add_definitions(-DENABLE_AUDIO)
+	set(EXEC_SOURCES ${EXEC_SOURCES} ${AUDIO_SOURCES})
 endif()
 
 
@@ -99,7 +109,8 @@ set_target_properties(sonde PROPERTIES EXCLUDE_FROM_ALL 1)
 # Main executable target
 add_executable(sondedump ${EXEC_SOURCES})
 target_include_directories(sondedump PRIVATE ${COMMON_INC_DIRS})
-target_link_libraries(sondedump PRIVATE m pthread sondedump_static ${CAIRO_LIBRARY} ${NCURSES_LIBRARY})
+target_link_libraries(sondedump PRIVATE m pthread sondedump_static
+	${PORTAUDIO_LIBRARY} ${CAIRO_LIBRARY} ${NCURSES_LIBRARY})
 
 # Install targets
 install(TARGETS sondedump DESTINATION bin)

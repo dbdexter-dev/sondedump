@@ -16,9 +16,11 @@
 #ifdef ENABLE_TUI
 #include "tui/tui.h"
 #endif
+#ifdef ENABLE_AUDIO
+#include "io/audio.h"
+#endif
 
-#define SEPARATOR "     "
-#define SHORTOPTS "f:gh:k:l:o:v"
+#define SHORTOPTS "a:f:gh:k:l:o:v"
 
 typedef struct {
 	int seq;
@@ -38,6 +40,7 @@ static int raw_read_wrapper(float *dst);
 static FILE *_wav;
 static int _bps;
 static struct option longopts[] = {
+	{ "audio-device", 1, NULL, 'a'},
 	{ "fmt",      1, NULL, 'f' },
 	{ "gpx",      1, NULL, 'g' },
 	{ "help",     0, NULL, 'h' },
@@ -70,23 +73,38 @@ main(int argc, char *argv[])
 	int c;
 	int has_data;
 
+	memset(&printable, 0, sizeof(PrintableData));
+
 	/* Command-line changeable parameters {{{ */
 	char *output_fmt = "[%f] %t'C %r%%    %l %o %am    %sm/s %h' %cm/s";
 	char *live_kml_fname = NULL;
 	char *kml_fname = NULL;
 	char *gpx_fname = NULL;
+#ifdef ENABLE_DIAGRAMS
 	char *stuve_fname = NULL;
+#endif
 	char *input_fname = NULL;
 #ifdef ENABLE_TUI
 	int tui_enabled = 1;
+#endif
+#ifdef ENABLE_AUDIO
+	int input_from_audio = 0;
+	int audio_device = -1;
 #endif
 	/* }}} */
 	/* Parse command-line args {{{ */
 	while ((c = getopt_long(argc, argv, SHORTOPTS, longopts, NULL)) != -1) {
 		switch (c) {
+#ifdef ENABLE_DIAGRAMS
 			case 0x01:
 				stuve_fname = optarg;
 				break;
+#endif
+#ifdef ENABLE_AUDIO
+			case 'a':
+				audio_device = atoi(optarg);
+				break;
+#endif
 			case 'g':
 				gpx_fname = optarg;
 				break;
@@ -116,14 +134,24 @@ main(int argc, char *argv[])
 	}
 
 	if (argc - optind < 1) {
+#ifdef ENABLE_AUDIO
+		samplerate = audio_init(audio_device);
+		printf("Selected samplerate: %d\n", samplerate);
+		input_from_audio = 1;
+#else
 		fprintf(stderr, "No input file specified\n");
 		usage(argv[0]);
 		return 1;
+#endif
 	}
 	input_fname = argv[optind];
 	/* }}} */
 
-
+#ifdef ENABLE_AUDIO
+	if (input_from_audio) {
+		read_wrapper = audio_read;
+	} else {
+#endif
 	if (!(_wav = fopen(input_fname, "rb"))) {
 		fprintf(stderr, "Could not open input file\n");
 		return 1;
@@ -136,6 +164,9 @@ main(int argc, char *argv[])
 
 		read_wrapper = &raw_read_wrapper;
 	}
+#ifdef ENABLE_AUDIO
+	}   /* if (input_from_audio) {} else { */
+#endif
 
 	if (kml_fname && kml_init(&kml, kml_fname, 0)) {
 		fprintf(stderr, "Error creating KML file %s\n", kml_fname);
@@ -235,6 +266,11 @@ main(int argc, char *argv[])
 #ifdef ENABLE_TUI
 	if (tui_enabled) {
 		tui_deinit();
+	}
+#endif
+#ifdef ENABLE_AUDIO
+	if (input_from_audio) {
+		audio_deinit();
 	}
 #endif
 

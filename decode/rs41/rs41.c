@@ -57,8 +57,6 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 	int inverted;
 	int i, errors;
 
-	float lat, lon, alt;
-
 	RS41Subframe_Status *status;
 	RS41Subframe_PTU *ptu;
 	RS41Subframe_GPSInfo *gpsinfo;
@@ -88,6 +86,10 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					((uint8_t*)self->frame)[i] ^= 0xFF;
 				}
 			}
+#ifndef NDEBUG
+			/* Output the frame to file */
+			fwrite(self->frame, RS41_MAX_FRAME_LEN, 1, debug);
+#endif
 
 			/* Descramble and error correct */
 			rs41_frame_descramble(self->frame);
@@ -96,10 +98,6 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 				data.type = FRAME_END;
 				return data;
 			}
-#ifndef NDEBUG
-			/* Output the frame to file */
-			fwrite(self->frame, RS41_MAX_FRAME_LEN, 1, debug);
-#endif
 
 			/* Prepare to parse subframes */
 			self->offset = 0;
@@ -162,7 +160,6 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					data.data.ptu.temp = rs41_subframe_temp(ptu, &self->metadata.data);
 					data.data.ptu.rh = rs41_subframe_humidity(ptu, &self->metadata.data);
 					data.data.ptu.pressure = rs41_subframe_pressure(ptu, &self->metadata.data);
-
 					break;
 				case RS41_SFTYPE_GPSPOS:
 					/* GPS position */
@@ -174,9 +171,6 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					data.data.pos.dx = rs41_subframe_dx((RS41Subframe_GPSPos*)subframe);
 					data.data.pos.dy = rs41_subframe_dy((RS41Subframe_GPSPos*)subframe);
 					data.data.pos.dz = rs41_subframe_dz((RS41Subframe_GPSPos*)subframe);
-
-					ecef_to_lla(&lat, &lon, &alt, data.data.pos.x, data.data.pos.y, data.data.pos.z);
-					//printf("%.0f\n", alt);
 					break;
 				case RS41_SFTYPE_GPSINFO:
 					/* GPS date/time and RSSI */

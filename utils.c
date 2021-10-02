@@ -88,11 +88,16 @@ usage(const char *pname)
 {
 	fprintf(stderr, "Usage: %s [options] file_in\n", pname);
 	fprintf(stderr,
+#ifdef ENABLE_AUDIO
+			"   -a, --audio-device <id> Use PortAudio device <id> as input (default: -1)\n"
+#endif
 			"   -f, --fmt <format>      Format output lines as <format>\n"
 			"   -g, --gpx <file>        Output GPX track to <file>\n"
 			"   -k, --kml <file>        Output KML track to <file>\n"
 			"   -l, --live-kml <file>   Output live KML track to <file>\n"
+#ifdef ENABLE_DIAGRAMS
 			"       --stuve <file>      Generate Stuve diagram and output to <file>\n"
+#endif
 
 	        "\n"
 	        "   -h, --help              Print this help screen\n"
