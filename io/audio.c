@@ -106,7 +106,6 @@ audio_deinit()
 {
 	/* Stop streaming audio, deinitialize stream, then deinitialize portaudio
 	 * itself. If we error here nobody cares cause we're closing shop anyway */
-	Pa_Sleep(1000);
 	Pa_AbortStream(&_state.stream);
 	Pa_CloseStream(&_state.stream);
 	Pa_Terminate();

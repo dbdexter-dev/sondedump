@@ -83,7 +83,7 @@ tui_update(SondeData *data)
 		case FRAME_END:
 		case UNKNOWN:
 		case SOURCE_END:
-			break;
+			return 0;
 		case DATETIME:
 			strftime(tui.data.time, LEN(tui.data.time), "%a %b %d %Y %H:%M:%S", gmtime(&data->data.datetime.datetime));
 			break;
@@ -131,6 +131,10 @@ main_loop(void *args)
 
 		if (tui.data.changed) {
 			redraw();
+			mvwprintw(tui.win, 1, 1, "*");
+			tui.data.changed = 0;
+		} else {
+			mvwprintw(tui.win, 1, 1, " ");
 		}
 	}
 	return NULL;
@@ -165,7 +169,7 @@ redraw()
 	synthetic_pressure = (isnormal(tui.data.pressure) ?
 			tui.data.pressure : altitude_to_pressure(tui.data.alt));
 
-	wclear(tui.win);
+	werase(tui.win);
 	wborder(tui.win,
 			0, 0, 0, 0,
 			0, 0, 0, 0);
