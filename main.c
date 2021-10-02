@@ -1,5 +1,6 @@
 #include <getopt.h>
 #include <math.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -36,9 +37,11 @@ static void fill_printable_data(PrintableData *to_print, SondeData *data);
 static int printf_data(const char *fmt, PrintableData *data);
 static int wav_read_wrapper(float *dst);
 static int raw_read_wrapper(float *dst);
+static void sigint_handler(int val);
 
 static FILE *_wav;
 static int _bps;
+static int _interrupted;
 static struct option longopts[] = {
 	{ "audio-device", 1, NULL, 'a'},
 	{ "fmt",      1, NULL, 'f' },
@@ -57,13 +60,13 @@ static struct option longopts[] = {
 int
 main(int argc, char *argv[])
 {
-	const struct { float tmin, tmax, pmin, pmax; } stuve_bounds = {-80, 40, 100, 1000};
 	PrintableData printable;
 	RS41Decoder rs41decoder;
 	SondeData data;
 	KMLFile kml, live_kml;
 	GPXFile gpx;
 #ifdef ENABLE_DIAGRAMS
+	const struct { float tmin, tmax, pmin, pmax; } stuve_bounds = {-80, 40, 100, 1000};
 	cairo_surface_t *stuve = NULL;
 #endif
 #ifdef ENABLE_TUI
@@ -211,7 +214,11 @@ main(int argc, char *argv[])
 
 	rs41_decoder_init(&rs41decoder, samplerate);
 	has_data = 0;
-	while (1) {
+
+	/* Catch SIGINT to exit the loop */
+	_interrupted = 0;
+	signal(SIGINT, sigint_handler);
+	while (!_interrupted) {
 		data = rs41_decode(&rs41decoder, read_wrapper);
 		fill_printable_data(&printable, &data);
 
@@ -273,6 +280,7 @@ main(int argc, char *argv[])
 				break;
 		}
 	}
+
 	if (kml_fname) kml_close(&kml);
 	if (live_kml_fname) kml_close(&live_kml);
 	if (gpx_fname) gpx_close(&gpx);
@@ -285,15 +293,15 @@ main(int argc, char *argv[])
 	}
 #endif
 	rs41_decoder_deinit(&rs41decoder);
-	fclose(_wav);
-#ifdef ENABLE_TUI
-	if (tui_enabled) {
-		tui_deinit();
-	}
-#endif
+	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO
 	if (input_from_audio) {
 		audio_deinit();
+	}
+#endif
+#ifdef ENABLE_TUI
+	if (tui_enabled) {
+		tui_deinit();
 	}
 #endif
 
@@ -431,4 +439,10 @@ printf_data(const char *fmt, PrintableData *data)
 	}
 	if (i > 0) printf("\n");
 	return 0;
+}
+
+static void
+sigint_handler(int val)
+{
+	_interrupted = 1;
 }
