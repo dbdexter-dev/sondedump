@@ -91,6 +91,7 @@ usage(const char *pname)
 #ifdef ENABLE_AUDIO
 			"   -a, --audio-device <id> Use PortAudio device <id> as input (default: -1)\n"
 #endif
+			"   -c, --csv <file>        Output data to <file> in CSV format\n"
 			"   -f, --fmt <format>      Format output lines as <format>\n"
 			"   -g, --gpx <file>        Output GPX track to <file>\n"
 			"   -k, --kml <file>        Output KML track to <file>\n"

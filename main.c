@@ -20,7 +20,7 @@
 #include "io/audio.h"
 #endif
 
-#define SHORTOPTS "a:f:gh:k:l:o:v"
+#define SHORTOPTS "a:c:f:gh:k:l:o:v"
 
 typedef struct {
 	int seq;
@@ -42,6 +42,7 @@ static int _bps;
 static struct option longopts[] = {
 	{ "audio-device", 1, NULL, 'a'},
 	{ "fmt",      1, NULL, 'f' },
+	{ "csv",      1, NULL, 'c' },
 	{ "gpx",      1, NULL, 'g' },
 	{ "help",     0, NULL, 'h' },
 	{ "kml",      1, NULL, 'k' },
@@ -72,6 +73,7 @@ main(int argc, char *argv[])
 	int (*read_wrapper)(float *dst);
 	int c;
 	int has_data;
+	FILE *csv_fd = NULL;
 
 	memset(&printable, 0, sizeof(PrintableData));
 
@@ -80,6 +82,7 @@ main(int argc, char *argv[])
 	char *live_kml_fname = NULL;
 	char *kml_fname = NULL;
 	char *gpx_fname = NULL;
+	char *csv_fname = NULL;
 #ifdef ENABLE_DIAGRAMS
 	char *stuve_fname = NULL;
 #endif
@@ -105,6 +108,9 @@ main(int argc, char *argv[])
 				audio_device = atoi(optarg);
 				break;
 #endif
+			case 'c':
+				csv_fname = optarg;
+				break;
 			case 'g':
 				gpx_fname = optarg;
 				break;
@@ -147,6 +153,7 @@ main(int argc, char *argv[])
 	input_fname = argv[optind];
 	/* }}} */
 
+	/* Open input */
 #ifdef ENABLE_AUDIO
 	if (input_from_audio) {
 		read_wrapper = audio_read;
@@ -168,6 +175,15 @@ main(int argc, char *argv[])
 	}   /* if (input_from_audio) {} else { */
 #endif
 
+	/* Open CSV output */
+	if (csv_fname) {
+		if (!(csv_fd = fopen(csv_fname, "wb"))) {
+			fprintf(stderr, "Error creating CSV file %s\n", csv_fname);
+		}
+		fprintf(csv_fd, "Temperature,RH,Pressure,Altitude,Latitude,Longitude\n");
+	}
+
+	/* Open GPX/KML output */
 	if (kml_fname && kml_init(&kml, kml_fname, 0)) {
 		fprintf(stderr, "Error creating KML file %s\n", kml_fname);
 		return 1;
@@ -216,6 +232,7 @@ main(int argc, char *argv[])
 					printf_data(output_fmt, &printable);
 #endif
 
+					/* Update Stuve diagram */
 #ifdef ENABLE_DIAGRAMS
 					if (stuve) {
 						stuve_draw_point(stuve,
@@ -225,13 +242,18 @@ main(int argc, char *argv[])
 								dewpt(printable.temp, printable.rh));
 					}
 #endif
-					has_data = 0;
 				}
+
+				if (csv_fd) {
+					fprintf(csv_fd, "%f,%f,%f,%f,%f,%f\n",
+							printable.temp, printable.rh,
+							isnan(printable.pressure) ? altitude_to_pressure(printable.alt) : printable.pressure,
+							printable.alt, printable.lat, printable.lon);
+				}
+				has_data = 0;
 				break;
 			case POSITION:
 				/* Add position to whichever files are open */
-
-				/* Add point to GPS track */
 				if (kml_fname) {
 					if (!kml.track_active) kml_start_track(&kml, printable.serial);
 					kml_add_trackpoint(&kml, printable.lat, printable.lon, printable.alt, printable.utc_time);
@@ -254,6 +276,7 @@ main(int argc, char *argv[])
 	if (kml_fname) kml_close(&kml);
 	if (live_kml_fname) kml_close(&live_kml);
 	if (gpx_fname) gpx_close(&gpx);
+	if (csv_fd) fclose(csv_fd);
 
 #ifdef ENABLE_DIAGRAMS
 	if (stuve) {
