@@ -183,7 +183,7 @@ main(int argc, char *argv[])
 		if (!(csv_fd = fopen(csv_fname, "wb"))) {
 			fprintf(stderr, "Error creating CSV file %s\n", csv_fname);
 		}
-		fprintf(csv_fd, "Temperature,RH,Pressure,Altitude,Latitude,Longitude\n");
+		fprintf(csv_fd, "Temperature,RH,Pressure,Altitude,Latitude,Longitude,Speed,Heading,Climb\n");
 	}
 
 	/* Open GPX/KML output */
@@ -213,10 +213,10 @@ main(int argc, char *argv[])
 #endif
 
 	rs41_decoder_init(&rs41decoder, samplerate);
-	has_data = 0;
 
 	/* Catch SIGINT to exit the loop */
 	_interrupted = 0;
+	has_data = 0;
 	signal(SIGINT, sigint_handler);
 	while (!_interrupted) {
 		data = rs41_decode(&rs41decoder, read_wrapper);
@@ -252,10 +252,11 @@ main(int argc, char *argv[])
 				}
 
 				if (csv_fd) {
-					fprintf(csv_fd, "%f,%f,%f,%f,%f,%f\n",
+					fprintf(csv_fd, "%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
 							printable.temp, printable.rh,
 							isnan(printable.pressure) ? altitude_to_pressure(printable.alt) : printable.pressure,
-							printable.alt, printable.lat, printable.lon);
+							printable.alt, printable.lat, printable.lon,
+							printable.speed, printable.heading, printable.climb);
 				}
 				has_data = 0;
 				break;
@@ -308,6 +309,7 @@ main(int argc, char *argv[])
 	return 0;
 }
 
+/* Static functions {{{ */
 static int
 wav_read_wrapper(float *dst)
 {
@@ -446,3 +448,4 @@ sigint_handler(int val)
 {
 	_interrupted = 1;
 }
+/* }}} */

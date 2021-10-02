@@ -14,11 +14,12 @@ static float _float_bias = 0;
 float
 agc_apply(float sample)
 {
+	if (sample == 0) return 0;
 	sample -= _float_bias;
 	_float_bias = _float_bias * (1-BIAS_POLE) + sample*BIAS_POLE;
 
 	_float_gain = MAX(0, FLOAT_TARGET_MAG/_moving_avg);
-	_moving_avg = _moving_avg * (1-GAIN_POLE) + fabsf(sample)*GAIN_POLE + 1e-6;     /* Prevents div/0 above */
+	_moving_avg = _moving_avg * (1-GAIN_POLE) + fabsf(sample)*GAIN_POLE;     /* Prevents div/0 above */
 	/* Apply AGC */
 	sample *= _float_gain;
 

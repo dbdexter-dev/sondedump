@@ -4,10 +4,9 @@
 #include "audio.h"
 #include "utils.h"
 
-PaError print_error(PaError err);
+static PaError print_error(PaError err);
 
-static const double _samplerates[] = {44100, 48000};
-
+static const double _samplerates[] = {48000, 44100};
 static struct {
 	PaStream *stream;
 	float buffer[BUFFER_SIZE];
@@ -81,10 +80,10 @@ audio_init(int device_num)
 	/* Open stream */
 	err = Pa_OpenStream(&_state.stream,
 	                    &input_params,
-	                    NULL,               /* Input-only stream */
-	                    samplerate,         /* Agreed upon samplerate */
-	                    paFramesPerBufferUnspecified,
-	                    paNoFlag | paDitherOff | paClipOff,        /* Disable extra audio processing */
+	                    NULL,                                   /* Input-only stream */
+	                    samplerate,                             /* Agreed upon samplerate */
+	                    paFramesPerBufferUnspecified,           /* Let portaudio choose the best size */
+	                    paNoFlag | paDitherOff | paClipOff,     /* Disable extra audio processing */
 	                    NULL,
 	                    NULL
 	);
@@ -124,9 +123,11 @@ audio_read(float *ptr)
 	return 1;
 }
 
-PaError
+/* Static functions {{{ */
+static PaError
 print_error(PaError err)
 {
 	fprintf(stderr, "Portaudio error: %s\n", Pa_GetErrorText(err));
 	return err;
 }
+/* }}} */

@@ -16,7 +16,6 @@ static FILE *debug;
 static FILE *metafile;
 #endif
 
-
 void
 rs41_decoder_init(RS41Decoder *d, int samplerate)
 {
@@ -56,10 +55,12 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 	int offset;
 	int inverted;
 	int i, errors;
+	int burstkill_timer;
 
 	RS41Subframe_Status *status;
 	RS41Subframe_PTU *ptu;
 	RS41Subframe_GPSInfo *gpsinfo;
+	RS41Subframe_GPSPos *gpspos;
 
 	switch (self->state) {
 		case READ:
@@ -86,10 +87,6 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					((uint8_t*)self->frame)[i] ^= 0xFF;
 				}
 			}
-#ifndef NDEBUG
-			/* Output the frame to file */
-			fwrite(self->frame, RS41_MAX_FRAME_LEN, 1, debug);
-#endif
 
 			/* Descramble and error correct */
 			rs41_frame_descramble(self->frame);
@@ -98,6 +95,12 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 				data.type = FRAME_END;
 				return data;
 			}
+
+#ifndef NDEBUG
+			/* Output the frame to file */
+			fwrite(self->frame, RS41_MAX_FRAME_LEN, 1, debug);
+#endif
+
 
 			/* Prepare to parse subframes */
 			self->offset = 0;
@@ -119,17 +122,14 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 				break;
 			}
 
-			/* Validate the subframe's checksum. If it doesn't match, discard
-			 * the subframe */
-			tmp = subframe->data[subframe->len];
-			subframe->data[subframe->len] = subframe->data[subframe->len+1];
-			subframe->data[subframe->len+1] = tmp;
-			if (crc16_ccitt_false(subframe->data, subframe->len+2)) {
+			/* Validate the subframe's checksum against the one received.
+			 * If it doesn't match, discard it */
+			if (crc16_ccitt_false(subframe->data, subframe->len) != *(uint16_t*)&subframe->data[subframe->len]) {
 				data.type = EMPTY;
 				break;
 			}
 
-			/* Parse the subframe */
+			/* Subframe parsing {{{ */
 			switch (subframe->type) {
 				case RS41_SFTYPE_EMPTY:
 					/* Padding */
@@ -144,12 +144,8 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 
 					data.data.info.seq = status->frame_seq;
 					data.data.info.sonde_serial = status->serial;
-
-					if (self->metadata.data.burstkill_timer == 0xFFFF) {
-						data.data.info.burstkill_status = -1;
-					} else {
-						data.data.info.burstkill_status = self->metadata.data.burstkill_timer;
-					}
+					burstkill_timer = self->metadata.data.burstkill_timer;
+					data.data.info.burstkill_status = (burstkill_timer == 0xFFFF ? -1 : burstkill_timer);
 					break;
 				case RS41_SFTYPE_PTU:
 					/* Temperature, humidity, pressure */
@@ -163,20 +159,23 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					break;
 				case RS41_SFTYPE_GPSPOS:
 					/* GPS position */
+					gpspos = (RS41Subframe_GPSPos*)subframe;
+
 					data.type = POSITION;
 
-					data.data.pos.x = rs41_subframe_x((RS41Subframe_GPSPos*)subframe);
-					data.data.pos.y = rs41_subframe_y((RS41Subframe_GPSPos*)subframe);
-					data.data.pos.z = rs41_subframe_z((RS41Subframe_GPSPos*)subframe);
-					data.data.pos.dx = rs41_subframe_dx((RS41Subframe_GPSPos*)subframe);
-					data.data.pos.dy = rs41_subframe_dy((RS41Subframe_GPSPos*)subframe);
-					data.data.pos.dz = rs41_subframe_dz((RS41Subframe_GPSPos*)subframe);
+					data.data.pos.x = rs41_subframe_x(gpspos);
+					data.data.pos.y = rs41_subframe_y(gpspos);
+					data.data.pos.z = rs41_subframe_z(gpspos);
+					data.data.pos.dx = rs41_subframe_dx(gpspos);
+					data.data.pos.dy = rs41_subframe_dy(gpspos);
+					data.data.pos.dz = rs41_subframe_dz(gpspos);
 					break;
 				case RS41_SFTYPE_GPSINFO:
 					/* GPS date/time and RSSI */
 					gpsinfo = (RS41Subframe_GPSInfo*)subframe;
 
 					data.type = DATETIME;
+
 					data.data.datetime.datetime = gps_time_to_utc(gpsinfo->week, gpsinfo->ms);
 					break;
 				default:
@@ -184,6 +183,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					data.type = UNKNOWN;
 					break;
 			}
+			/* }}} */
 
 
 			break;
@@ -195,6 +195,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 	return data;
 }
 
+/* Static functions {{{ */
 static void
 rs41_update_metadata(RS41Metadata *m, RS41Subframe_Status *s)
 {
@@ -223,13 +224,5 @@ rs41_update_metadata(RS41Metadata *m, RS41Subframe_Status *s)
 #ifndef NDEBUG
 	fwrite(&m->data, sizeof(m->data), 1, metafile);
 #endif
-	/*
-	printf("{%d} ", s->frag_seq);
-	for (i=0; i<69; i++) {
-		printf("%f ", ((float*)m->data.rt_ref)[i]);
-	}
-	printf("\n");
-	*/
-
-
 }
+/* }}} */
