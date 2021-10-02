@@ -10,6 +10,8 @@ static const double _samplerates[] = {44100, 48000};
 
 static struct {
 	PaStream *stream;
+	float buffer[BUFFER_SIZE];
+	int idx;
 } _state;
 
 int
@@ -28,6 +30,8 @@ audio_init(int device_num)
 	};
 	PaError err;
 
+	_state.idx = 0;
+
 	/* Initialize portaudio */
 	if ((err = Pa_Initialize()) != paNoError) {
 		return print_error(err);
@@ -41,6 +45,8 @@ audio_init(int device_num)
 
 	while (device_num < 0 || device_num >= num_devices) {
 		/* List all devices */
+		printf("\n==============================\n");
+		printf("Please select an audio device:\n");
 		for (i=0; i<num_devices; i++) {
 			device_info = Pa_GetDeviceInfo(i);
 			if (device_info->maxInputChannels > 0) {
@@ -111,7 +117,11 @@ audio_deinit()
 int
 audio_read(float *ptr)
 {
-	Pa_ReadStream(_state.stream, ptr, 1);
+	if (_state.idx == BUFFER_SIZE) {
+		Pa_ReadStream(_state.stream, _state.buffer, BUFFER_SIZE);
+		_state.idx = 0;
+	}
+	*ptr = _state.buffer[_state.idx++];
 	return 1;
 }
 
