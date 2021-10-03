@@ -4,8 +4,6 @@
 #include <time.h>
 #include "utils.h"
 
-static char _generated_fname[sizeof("LRPT_YYYY_MM_DD_HH_MM.s") + 1];
-
 void
 bitcpy(uint8_t *dst, uint8_t *src, size_t src_offset, size_t num_bits)
 {

@@ -1,13 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "decode/ecc/crc.h"
 #include "decode/prng.h"
-#include "ecc/crc.h"
 #include "frame.h"
-#include "rs41.h"
-#include "subframe.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
+#include "rs41.h"
+#include "subframe.h"
 
 static void rs41_update_metadata(RS41Metadata *m, RS41Subframe_Status *s);
 
@@ -50,7 +50,6 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 {
 	SondeData data;
 	RS41Subframe *subframe;
-	uint8_t tmp;
 	int frame_data_len;
 	int offset;
 	int inverted;

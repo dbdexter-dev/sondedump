@@ -1,8 +1,8 @@
 #ifndef rs41_frame_h
 #define rs41_frame_h
 
+#include "decode/ecc/rs.h"
 #include "protocol.h"
-#include "ecc/rs.h"
 
 /**
  * Descramble the bits inside of the frame, both in terms of ordering and by

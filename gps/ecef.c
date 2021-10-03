@@ -9,7 +9,6 @@ ecef_to_lla(float *lat, float *lon, float *alt, float x, float y, float z)
 	const float theta = atan2f(z*WGS84_A,(p*WGS84_B));
 	const float sintheta = sinf(theta);
 	const float costheta = cosf(theta);
-	int i;
 	float n, h, phi, sinphi;
 
 	if (x == 0 || y == 0 || z == 0) {

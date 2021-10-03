@@ -69,9 +69,6 @@ main(int argc, char *argv[])
 	const struct { float tmin, tmax, pmin, pmax; } stuve_bounds = {-80, 40, 100, 1000};
 	cairo_surface_t *stuve = NULL;
 #endif
-#ifdef ENABLE_TUI
-	pthread_t tid;
-#endif
 	int samplerate;
 	int (*read_wrapper)(float *dst);
 	int c;

@@ -7,8 +7,6 @@
 #define FREQ_DEV_EXP 12
 
 static void update_estimate(Timing *t, float err);
-static void update_alpha_beta(Timing *t, float damp, float bw);
-static float mm_err(float prev, float cur);
 static float gardner_err(float prev, float interm, float cur);
 
 

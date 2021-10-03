@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include "ecc/crc.h"
+#include "decode/ecc/crc.h"
 #include "subframe.h"
 #include "utils.h"
 

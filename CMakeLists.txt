@@ -15,7 +15,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -pipe -Wextra -Wimplicit-fallthrough")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -pipe -Wall -Wextra -Wimplicit-fallthrough")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -ftree-vectorize")
 
 # ARM architectures need -mfpu=auto in order to enable NEON when available,
@@ -29,24 +29,23 @@ endif()
 
 
 set(LIBRARY_SOURCES
-	correlator/correlator.c correlator/correlator.h
+	decode/correlator/correlator.c decode/correlator/correlator.h
 
-	dsp/filter.c dsp/filter.h
-	dsp/timing.c dsp/timing.h
-	dsp/agc.c dsp/agc.h
-
+	demod/dsp/filter.c demod/dsp/filter.h
+	demod/dsp/timing.c demod/dsp/timing.h
+	demod/dsp/agc.c demod/dsp/agc.h
 	demod/gfsk.c demod/gfsk.h
 
 	decode/prng.c decode/prng.h
 	decode/common.h
 
+	decode/ecc/crc.c decode/ecc/crc.h
+	decode/ecc/rs.c decode/ecc/rs.h
+
 	decode/rs41/rs41.c decode/rs41/rs41.h
 	decode/rs41/frame.c decode/rs41/frame.h
 	decode/rs41/subframe.c decode/rs41/subframe.h
 	decode/rs41/protocol.h
-
-	ecc/crc.c ecc/crc.h
-	ecc/rs.c ecc/rs.h
 
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h
