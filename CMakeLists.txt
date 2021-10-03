@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
-option(ENABLE_DIAGRAMS "Enable thermodynamic diagrams" ON)
-option(ENABLE_TUI "Enable Ncurses TUI" ON)
-option(ENABLE_AUDIO "Enable audio input" ON)
+option(ENABLE_DIAGRAMS "Enable thermodynamic diagrams (requires cairo)" ON)
+option(ENABLE_TUI "Enable Ncurses TUI (requires ncurses)" ON)
+option(ENABLE_AUDIO "Enable audio input (requires portaudio)" ON)
 
 project(sondedump
 	VERSION 0.2
@@ -79,21 +79,35 @@ set(COMMON_INC_DIRS
 )
 
 # Extra functionality libraries
+message("\nBuild configuration:")
 find_library(CAIRO_LIBRARY NAMES cairo libcairo OPTIONAL)
 if (ENABLE_DIAGRAMS AND CAIRO_LIBRARY)
 	add_definitions(-DENABLE_DIAGRAMS)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${CAIRO_SOURCES})
+	message("   cairo       ON")
+else()
+	set(CAIRO_LIBRARY "")
+	message("   cairo       OFF")
 endif()
 find_library(NCURSES_LIBRARY NAMES ncursesw libncursesw ncurses libncurses OPTIONAL)
 if (ENABLE_TUI AND NCURSES_LIBRARY)
 	add_definitions(-DENABLE_TUI)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${TUI_SOURCES})
+	message("   ncurses     ON")
+else()
+	set(NCURSES_LIBRARY "")
+	message("   ncurses     OFF")
 endif()
 find_library(PORTAUDIO_LIBRARY NAMES portaudio libportaudio OPTIONAL)
 if(ENABLE_AUDIO AND PORTAUDIO_LIBRARY)
 	add_definitions(-DENABLE_AUDIO)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${AUDIO_SOURCES})
+	message("   portaudio   ON")
+else()
+	set(PORTAUDIO_LIBRARY "")
+	message("   portaudio   OFF")
 endif()
+message("")
 
 
 # Main library target
