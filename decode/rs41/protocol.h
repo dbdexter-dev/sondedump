@@ -115,9 +115,9 @@ typedef struct {
 	uint8_t len;
 
 	/* GPS position specific fields */
-	uint32_t x;
-	uint32_t y;
-	uint32_t z;
+	int32_t x;
+	int32_t y;
+	int32_t z;
 	int16_t dx;
 	int16_t dy;
 	int16_t dz;

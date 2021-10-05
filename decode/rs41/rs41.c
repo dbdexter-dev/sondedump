@@ -64,7 +64,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 	switch (self->state) {
 		case READ:
 			/* Read a frame worth of bits */
-			if (!gfsk_decode(&self->gfsk, (uint8_t*)self->frame, 0, RS41_MAX_FRAME_LEN*8, read)) {
+			if (!gfsk_demod(&self->gfsk, (uint8_t*)self->frame, 0, RS41_MAX_FRAME_LEN*8, read)) {
 				data.type = SOURCE_END;
 				return data;
 			}
@@ -73,7 +73,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 			offset = correlate(&self->correlator, &inverted, (uint8_t*)self->frame, RS41_MAX_FRAME_LEN);
 			if (offset) {
 				/* Read more bits to compensate for the frame offset */
-				if (!gfsk_decode(&self->gfsk, (uint8_t*)self->frame + RS41_MAX_FRAME_LEN, 0, offset, read)) {
+				if (!gfsk_demod(&self->gfsk, (uint8_t*)self->frame + RS41_MAX_FRAME_LEN, 0, offset, read)) {
 					data.type = SOURCE_END;
 					return data;
 				}

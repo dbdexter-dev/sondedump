@@ -3,17 +3,13 @@
 #include "timing.h"
 #include "utils.h"
 
-/* freq will be at most +-2**-FREQ_DEV_EXP outside of the range */
-#define FREQ_DEV_EXP 12
-
 static void update_estimate(Timing *t, float err);
 static float gardner_err(float prev, float interm, float cur);
-
 
 void
 timing_init(Timing *t, float sym_freq, float alpha)
 {
-	t->freq = 2.0*M_PI*sym_freq;
+	t->freq = 2.0*sym_freq;
 	t->alpha = alpha;
 	t->phase = 0;
 	t->state = 1;
@@ -28,7 +24,7 @@ advance_timeslot(Timing *t)
 	t->phase += t->freq;
 
 	/* Update the intermediate sample */
-	if (t->phase >= t->state * M_PI) {
+	if (t->phase >= t->state) {
 		ret = t->state;
 		t->state = (t->state % 2) + 1;
 		return ret;
@@ -55,7 +51,7 @@ retime(Timing *t, float interm, float sample)
 static void
 update_estimate(Timing *t, float error)
 {
-	t->phase -= 2*M_PI - error * t->alpha;
+	t->phase -= 2 - error * t->alpha;
 }
 
 static float

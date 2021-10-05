@@ -29,7 +29,7 @@ gfsk_deinit(GFSKDemod *g)
 }
 
 int
-gfsk_decode(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(float *dst))
+gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(float *dst))
 {
 	float symbol;
 	float interm;
@@ -40,20 +40,13 @@ gfsk_decode(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(
 	bit_offset %= 8;
 
 	/* Initialize first byte that will be touched */
-	if (bit_offset) {
-		*dst &= ~((1 << bit_offset) - 1);
-	} else {
-		*dst = 0;
-	}
-
-	tmp = 0;
+	tmp = (*dst & ~((1 << bit_offset) - 1)) >> bit_offset;
 	interm = 0;
 	while (len > 0) {
 		/* Read a new sample and filter it */
 		if (!read(&symbol)) break;
 		symbol = agc_apply(symbol);
 		filter_fwd_sample(&g->lpf, symbol);
-
 
 		switch (advance_timeslot(&g->timing)) {
 			case 1:
@@ -72,9 +65,8 @@ gfsk_decode(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(
 
 				/* If a byte boundary is crossed, write to dst */
 				if (!(bit_offset % 8)) {
-					*dst++ |= tmp;
+					*dst++ = tmp;
 					tmp = 0;
-					*dst = 0;
 				}
 				break;
 			default:
@@ -84,9 +76,7 @@ gfsk_decode(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(
 	}
 
 	/* Last write */
-	if (!(bit_offset % 8)) {
-		*dst |= (tmp << (7 - (bit_offset % 8)));
-	}
+	*dst = (tmp << (7 - (bit_offset % 8)));
 
 	return bit_offset;
 }

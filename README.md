@@ -1,8 +1,9 @@
 Radiosonde decoder
 ==================
 
-Still under heavy WIP, it's useable if you're a bit of a masochist, but if you
-need docs you'll probably have to wait a bit
+This is a free, open-source radiosonde decoder and tracker. Given an
+FM-demodulated signal (either in .wav form or directly fed from an audio
+source), it will decode it and output the recovered data in different formats.
 
 Features:
 - Decoding of calibrated PTU data (pressure, temperature, humidity)
@@ -11,7 +12,7 @@ Features:
 - GPX and KML output
 - Live KML output (realtime position in Google Earth)
 - Stuve diagram generation (requires `cairo`)
-- Read FM-demodulated data from audio (requires `portaudio`)
+- Read FM-demodulated data directly from audio (requires `portaudio`)
 
 Supported models:
 - RS41-SG(P)

@@ -6,8 +6,8 @@
 #include "dsp/timing.h"
 #include "dsp/filter.h"
 
-#define GFSK_FILTER_ORDER 32
-#define SYM_ALPHA (1.0/1e10)
+#define GFSK_FILTER_ORDER 24
+#define SYM_ALPHA (1.0/1e11)
 
 typedef struct {
 	int samplerate, symrate;
@@ -29,7 +29,7 @@ int gfsk_init(GFSKDemod *g, int samplerate, int symrate);
 void gfsk_deinit(GFSKDemod *g);
 
 /**
- * Decode bits from a GFSK-coded sample stream
+ * Demod bits from a GFSK-coded sample stream
  *
  * @param dst destination buffer where the bits will be written to
  * @param bit_offset offset from the start of dst where bits should be written, in bits
@@ -38,6 +38,6 @@ void gfsk_deinit(GFSKDemod *g);
  *
  * @return offset of the last bit decoded
  */
-int gfsk_decode(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(float *dst));
+int gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(float *dst));
 
 #endif

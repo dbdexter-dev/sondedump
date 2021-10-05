@@ -44,16 +44,16 @@ static int _bps;
 static int _interrupted;
 static struct option longopts[] = {
 	{ "audio-device", 1, NULL, 'a'},
-	{ "fmt",      1, NULL, 'f' },
-	{ "csv",      1, NULL, 'c' },
-	{ "gpx",      1, NULL, 'g' },
-	{ "help",     0, NULL, 'h' },
-	{ "kml",      1, NULL, 'k' },
-	{ "live-kml", 1, NULL, 'l' },
-	{ "output",   1, NULL, 'o' },
-	{ "stuve",    1, NULL, 0x01},
-	{ "version",  0, NULL, 'v' },
-	{ NULL,       0, NULL,  0  }
+	{ "fmt",          1, NULL, 'f' },
+	{ "csv",          1, NULL, 'c' },
+	{ "gpx",          1, NULL, 'g' },
+	{ "help",         0, NULL, 'h' },
+	{ "kml",          1, NULL, 'k' },
+	{ "live-kml",     1, NULL, 'l' },
+	{ "output",       1, NULL, 'o' },
+	{ "stuve",        1, NULL, 0x01},
+	{ "version",      0, NULL, 'v' },
+	{ NULL,           0, NULL,  0  }
 };
 
 
