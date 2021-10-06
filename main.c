@@ -142,6 +142,7 @@ main(int argc, char *argv[])
 	if (argc - optind < 1) {
 #ifdef ENABLE_AUDIO
 		samplerate = audio_init(audio_device);
+		if (samplerate < 0) return 1;
 		printf("Selected samplerate: %d\n", samplerate);
 		input_from_audio = 1;
 #else

@@ -68,9 +68,11 @@ rs41_subframe_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 
 	if (adc_ref2 - adc_ref1 == 0) return NAN;
 
+	/* Get RH sensor temperature and actual temperature */
 	rh_temp_uncal = rs41_subframe_temp_humidity(ptu, calib);
 	t_temp = rs41_subframe_temp(ptu, calib);
 
+	/* Compute RH calibrated temperature */
 	rh_temp = 0;
 	for (i=6; i>0; i--) {
 		rh_temp *= rh_temp_uncal;
@@ -78,12 +80,12 @@ rs41_subframe_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 	}
 	rh_temp += rh_temp_uncal;
 
-
+	/* Get raw capacitance of the RH sensor */
 	adc_raw = (adc_main - adc_ref1) / (adc_ref2 - adc_ref1);
 	c_raw = calib->rh_ref[0] + adc_raw * (calib->rh_ref[1] - calib->rh_ref[0]);
 	c_cal = (c_raw / calib->rh_cap_calib[0] - 1) * calib->rh_cap_calib[1];
 
-
+	/* Derive raw RH% from capacitance and temperature response */
 	rh_uncal = 0;
 	rh_temp = (rh_temp - 20) / 180;
 	f1 = 1;
@@ -91,15 +93,14 @@ rs41_subframe_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 		f2 = 1;
 		for (j=0; j<6; j++) {
 			rh_uncal += f1 * f2 * calib->rh_calib_coeff[i][j];
-			//printf("%10.4f ", calib->rh_calib_coeff[i][j]);
 			f2 *= rh_temp;
 		}
-		//printf("\n");
 		f1 *= c_cal;
 	}
 
+	/* Account for different temperature between air and RH sensor */
 	rh_cal = rh_uncal * wv_sat_pressure(rh_temp_uncal) / wv_sat_pressure(t_temp);
-	return rh_cal; /* FIXME this 2* should not be there */
+	return MAX(0, MIN(100, rh_cal));
 }
 
 float
