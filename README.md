@@ -11,7 +11,6 @@ Features:
 - Burstkill timer indication
 - GPX and KML output
 - Live KML output (realtime position in Google Earth)
-- Stuve diagram generation (requires `cairo`)
 - Read FM-demodulated data directly from audio (requires `portaudio`)
 
 Supported models:
@@ -20,7 +19,6 @@ Supported models:
 Build/install instructions
 --------------------------
 Optional libraries:
-- `cairo`: Thermodynamic diagram generation
 - `ncurses`: Simple TUI with data summary
 - `portaudio`: Live streaming of samples from audio device
 
@@ -44,7 +42,6 @@ compilation, samples will be read from an audio device instead.
    -g, --gpx <file>        Output GPX track to <file>
    -k, --kml <file>        Output KML track to <file>
    -l, --live-kml <file>   Output live KML track to <file>
-       --stuve <file>      Generate Stuve diagram and output to <file>
 
    -h, --help              Print this help screen
    -v, --version           Print version info
@@ -68,7 +65,7 @@ Available format specifiers:
 ```
 
 Examples:
-- Stuve diagram + live KML track: `sondedump --live-kml sonde-live.kml --stuve
-  stuve.png <input file>`
 - Use Portaudio device 1 and output to CSV: `sondedump --audio-device 1 --csv
   data.csv`
+- Read from file and generate GPX track: `sondedump --gpx track.gpx
+  <recording.wav>`

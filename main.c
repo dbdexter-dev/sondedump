@@ -11,9 +11,6 @@
 #include "io/gpx.h"
 #include "io/kml.h"
 #include "io/wavfile.h"
-#ifdef ENABLE_DIAGRAMS
-#include "diagrams/stuve.h"
-#endif
 #ifdef ENABLE_TUI
 #include "tui/tui.h"
 #endif
@@ -51,7 +48,6 @@ static struct option longopts[] = {
 	{ "kml",          1, NULL, 'k' },
 	{ "live-kml",     1, NULL, 'l' },
 	{ "output",       1, NULL, 'o' },
-	{ "stuve",        1, NULL, 0x01},
 	{ "version",      0, NULL, 'v' },
 	{ NULL,           0, NULL,  0  }
 };
@@ -65,10 +61,6 @@ main(int argc, char *argv[])
 	SondeData data;
 	KMLFile kml, live_kml;
 	GPXFile gpx;
-#ifdef ENABLE_DIAGRAMS
-	const struct { float tmin, tmax, pmin, pmax; } stuve_bounds = {-80, 40, 100, 1000};
-	cairo_surface_t *stuve = NULL;
-#endif
 	int samplerate;
 	int (*read_wrapper)(float *dst);
 	int c;
@@ -83,9 +75,6 @@ main(int argc, char *argv[])
 	char *kml_fname = NULL;
 	char *gpx_fname = NULL;
 	char *csv_fname = NULL;
-#ifdef ENABLE_DIAGRAMS
-	char *stuve_fname = NULL;
-#endif
 	char *input_fname = NULL;
 #ifdef ENABLE_TUI
 	int tui_enabled = 1;
@@ -98,11 +87,6 @@ main(int argc, char *argv[])
 	/* Parse command-line args {{{ */
 	while ((c = getopt_long(argc, argv, SHORTOPTS, longopts, NULL)) != -1) {
 		switch (c) {
-#ifdef ENABLE_DIAGRAMS
-			case 0x01:
-				stuve_fname = optarg;
-				break;
-#endif
 #ifdef ENABLE_AUDIO
 			case 'a':
 				audio_device = atoi(optarg);
@@ -197,13 +181,6 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Error creating GPX file %s\n", gpx_fname);
 		return 1;
 	}
-#ifdef ENABLE_DIAGRAMS
-	if (stuve_fname) {
-		stuve = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 500, 1000);
-		stuve_draw_backdrop(stuve, stuve_bounds.tmin, stuve_bounds.tmax, stuve_bounds.pmin, stuve_bounds.pmax);
-	}
-#endif
-
 #ifdef ENABLE_TUI
 	if (tui_enabled) {
 		tui_init(-1);
@@ -235,17 +212,6 @@ main(int argc, char *argv[])
 					}
 #else
 					printf_data(output_fmt, &printable);
-#endif
-
-					/* Update Stuve diagram */
-#ifdef ENABLE_DIAGRAMS
-					if (stuve) {
-						stuve_draw_point(stuve,
-								stuve_bounds.tmin, stuve_bounds.tmax, stuve_bounds.pmin, stuve_bounds.pmax,
-								printable.temp,
-								altitude_to_pressure(printable.alt),
-								dewpt(printable.temp, printable.rh));
-					}
 #endif
 				}
 
@@ -285,12 +251,6 @@ main(int argc, char *argv[])
 	if (gpx_fname) gpx_close(&gpx);
 	if (csv_fd) fclose(csv_fd);
 
-#ifdef ENABLE_DIAGRAMS
-	if (stuve) {
-		cairo_surface_write_to_png(stuve, stuve_fname);
-		cairo_surface_destroy(stuve);
-	}
-#endif
 	rs41_decoder_deinit(&rs41decoder);
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO

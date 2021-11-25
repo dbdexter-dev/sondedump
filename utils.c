@@ -65,7 +65,7 @@ float
 dewpt(float temp, float rh)
 {
 	const float tmp = (logf(rh / 100.0f) + (17.27f * temp / (237.3f + temp))) / 17.27f;
-	return 237.3f * tmp  / (1 + tmp);
+	return 237.3f * tmp  / (1 - tmp);
 }
 
 float

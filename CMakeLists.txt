@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
 
-option(ENABLE_DIAGRAMS "Enable thermodynamic diagrams (requires cairo)" ON)
 option(ENABLE_TUI "Enable Ncurses TUI (requires ncurses)" ON)
 option(ENABLE_AUDIO "Enable audio input (requires portaudio)" ON)
 
@@ -57,10 +56,6 @@ set(LIBRARY_SOURCES
 	utils.c utils.h
 )
 
-set(CAIRO_SOURCES
-	diagrams/stuve.c diagrams/stuve.h
-)
-
 set(TUI_SOURCES
 	tui/tui.c tui/tui.h
 )
@@ -79,15 +74,6 @@ set(COMMON_INC_DIRS
 
 # Extra functionality libraries
 message("\nBuild configuration:")
-find_library(CAIRO_LIBRARY NAMES cairo libcairo OPTIONAL)
-if (ENABLE_DIAGRAMS AND CAIRO_LIBRARY)
-	add_definitions(-DENABLE_DIAGRAMS)
-	set(EXEC_SOURCES ${EXEC_SOURCES} ${CAIRO_SOURCES})
-	message("   cairo       ON")
-else()
-	set(CAIRO_LIBRARY "")
-	message("   cairo       OFF")
-endif()
 find_library(NCURSES_LIBRARY NAMES ncursesw libncursesw ncurses libncurses OPTIONAL)
 if (ENABLE_TUI AND NCURSES_LIBRARY)
 	add_definitions(-DENABLE_TUI)

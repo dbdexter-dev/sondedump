@@ -152,8 +152,8 @@ rs41_subframe_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 
 	if (pressure_ref2 - pressure_ref1 == 0) return NAN;
 
-	float percent = ((float)pressure_main - pressure_ref1) / (pressure_ref2 - pressure_ref1);
-	return -1;
+	/* TODO use calibration data to determine pressure */
+	return pressure_main;
 }
 
 float
