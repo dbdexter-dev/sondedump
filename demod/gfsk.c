@@ -13,6 +13,9 @@ gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 	g->samplerate = samplerate;
 	g->symrate = symrate;
 
+	/* Initialize AGC */
+	agc_init(&g->agc);
+
 	/* Initialize a low-pass filter with the appropriate bandwidth */
 	if (filter_init_lpf(&g->lpf, GFSK_FILTER_ORDER, sym_freq)) return 1;
 
@@ -45,7 +48,7 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(f
 	while (len > 0) {
 		/* Read a new sample and filter it */
 		if (!read(&symbol)) break;
-		symbol = agc_apply(symbol);
+		symbol = agc_apply(&g->agc, symbol);
 		filter_fwd_sample(&g->lpf, symbol);
 
 		switch (advance_timeslot(&g->timing)) {

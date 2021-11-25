@@ -156,7 +156,7 @@ kml_add_point(KMLFile *kml, float lat, float lon, float alt)
 			"<altitudeMode>absolute</altitudeMode>\n"
 			"<coordinates>%f,%f,%f</coordinates>\n"
 			"</Point>\n"
-			"</Placemark>",
+			"</Placemark>\n",
 			kml->sonde_serial, lon, lat, alt
 	);
 }

@@ -7,27 +7,25 @@
 #define BIAS_POLE 0.001f
 #define GAIN_POLE 0.01f
 
-static float _moving_avg = FLOAT_TARGET_MAG;
-static float _float_gain = 1;
-static float _float_bias = 0;
-
-float
-agc_apply(float sample)
+void
+agc_init(Agc *agc)
 {
-	if (sample == 0) return 0;
-	sample -= _float_bias;
-	_float_bias = _float_bias * (1-BIAS_POLE) + sample*BIAS_POLE;
-
-	_float_gain = FLOAT_TARGET_MAG/_moving_avg;
-	_moving_avg = _moving_avg * (1-GAIN_POLE) + fabsf(sample)*GAIN_POLE;     /* Prevents div/0 above */
-	/* Apply AGC */
-	sample *= _float_gain;
-
-	return sample;
+	agc->gain = 1;
+	agc->bias = 0;
+	agc->moving_avg = FLOAT_TARGET_MAG;
 }
 
 float
-agc_get_gain()
+agc_apply(Agc *agc, float sample)
 {
-	return _float_gain;
+	if (sample == 0) return 0;
+	sample -= agc->bias;
+	agc->bias = agc->bias * (1-BIAS_POLE) + sample*BIAS_POLE;
+
+	agc->gain = FLOAT_TARGET_MAG/agc->moving_avg;
+	agc->moving_avg = agc->moving_avg * (1-GAIN_POLE) + fabsf(sample)*GAIN_POLE;     /* Prevents div/0 above */
+	/* Apply AGC */
+	sample *= agc->gain;
+
+	return sample;
 }

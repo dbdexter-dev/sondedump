@@ -3,14 +3,16 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include "dsp/timing.h"
+#include "dsp/agc.h"
 #include "dsp/filter.h"
+#include "dsp/timing.h"
 
 #define GFSK_FILTER_ORDER 24
 #define SYM_ALPHA (1.0/1e11)
 
 typedef struct {
 	int samplerate, symrate;
+	Agc agc;
 	Filter lpf;
 	Timing timing;
 } GFSKDemod;
