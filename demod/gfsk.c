@@ -51,10 +51,13 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(f
 		symbol = agc_apply(&g->agc, symbol);
 		filter_fwd_sample(&g->lpf, symbol);
 
+		//printf("%f ", filter_get(&g->lpf));
+
 		switch (advance_timeslot(&g->timing)) {
 			case 1:
 				/* Half-way slot */
 				interm = filter_get(&g->lpf);
+				//printf("0\n");
 				break;
 			case 2:
 				/* Correct slot: update time estimate */
@@ -71,15 +74,17 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(f
 					*dst++ = tmp;
 					tmp = 0;
 				}
+				//printf("%f\n", symbol);
 				break;
 			default:
+				//printf("0\n");
 				break;
 
 		}
 	}
 
 	/* Last write */
-	*dst = (tmp << (7 - (bit_offset % 8)));
+	*dst = (tmp << (8 - (bit_offset % 8)));
 
 	return bit_offset;
 }

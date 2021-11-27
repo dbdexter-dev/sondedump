@@ -7,6 +7,7 @@ typedef struct {
 	float prev;
 	float phase, freq;
 	float alpha, beta;
+	float max_fdev, center_freq;
 	int state;
 } Timing;
 
