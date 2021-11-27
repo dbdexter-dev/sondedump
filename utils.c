@@ -5,32 +5,24 @@
 #include "utils.h"
 
 void
-bitcpy(uint8_t *dst, uint8_t *src, size_t src_offset, size_t num_bits)
+bitcpy(uint8_t *dst, uint8_t *src, size_t offset, size_t bits)
 {
-	const uint8_t src_mask = (1 << (8 - src_offset)) - 1;
-	size_t i;
-	int left;
-	uint8_t byte;
+	src += offset / 8;
+	offset %= 8;
 
-	src += src_offset / 8;
-	src_offset %= 8;
-
-	/* First few bits */
-	byte = (src[0] & src_mask) << src_offset;
-
-	/* Main loop: one byte at a time */
-	for (i=1; i<num_bits/8; i++) {
-		byte |= (src[i] >> (8 - src_offset));
-		dst[i-1] = byte;
-		byte = (src[i] & src_mask) << src_offset;
+	/* All but last reads */
+	for (; bits > 8; bits -= 8) {
+		*dst    = *src++ << offset;
+		*dst++ |= *src >> (8 - offset);
 	}
 
-	/* Last few bits */
-	left = num_bits - (i*8 - src_offset);
-	if (left > 0) {
-		byte |= src[i] >> (8 - src_offset);
-		byte &= ~((1 << left) - 1);
-		dst[i-1] = byte;
+	/* Last read */
+	if (offset + bits < 8) {
+		*dst = (*src << offset) & ~((1 << (8 - bits)) - 1);
+	} else {
+		*dst  = *src++ << offset;
+		*dst |= *src >> (8 - offset);
+		*dst &= ~((1 << (8-bits)) - 1);
 	}
 }
 

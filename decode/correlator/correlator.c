@@ -52,7 +52,7 @@ correlate(Correlator *c, int *inverted, uint8_t *restrict hard_frame, int len)
 			if (corr < best_corr) {
 				best_corr = corr;
 				best_offset = i*8 + j;
-				*inverted = 0;
+				if (inverted) *inverted = 0;
 			}
 
 			/* Check correlation for the inverted syncword */
@@ -60,7 +60,7 @@ correlate(Correlator *c, int *inverted, uint8_t *restrict hard_frame, int len)
 			if (corr < best_corr) {
 				best_corr = corr;
 				best_offset = i*8 + j;
-				*inverted = 1;
+				if (inverted) *inverted = 1;
 			}
 
 			/* Advance window by one */
