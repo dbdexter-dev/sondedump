@@ -3,9 +3,9 @@
 #include "agc.h"
 #include "utils.h"
 
-#define FLOAT_TARGET_MAG 10000
-#define BIAS_POLE 0.001f
-#define GAIN_POLE 0.01f
+#define FLOAT_TARGET_MAG 200
+#define BIAS_POLE 0.01f
+#define GAIN_POLE 0.001f
 
 void
 agc_init(Agc *agc)
