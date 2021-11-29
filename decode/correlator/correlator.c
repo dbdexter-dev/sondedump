@@ -31,7 +31,7 @@ correlate(Correlator *c, int *inverted, uint8_t *restrict hard_frame, int len)
 	/* Initalize window with the first n bytes in the frame */
 	window = 0;
 	for (i=0; i<sync_len; i++) {
-		window = (uint64_t)*hard_frame << (8*(7-i));
+		window = window << 8 | (uint64_t)*hard_frame;
 		hard_frame++;
 	}
 
