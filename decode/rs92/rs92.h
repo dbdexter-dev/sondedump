@@ -9,7 +9,7 @@
 typedef struct {
 	GFSKDemod gfsk;
 	Correlator correlator;
-	RS92Frame frame[2];
+	RS92Frame frame[4];
 } RS92Decoder;
 
 /**

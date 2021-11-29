@@ -43,7 +43,10 @@ rs92_decode(RS92Decoder *self, int (*read)(float *dst))
 		return data;
 	}
 
-	offset = correlate(&self->correlator, &inverted, (uint8_t*)self->frame, RS92_FRAME_LEN);
+	/* Find synchronization marker */
+	offset = correlate(&self->correlator, &inverted, (uint8_t*)self->frame, RS92_FRAME_LEN*2);
+
+	/* Compensate offset */
 	if (offset) {
 		if (!gfsk_demod(&self->gfsk, (uint8_t*)self->frame, RS92_FRAME_LEN*2*8, offset, read)) {
 			data.type = SOURCE_END;
@@ -53,17 +56,19 @@ rs92_decode(RS92Decoder *self, int (*read)(float *dst))
 		bitcpy((uint8_t*)self->frame, (uint8_t*)self->frame, offset, RS92_FRAME_LEN*2*8);
 	}
 
+	/* Correct phase errors */
 	if (inverted) {
 		for (i=0; i<RS92_FRAME_LEN*2; i++) {
 			((uint8_t*)self->frame)[i] ^= 0xFF;
 		}
 	}
 
+	/* Manchester decode, then remove padding and reorder bits */
 	manchester_decode((uint8_t*)self->frame, (uint8_t*)self->frame, 0, RS92_FRAME_LEN*8);
 	rs92_frame_descramble(self->frame);
 
 #ifndef NDEBUG
-	fwrite((uint8_t*)self->frame, RS92_FRAME_LEN, 1, debug);
+	fwrite((uint8_t*)self->frame, RS92_BARE_FRAME_LEN, 1, debug);
 #endif
 
 	data.type = EMPTY;
