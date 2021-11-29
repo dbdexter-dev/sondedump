@@ -4,9 +4,10 @@
 #include <stdint.h>
 
 #define RS92_BAUDRATE 4800
-#define RS92_FRAME_LEN (RS92_BAUDRATE/8)
-#define RS92_DECODED_FRAME_LEN (RS92_FRAME_LEN/2)
+#define RS92_FRAME_LEN 300
 
+#define RS92_SYNCWORD 0xa6999a6999a6999a
+#define RS92_SYNC_LEN 8
 
 typedef struct {
 	uint8_t data[RS92_FRAME_LEN];

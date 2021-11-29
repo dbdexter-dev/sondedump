@@ -2,12 +2,13 @@
 #define rs92_h
 
 #include "decode/common.h"
+#include "decode/correlator/correlator.h"
 #include "demod/gfsk.h"
 #include "protocol.h"
 
 typedef struct {
 	GFSKDemod gfsk;
-
+	Correlator correlator;
 	RS92Frame frame[2];
 } RS92Decoder;
 

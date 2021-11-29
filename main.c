@@ -5,13 +5,13 @@
 #include <string.h>
 #include <time.h>
 #include "decode/common.h"
-#include "decode/rs41/rs41.h"
 #include "decode/rs92/rs92.h"
 #include "gps/time.h"
 #include "gps/ecef.h"
 #include "io/gpx.h"
 #include "io/kml.h"
 #include "io/wavfile.h"
+#include "utils.h"
 #ifdef ENABLE_TUI
 #include "tui/tui.h"
 #endif
@@ -59,7 +59,6 @@ int
 main(int argc, char *argv[])
 {
 	PrintableData printable;
-	RS41Decoder rs41decoder;
 	RS92Decoder rs92decoder;
 	SondeData data;
 	KMLFile kml, live_kml;
