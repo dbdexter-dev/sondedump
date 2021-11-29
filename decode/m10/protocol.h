@@ -7,7 +7,7 @@
 #define M10_BAUDRATE 9600
 
 /* Frame parameters */
-#define M10_FRAME_LEN 256
+#define M10_FRAME_LEN 512
 
 
 typedef struct {

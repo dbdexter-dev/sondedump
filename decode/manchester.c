@@ -18,9 +18,9 @@ manchester_decode(uint8_t *dst, uint8_t *src, int offset, int nbits)
 		tmp = 0;
 		bitcpy(&tmp, src, i, 2);
 
-		/* 0x1 = low-high, 0x2 = high-low, others are invalid */
+		/* 0x40 = low-high, 0x80 = high-low, others are invalid */
 		out <<= 1;
-		if (tmp == 0x2) out |= 1;
+		if (tmp == 0x40) out |= 1;
 
 		offset++;
 		if (!(offset % 8)) {
