@@ -16,9 +16,10 @@ correlator_init(Correlator *c, uint64_t syncword, int sync_len)
 int
 correlate(Correlator *c, int *inverted, uint8_t *restrict hard_frame, int len)
 {
-	const uint64_t syncword = c->syncword;
-	const uint64_t inverse_syncword = syncword ^ ~(uint64_t)0;
 	const int sync_len = c->sync_len;
+	const uint64_t syncmask = (sync_len < 8) ? ((1ULL << (8*sync_len)) - 1) : ~0ULL;
+	const uint64_t syncword = c->syncword & syncmask;
+	const uint64_t inverse_syncword = (syncword ^ ~0ULL) & syncmask;
 	int corr, best_corr, best_offset;
 	int i, j;
 	uint64_t window;
@@ -35,7 +36,7 @@ correlate(Correlator *c, int *inverted, uint8_t *restrict hard_frame, int len)
 	}
 
 	/* If the syncword is found at offset 0, we're already sync'd up: return */
-	if (inverse_correlate_u64(syncword, window) == 0) {
+	if (inverse_correlate_u64(syncword, window & syncmask) == 0) {
 		return 0;
 	}
 
@@ -48,19 +49,19 @@ correlate(Correlator *c, int *inverted, uint8_t *restrict hard_frame, int len)
 		for (j=0; j<8; j++) {
 
 			/* Check correlation */
-			corr = inverse_correlate_u64(syncword, window);
+			corr = inverse_correlate_u64(syncword, window & syncmask);
 			if (corr < best_corr) {
 				best_corr = corr;
 				best_offset = i*8 + j;
-				*inverted = 0;
+				if (inverted) *inverted = 0;
 			}
 
 			/* Check correlation for the inverted syncword */
-			corr = inverse_correlate_u64(inverse_syncword, window);
+			corr = inverse_correlate_u64(inverse_syncword, window & syncmask);
 			if (corr < best_corr) {
 				best_corr = corr;
 				best_offset = i*8 + j;
-				*inverted = 1;
+				if (inverted) *inverted = 1;
 			}
 
 			/* Advance window by one */

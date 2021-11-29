@@ -8,7 +8,7 @@
 #include "dsp/timing.h"
 
 #define GFSK_FILTER_ORDER 24
-#define SYM_ALPHA (1.0/1e11)
+#define SYM_ALPHA 1e-7
 
 typedef struct {
 	int samplerate, symrate;
