@@ -123,9 +123,10 @@ kml_end_track(KMLFile *kml)
 			"</LineString>\n"
 		  );
 	kml->track_active = 0;
-	free(kml->sonde_serial);
+	kml_temp_close(kml);
+
 	kml->sonde_serial = NULL;
-	if (kml->live_update) kml_temp_close(kml);
+	free(kml->sonde_serial);
 }
 
 static void

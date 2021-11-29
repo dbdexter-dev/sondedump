@@ -90,16 +90,16 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 			/* Descramble and error correct */
 			rs41_frame_descramble(self->frame);
 			errors = rs41_frame_correct(self->frame, &self->rs);
-			if (errors < 0) {
-				data.type = FRAME_END;
-				return data;
-			}
 
 #ifndef NDEBUG
 			/* Output the frame to file */
 			fwrite(self->frame, RS41_MAX_FRAME_LEN, 1, debug);
 #endif
 
+			if (errors < 0) {
+				data.type = FRAME_END;
+				return data;
+			}
 
 			/* Prepare to parse subframes */
 			self->offset = 0;
