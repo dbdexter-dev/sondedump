@@ -10,7 +10,6 @@
 void
 agc_init(Agc *agc)
 {
-	agc->gain = 1;
 	agc->bias = 0;
 	agc->moving_avg = FLOAT_TARGET_MAG;
 }
@@ -18,14 +17,17 @@ agc_init(Agc *agc)
 float
 agc_apply(Agc *agc, float sample)
 {
+	float gain;
+
 	if (sample == 0) return 0;
 	sample -= agc->bias;
 	agc->bias = agc->bias * (1-BIAS_POLE) + sample*BIAS_POLE;
 
-	agc->gain = FLOAT_TARGET_MAG/agc->moving_avg;
+	gain = FLOAT_TARGET_MAG/agc->moving_avg;
 	agc->moving_avg = agc->moving_avg * (1-GAIN_POLE) + fabsf(sample)*GAIN_POLE;     /* Prevents div/0 above */
+
 	/* Apply AGC */
-	sample *= agc->gain;
+	sample *= gain;
 
 	return sample;
 }

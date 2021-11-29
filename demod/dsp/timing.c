@@ -7,10 +7,9 @@
 #define FREQ_DEV_EXP 12
 
 static void update_alpha_beta(Timing *t, float damp, float bw);
-static void gardner_update_estimate(Timing *t, float err);
 static float gardner_err(float prev, float interm, float cur);
-static void mm_update_estimate(Timing *t, float err);
 static float mm_err(float prev, float cur);
+static void update_estimate(Timing *t, float err);
 
 void
 timing_init(Timing *t, float sym_freq, float bw)
@@ -54,20 +53,14 @@ retime(Timing *t, float interm, float sample)
 	t->prev = sample;
 
 	/* Update phase and freq estimate */
-	mm_update_estimate(t, err);
+	update_estimate(t, err);
 }
 
 /* Static functions {{{ */
 static float
 gardner_err(float prev, float interm, float curr)
 {
-	return MAX(-2, MIN(2, (curr - prev) * interm));
-}
-
-static void
-gardner_update_estimate(Timing *t, float error)
-{
-	t->phase -= 2 - error * t->alpha;
+	return (curr - prev) * interm;
 }
 
 static float
@@ -77,13 +70,13 @@ mm_err(float prev, float cur)
 }
 
 static void
-mm_update_estimate(Timing *t, float error)
+update_estimate(Timing *t, float error)
 {
 	float freq_delta;
 
 	freq_delta = t->freq - t->center_freq;
 
-	t->phase -= 2 - error * t->alpha;
+	t->phase -= 2 - MAX(-2, MIN(2, error * t->alpha));
 	freq_delta -= error * t->beta;
 
 	freq_delta = MAX(-t->max_fdev, MIN(t->max_fdev, freq_delta));
