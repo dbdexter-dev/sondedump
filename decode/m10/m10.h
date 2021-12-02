@@ -9,7 +9,9 @@
 typedef struct {
 	GFSKDemod gfsk;
 	Correlator correlator;
-	M10Frame frame[2];
+	M10Frame frame[4];
+	int offset;
+	enum { READ, PARSE_GPS_POS, PARSE_GPS_TIME, PARSE_PTU } state;
 } M10Decoder;
 
 

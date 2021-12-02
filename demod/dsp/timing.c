@@ -12,7 +12,7 @@ static float mm_err(float prev, float cur);
 static void update_estimate(Timing *t, float err);
 
 void
-timing_init(Timing *t, float sym_freq, float bw)
+timing_init(Timing *t, float sym_freq, float zeta, float bw)
 {
 	t->freq = 2*sym_freq;
 	t->center_freq = 2*sym_freq;
@@ -22,7 +22,7 @@ timing_init(Timing *t, float sym_freq, float bw)
 	t->state = 1;
 	t->prev = 0;
 
-	update_alpha_beta(t, 0.707, bw);
+	update_alpha_beta(t, zeta, bw);
 	fprintf(stderr, "%e %e\n", t->alpha, t->beta);
 }
 
@@ -77,7 +77,7 @@ update_estimate(Timing *t, float error)
 	freq_delta = t->freq - t->center_freq;
 
 	t->phase -= 2 - MAX(-2, MIN(2, error * t->alpha));
-	freq_delta -= error * t->beta;
+	freq_delta += error * t->beta;
 
 	freq_delta = MAX(-t->max_fdev, MIN(t->max_fdev, freq_delta));
 	t->freq = t->center_freq + freq_delta;

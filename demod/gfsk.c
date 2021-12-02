@@ -20,7 +20,7 @@ gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 	if (filter_init_lpf(&g->lpf, GFSK_FILTER_ORDER, sym_freq)) return 1;
 
 	/* Initialize symbol timing recovery */
-	timing_init(&g->timing, sym_freq, SYM_ALPHA);
+	timing_init(&g->timing, sym_freq, SYM_ZETA, sym_freq/250);
 
 	return 0;
 }

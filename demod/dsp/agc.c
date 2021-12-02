@@ -3,7 +3,7 @@
 #include "agc.h"
 #include "utils.h"
 
-#define FLOAT_TARGET_MAG 200
+#define FLOAT_TARGET_MAG 5
 #define BIAS_POLE 0.01f
 #define GAIN_POLE 0.001f
 

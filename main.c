@@ -289,8 +289,6 @@ raw_read_wrapper(float *dst)
 static void
 fill_printable_data(PrintableData *to_print, SondeData *data)
 {
-	float lat, lon, alt, spd, hdg, climb;
-
 	switch (data->type) {
 		case EMPTY:
 		case FRAME_END:
@@ -312,15 +310,12 @@ fill_printable_data(PrintableData *to_print, SondeData *data)
 			to_print->pressure  = data->data.ptu.pressure;
 			break;
 		case POSITION:
-			ecef_to_lla(&lat, &lon, &alt, data->data.pos.x, data->data.pos.y, data->data.pos.z);
-			ecef_to_spd_hdg(&spd, &hdg, &climb, lat, lon, data->data.pos.dx, data->data.pos.dy, data->data.pos.dz);
-
-			to_print->lat = lat;
-			to_print->lon = lon;
-			to_print->alt = alt;
-			to_print->speed = spd;
-			to_print->heading = hdg;
-			to_print->climb = climb;
+			to_print->lat = data->data.pos.lat;
+			to_print->lon = data->data.pos.lon;
+			to_print->alt = data->data.pos.alt;
+			to_print->speed = data->data.pos.speed;
+			to_print->heading = data->data.pos.heading;
+			to_print->climb = data->data.pos.climb;
 			break;
 	}
 }

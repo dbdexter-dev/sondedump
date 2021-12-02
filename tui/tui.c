@@ -104,11 +104,12 @@ tui_update(SondeData *data)
 			tui.data.pressure = data->data.ptu.pressure;
 			break;
 		case POSITION:
-			ecef_to_lla(&tui.data.lat, &tui.data.lon, &tui.data.alt,
-					data->data.pos.x, data->data.pos.y, data->data.pos.z);
-			ecef_to_spd_hdg(&tui.data.spd, &tui.data.hdg, &tui.data.climb,
-					tui.data.lat, tui.data.lon,
-					data->data.pos.dx, data->data.pos.dy, data->data.pos.dz);
+			tui.data.lat = data->data.pos.lat;
+			tui.data.lon = data->data.pos.lon;
+			tui.data.alt = data->data.pos.alt;
+			tui.data.spd = data->data.pos.speed;
+			tui.data.hdg = data->data.pos.heading;
+			tui.data.climb = data->data.pos.climb;
 			break;
 
 	}
