@@ -5,12 +5,13 @@
 #include <string.h>
 #include <time.h>
 #include "decode/common.h"
-#include "decode/rs41/rs41.h"
+#include "decode/m10/m10.h"
 #include "gps/time.h"
 #include "gps/ecef.h"
 #include "io/gpx.h"
 #include "io/kml.h"
 #include "io/wavfile.h"
+#include "utils.h"
 #ifdef ENABLE_TUI
 #include "tui/tui.h"
 #endif
@@ -57,7 +58,7 @@ int
 main(int argc, char *argv[])
 {
 	PrintableData printable;
-	RS41Decoder rs41decoder;
+	M10Decoder m10decoder;
 	SondeData data;
 	KMLFile kml, live_kml;
 	GPXFile gpx;
@@ -187,14 +188,14 @@ main(int argc, char *argv[])
 	}
 #endif
 
-	rs41_decoder_init(&rs41decoder, samplerate);
+	m10_decoder_init(&m10decoder, samplerate);
 
 	/* Catch SIGINT to exit the loop */
 	_interrupted = 0;
 	has_data = 0;
 	signal(SIGINT, sigint_handler);
 	while (!_interrupted) {
-		data = rs41_decode(&rs41decoder, read_wrapper);
+		data = m10_decode(&m10decoder, read_wrapper);
 		fill_printable_data(&printable, &data);
 
 		if (data.type == SOURCE_END) break;
@@ -251,7 +252,7 @@ main(int argc, char *argv[])
 	if (gpx_fname) gpx_close(&gpx);
 	if (csv_fd) fclose(csv_fd);
 
-	rs41_decoder_deinit(&rs41decoder);
+	m10_decoder_deinit(&m10decoder);
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO
 	if (input_from_audio) {
@@ -288,8 +289,6 @@ raw_read_wrapper(float *dst)
 static void
 fill_printable_data(PrintableData *to_print, SondeData *data)
 {
-	float lat, lon, alt, spd, hdg, climb;
-
 	switch (data->type) {
 		case EMPTY:
 		case FRAME_END:
@@ -311,15 +310,12 @@ fill_printable_data(PrintableData *to_print, SondeData *data)
 			to_print->pressure  = data->data.ptu.pressure;
 			break;
 		case POSITION:
-			ecef_to_lla(&lat, &lon, &alt, data->data.pos.x, data->data.pos.y, data->data.pos.z);
-			ecef_to_spd_hdg(&spd, &hdg, &climb, lat, lon, data->data.pos.dx, data->data.pos.dy, data->data.pos.dz);
-
-			to_print->lat = lat;
-			to_print->lon = lon;
-			to_print->alt = alt;
-			to_print->speed = spd;
-			to_print->heading = hdg;
-			to_print->climb = climb;
+			to_print->lat = data->data.pos.lat;
+			to_print->lon = data->data.pos.lon;
+			to_print->alt = data->data.pos.alt;
+			to_print->speed = data->data.pos.speed;
+			to_print->heading = data->data.pos.heading;
+			to_print->climb = data->data.pos.climb;
 			break;
 	}
 }

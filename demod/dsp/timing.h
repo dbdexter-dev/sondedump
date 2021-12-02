@@ -7,6 +7,7 @@ typedef struct {
 	float prev;
 	float phase, freq;
 	float alpha, beta;
+	float max_fdev, center_freq;
 	int state;
 } Timing;
 
@@ -16,9 +17,10 @@ typedef struct {
  *
  * @param t symbol timing estimator
  * @param sym_freq expected symbol frequency
+ * @param zeta damping factor of the loop filter
  * @param bw bandwidth of the loop filter
  */
-void timing_init(Timing *t, float sym_freq, float alpha);
+void timing_init(Timing *t, float sym_freq, float zeta, float bw);
 
 /**
  * Update symbol timing estimate
