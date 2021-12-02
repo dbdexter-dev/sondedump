@@ -60,7 +60,7 @@ retime(Timing *t, float interm, float sample)
 static float
 gardner_err(float prev, float interm, float curr)
 {
-	return (curr - prev) * interm;
+	return (curr*prev < 0) ? (curr - prev) * interm : 0;
 }
 
 static float

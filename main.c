@@ -5,7 +5,7 @@
 #include <string.h>
 #include <time.h>
 #include "decode/common.h"
-#include "decode/m10/m10.h"
+#include "decode/dfm09/dfm09.h"
 #include "gps/time.h"
 #include "gps/ecef.h"
 #include "io/gpx.h"
@@ -58,7 +58,7 @@ int
 main(int argc, char *argv[])
 {
 	PrintableData printable;
-	M10Decoder m10decoder;
+	DFM09Decoder dfm09decoder;
 	SondeData data;
 	KMLFile kml, live_kml;
 	GPXFile gpx;
@@ -188,14 +188,14 @@ main(int argc, char *argv[])
 	}
 #endif
 
-	m10_decoder_init(&m10decoder, samplerate);
+	dfm09_decoder_init(&dfm09decoder, samplerate);
 
 	/* Catch SIGINT to exit the loop */
 	_interrupted = 0;
 	has_data = 0;
 	signal(SIGINT, sigint_handler);
 	while (!_interrupted) {
-		data = m10_decode(&m10decoder, read_wrapper);
+		data = dfm09_decode(&dfm09decoder, read_wrapper);
 		fill_printable_data(&printable, &data);
 
 		if (data.type == SOURCE_END) break;
@@ -252,7 +252,7 @@ main(int argc, char *argv[])
 	if (gpx_fname) gpx_close(&gpx);
 	if (csv_fd) fclose(csv_fd);
 
-	m10_decoder_deinit(&m10decoder);
+	dfm09_decoder_deinit(&dfm09decoder);
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO
 	if (input_from_audio) {

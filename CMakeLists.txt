@@ -47,9 +47,9 @@ set(LIBRARY_SOURCES
 	decode/rs41/subframe.c decode/rs41/subframe.h
 	decode/rs41/protocol.h
 
-	decode/m10/m10.c decode/m10/m10.h
-	decode/m10/frame.c decode/m10/frame.h
-	decode/m10/protocol.c decode/m10/protocol.h
+	decode/dfm09/dfm09.c decode/dfm09/dfm09.h
+	decode/dfm09/frame.c decode/dfm09/frame.h
+	decode/dfm09/protocol.h
 
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h
