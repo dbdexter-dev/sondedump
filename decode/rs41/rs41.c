@@ -3,6 +3,7 @@
 #include <string.h>
 #include "decode/ecc/crc.h"
 #include "decode/prng.h"
+#include "decode/xdata.h"
 #include "frame.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
@@ -63,6 +64,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 	RS41Subframe_PTU *ptu;
 	RS41Subframe_GPSInfo *gpsinfo;
 	RS41Subframe_GPSPos *gpspos;
+	RS41Subframe_XDATA *xdata;
 
 	switch (self->state) {
 		case READ:
@@ -101,6 +103,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 
 			/* Prepare to parse subframes */
 			self->offset = 0;
+			self->pressure = 0;
 			self->state = PARSE_SUBFRAME;
 			__attribute__((fallthrough));
 
@@ -153,6 +156,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					data.data.ptu.temp = rs41_subframe_temp(ptu, &self->metadata.data);
 					data.data.ptu.rh = rs41_subframe_humidity(ptu, &self->metadata.data);
 					data.data.ptu.pressure = rs41_subframe_pressure(ptu, &self->metadata.data);
+					self->pressure = (data.data.ptu.pressure > 0 ? data.data.ptu.pressure : self->pressure);
 					break;
 				case RS41_SFTYPE_GPSPOS:
 					/* GPS position */
@@ -170,6 +174,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					ecef_to_lla(&data.data.pos.lat, &data.data.pos.lon, &data.data.pos.alt, x, y, z);
 					ecef_to_spd_hdg(&data.data.pos.speed, &data.data.pos.heading, &data.data.pos.climb,
 							data.data.pos.lat, data.data.pos.lon, dx, dy, dz);
+					self->pressure = (self->pressure > 0 ? self->pressure : altitude_to_pressure(data.data.pos.alt));
 
 					break;
 				case RS41_SFTYPE_GPSINFO:
@@ -179,6 +184,12 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					data.type = DATETIME;
 
 					data.data.datetime.datetime = gps_time_to_utc(gpsinfo->week, gpsinfo->ms);
+					break;
+				case RS41_SFTYPE_XDATA:
+					/* XDATA */
+					xdata = (RS41Subframe_XDATA*)subframe;
+					data.type = XDATA;
+					data.data.xdata.data = xdata_decode(self->pressure, xdata->ascii_data, xdata->len-1);
 					break;
 				default:
 					/* Unknown */

@@ -13,7 +13,8 @@
 #define PTU_INFO_COUNT 4    /* Temp, RH, pressure, dewpt */
 #define GPS_INFO_COUNT 6    /* lat, lot, alt, speed, heading, climb */
 #define SONDE_INFO_COUNT 5  /* Type, serial, burstkill, frame seq, date/time */
-#define INFO_COUNT (PTU_INFO_COUNT + GPS_INFO_COUNT + SONDE_INFO_COUNT)
+#define XDATA_INFO_COUNT 1  /* xdata */
+#define INFO_COUNT (PTU_INFO_COUNT + GPS_INFO_COUNT + SONDE_INFO_COUNT + XDATA_INFO_COUNT)
 
 static void init_windows(int rows, int cols);
 static void redraw();
@@ -33,6 +34,7 @@ static struct {
 		char serial[8+1];
 		char time[32];
 		char shutdown_timer[16];
+		char xdata[128];
 		int changed;
 	} data;
 	int active_decoder;
@@ -119,6 +121,11 @@ tui_update(SondeData *data, int active_decoder)
 			tui.data.hdg = data->data.pos.heading;
 			tui.data.climb = data->data.pos.climb;
 			break;
+		case XDATA:
+			strcpy(tui.data.xdata, data->data.xdata.data);
+			break;
+		default:
+			break;
 
 	}
 	tui.data.changed = 1;
@@ -139,6 +146,7 @@ main_loop(void *args)
 				decoder_changer(-1);
 				break;
 			case KEY_RIGHT:
+			case '\t':
 				decoder_changer(+1);
 				break;
 			default:
@@ -160,7 +168,7 @@ static void
 handle_resize()
 {
 	const int width = 50;
-	const int height = INFO_COUNT + 3 + 2;
+	const int height = INFO_COUNT + 3 + 4;
 	int rows, cols;
 	werase(stdscr);
 	endwin();
@@ -179,7 +187,7 @@ redraw()
 	float synthetic_pressure;
 
 	getmaxyx(tui.win, rows, cols);
-	start_row = (rows - INFO_COUNT - 3) / 2;
+	start_row = (rows - INFO_COUNT - 5) / 2;
 	start_col = cols / 2 - 1;
 
 	synthetic_pressure = (isnormal(tui.data.pressure) ?
@@ -191,7 +199,9 @@ redraw()
 			0, 0, 0, 0);
 
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Type:"),
-			"Type: < %s >", _decoder_name[tui.active_decoder]);
+			"Type: %s (TAB to change)", _decoder_name[tui.active_decoder]);
+	start_row++;
+
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Serial no.:"),
 			"Serial no.: %s", tui.data.serial);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Frame no.:"),
@@ -225,6 +235,9 @@ redraw()
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Pressure:"),
 			"Pressure: %.1fhPa", synthetic_pressure);
 	start_row++;
+	mvwprintw(tui.win, start_row++, start_col - sizeof("Aux. data:"),
+			"Aux. data: %s", tui.data.xdata);
+	start_row++;
 
 	wrefresh(tui.win);
 }
@@ -233,7 +246,7 @@ static void
 init_windows(int rows, int cols)
 {
 	const int width = 50;
-	const int height = INFO_COUNT + 3 + 2;
+	const int height = INFO_COUNT + 3 + 4;
 	tui.win = newwin(height, width, (rows - height) / 2, (cols - width) / 2);
 	wborder(tui.win,
 			0, 0, 0, 0,

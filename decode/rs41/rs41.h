@@ -21,6 +21,7 @@ typedef struct {
 	int state;
 	int offset;
 	RS41Metadata metadata;
+	float pressure;
 } RS41Decoder;
 
 /**

@@ -38,6 +38,7 @@ set(LIBRARY_SOURCES
 	decode/prng.c decode/prng.h
 	decode/manchester.c decode/manchester.h
 	decode/common.h
+	decode/xdata.c decode/xdata.h
 
 	decode/ecc/crc.c decode/ecc/crc.h
 	decode/ecc/rs.c decode/ecc/rs.h

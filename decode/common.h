@@ -13,6 +13,7 @@ typedef enum {
 	POSITION,               /* GPS position and velocity */
 	DATETIME,               /* GPS date and time */
 	PTU,                    /* Sensor data */
+	XDATA,                  /* XDATA */
 } DataType;
 
 typedef struct {
@@ -46,6 +47,10 @@ typedef struct {
 } SondePTU;
 
 typedef struct {
+	char *data;
+} SondeXDATA;
+
+typedef struct {
 	DataType type;
 	union {
 		SondeInfo info;
@@ -53,6 +58,7 @@ typedef struct {
 		SondePosition pos;
 		SondePTU ptu;
 		SondeDateTime datetime;
+		SondeXDATA xdata;
 	} data;
 } SondeData;
 

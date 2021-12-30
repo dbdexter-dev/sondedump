@@ -30,6 +30,7 @@ typedef struct {
 	time_t utc_time;
 	int shutdown_timer;
 	char serial[8+1];
+	char xdata[128];
 } PrintableData;
 
 static void fill_printable_data(PrintableData *to_print, SondeData *data);
@@ -334,6 +335,9 @@ fill_printable_data(PrintableData *to_print, SondeData *data)
 			to_print->speed = data->data.pos.speed;
 			to_print->heading = data->data.pos.heading;
 			to_print->climb = data->data.pos.climb;
+			break;
+		case XDATA:
+			strcpy(to_print->xdata, data->data.xdata.data);
 			break;
 	}
 }
