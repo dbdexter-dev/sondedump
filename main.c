@@ -6,6 +6,7 @@
 #include <time.h>
 #include "decode/common.h"
 #include "decode/rs41/rs41.h"
+#include "decode/dfm09/dfm09.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
 #include "io/gpx.h"
@@ -36,10 +37,12 @@ static int printf_data(const char *fmt, PrintableData *data);
 static int wav_read_wrapper(float *dst);
 static int raw_read_wrapper(float *dst);
 static void sigint_handler(int val);
+static void decoder_changer(int delta);
 
 static FILE *_wav;
 static int _bps;
 static int _interrupted;
+static enum { RS41=0, DFM=1, END } _active_decoder;
 static struct option longopts[] = {
 	{ "audio-device", 1, NULL, 'a'},
 	{ "fmt",          1, NULL, 'f' },
@@ -58,7 +61,6 @@ int
 main(int argc, char *argv[])
 {
 	PrintableData printable;
-	RS41Decoder rs41decoder;
 	SondeData data;
 	KMLFile kml, live_kml;
 	GPXFile gpx;
@@ -67,6 +69,9 @@ main(int argc, char *argv[])
 	int c;
 	int has_data;
 	FILE *csv_fd = NULL;
+
+	RS41Decoder rs41decoder;
+	DFM09Decoder dfm09decoder;
 
 	memset(&printable, 0, sizeof(PrintableData));
 
@@ -184,23 +189,34 @@ main(int argc, char *argv[])
 	}
 #ifdef ENABLE_TUI
 	if (tui_enabled) {
-		tui_init(-1);
+		tui_init(-1, &decoder_changer);
 	}
 #endif
 
 	rs41_decoder_init(&rs41decoder, samplerate);
+	dfm09_decoder_init(&dfm09decoder, samplerate);
 
 	/* Catch SIGINT to exit the loop */
 	_interrupted = 0;
 	has_data = 0;
 	signal(SIGINT, sigint_handler);
 	while (!_interrupted) {
-		data = rs41_decode(&rs41decoder, read_wrapper);
+		switch (_active_decoder) {
+			case RS41:
+				data = rs41_decode(&rs41decoder, read_wrapper);
+				break;
+			case DFM:
+				data = dfm09_decode(&dfm09decoder, read_wrapper);
+				break;
+			default:
+				break;
+		}
+
 		fill_printable_data(&printable, &data);
 
 		if (data.type == SOURCE_END) break;
 #ifdef ENABLE_TUI
-		tui_update(&data);
+		tui_update(&data, _active_decoder);
 #endif
 
 		switch (data.type) {
@@ -254,6 +270,7 @@ main(int argc, char *argv[])
 	if (csv_fd) fclose(csv_fd);
 
 	rs41_decoder_deinit(&rs41decoder);
+	dfm09_decoder_deinit(&dfm09decoder);
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO
 	if (input_from_audio) {
@@ -402,5 +419,10 @@ static void
 sigint_handler(int val)
 {
 	_interrupted = 1;
+}
+static void
+decoder_changer(int delta)
+{
+	_active_decoder = (_active_decoder + END + delta) % END;
 }
 /* }}} */

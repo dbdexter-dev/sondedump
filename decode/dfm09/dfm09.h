@@ -15,7 +15,7 @@ typedef struct {
 	struct tm gpsTime;
 	int gpsIdx;
 	SondeData gpsData, ptuData;
-	enum { READ, PARSE_PTU, PARSE_GPS } state;
+	int state;
 } DFM09Decoder;
 
 /**

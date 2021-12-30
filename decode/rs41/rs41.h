@@ -17,9 +17,8 @@ typedef struct {
 	GFSKDemod gfsk;
 	Correlator correlator;
 	RSDecoder rs;
-
 	RS41Frame frame[2];
-	enum { READ, PARSE_SUBFRAME } state;
+	int state;
 	int offset;
 	RS41Metadata metadata;
 } RS41Decoder;

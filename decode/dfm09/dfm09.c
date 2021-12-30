@@ -5,6 +5,8 @@
 #include "dfm09.h"
 #include "subframe.h"
 
+enum { READ, PARSE_PTU, PARSE_GPS };
+
 #ifndef NDEBUG
 static FILE *debug;
 #endif
@@ -49,7 +51,7 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 				return data;
 			}
 
-			offset = correlate(&self->correlator, &inverted, (uint8_t*)self->frame, DFM09_FRAME_LEN);
+			offset = correlate(&self->correlator, &inverted, (uint8_t*)self->frame, DFM09_FRAME_LEN/8);
 			if (offset) {
 				if (!gfsk_demod(&self->gfsk, (uint8_t*)self->frame + DFM09_FRAME_LEN/8, 0, offset, read)) {
 					data.type = SOURCE_END;
@@ -66,7 +68,6 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 			fwrite((uint8_t*)self->frame, DFM09_FRAME_LEN/8/2, 1, debug);
 			fflush(debug);
 #endif
-
 
 			/* Error correct, and exit prematurely if too many errors are found */
 			errcount = dfm09_correct(self->frame);
@@ -143,7 +144,7 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 
 				case 0x04:
 					/* Altitude and speed */
-					self->gpsData.data.pos.alt = (int32_t)bitmerge(gpsSubframe->data, 32) / 1e7;
+					self->gpsData.data.pos.alt = (int32_t)bitmerge(gpsSubframe->data, 32) / 1e2;
 					self->gpsData.data.pos.climb = (int16_t)bitmerge(gpsSubframe->data + 4, 16) / 1e2;
 					data = self->gpsData;
 					data.type = POSITION;

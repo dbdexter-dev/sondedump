@@ -3,9 +3,9 @@
 
 #include "decode/common.h"
 
-void tui_init(int update_interval);
+void tui_init(int update_interval, void (*decoder_changer)(int delta));
 void tui_deinit();
 
-int tui_update(SondeData *data);
+int tui_update(SondeData *data, int active_decoder);
 #endif
 

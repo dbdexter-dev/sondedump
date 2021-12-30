@@ -16,6 +16,8 @@ static FILE *debug;
 static FILE *metafile;
 #endif
 
+enum { READ, PARSE_SUBFRAME };
+
 void
 rs41_decoder_init(RS41Decoder *d, int samplerate)
 {
