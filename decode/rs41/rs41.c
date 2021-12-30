@@ -16,6 +16,8 @@ static FILE *debug;
 static FILE *metafile;
 #endif
 
+enum { READ, PARSE_SUBFRAME };
+
 void
 rs41_decoder_init(RS41Decoder *d, int samplerate)
 {
@@ -55,6 +57,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 	int inverted;
 	int i;
 	int burstkill_timer;
+	float x, y, z, dx, dy, dz;
 
 	RS41Subframe_Status *status;
 	RS41Subframe_PTU *ptu;
@@ -155,14 +158,19 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					/* GPS position */
 					gpspos = (RS41Subframe_GPSPos*)subframe;
 
+					x = rs41_subframe_x(gpspos);
+					y = rs41_subframe_y(gpspos);
+					z = rs41_subframe_z(gpspos);
+					dx = rs41_subframe_dx(gpspos);
+					dy = rs41_subframe_dy(gpspos);
+					dz = rs41_subframe_dz(gpspos);
+
 					data.type = POSITION;
 
-					data.data.pos.x = rs41_subframe_x(gpspos);
-					data.data.pos.y = rs41_subframe_y(gpspos);
-					data.data.pos.z = rs41_subframe_z(gpspos);
-					data.data.pos.dx = rs41_subframe_dx(gpspos);
-					data.data.pos.dy = rs41_subframe_dy(gpspos);
-					data.data.pos.dz = rs41_subframe_dz(gpspos);
+					ecef_to_lla(&data.data.pos.lat, &data.data.pos.lon, &data.data.pos.alt, x, y, z);
+					ecef_to_spd_hdg(&data.data.pos.speed, &data.data.pos.heading, &data.data.pos.climb,
+							data.data.pos.lat, data.data.pos.lon, dx, dy, dz);
+
 					break;
 				case RS41_SFTYPE_GPSINFO:
 					/* GPS date/time and RSSI */

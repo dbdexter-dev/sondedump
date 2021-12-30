@@ -1,42 +1,37 @@
-#ifndef rs41_h
-#define rs41_h
+#ifndef dfm09_h
+#define dfm09_h
 
 #include "decode/common.h"
 #include "decode/correlator/correlator.h"
-#include "decode/ecc/rs.h"
 #include "demod/gfsk.h"
 #include "protocol.h"
 
 typedef struct {
-	int initialized;
-	RS41Calibration data;
-	uint8_t missing[sizeof(RS41Calibration)/8/RS41_CALIB_FRAGSIZE+1];
-} RS41Metadata;
-
-typedef struct {
 	GFSKDemod gfsk;
 	Correlator correlator;
-	RSDecoder rs;
-	RS41Frame frame[2];
+	DFM09Frame frame[2];
+	DFM09ParsedFrame parsedFrame;
+	DFM09Calib calib;
+	struct tm gpsTime;
+	int gpsIdx;
+	SondeData gpsData, ptuData;
 	int state;
-	int offset;
-	RS41Metadata metadata;
-} RS41Decoder;
+} DFM09Decoder;
 
 /**
- * Initialize a Vaisala RS41 frame decoder
+ * Initialize a Vaisala dfm09 frame decoder
  *
  * @param d decoder to init
  * @param samplerate samplerate of the raw FM-demodulated stream
  */
-void rs41_decoder_init(RS41Decoder *d, int samplerate);
+void dfm09_decoder_init(DFM09Decoder *d, int samplerate);
 
 /**
  * Deinitialize the given decoder
  *
  * @param d deocder to deinit
  */
-void rs41_decoder_deinit(RS41Decoder *d);
+void dfm09_decoder_deinit(DFM09Decoder *d);
 
 /**
  * Decode the next frame in the stream
@@ -44,6 +39,8 @@ void rs41_decoder_deinit(RS41Decoder *d);
  * @param d decoder to use
  * @param read function to use to pull in new raw samples
  */
-SondeData rs41_decode(RS41Decoder *d, int (*read)(float *dst));
+SondeData dfm09_decode(DFM09Decoder *d, int (*read)(float *dst));
+
+
 
 #endif

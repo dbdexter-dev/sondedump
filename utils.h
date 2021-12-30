@@ -38,7 +38,16 @@
  * @param src_offset offset of the first bit to copy
  * @param num_bits number of bits to copy
  */
-void bitcpy(uint8_t *dst, uint8_t *src, size_t src_offset, size_t num_bits);
+void bitcpy(uint8_t *dst, const uint8_t *src, size_t src_offset, size_t num_bits);
+
+/**
+ * Merge contiguous bits into a number
+ *
+ * @param data pointer to raw data bytes
+ * @param nbits number of bits to merge
+ * @return merged bits
+ */
+uint64_t bitmerge(uint8_t *data, int nbits);
 
 /**
  * Calculate pressure at a given altitude

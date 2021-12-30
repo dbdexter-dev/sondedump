@@ -27,6 +27,11 @@ typedef struct {
 typedef struct {
 	float x, y, z;          /* ECEF coordinates */
 	float dx, dy, dz;       /* ECEF velocity vector */
+} SondeRawPosition;
+
+typedef struct {
+	float lat, lon, alt;
+	float speed, heading, climb;
 } SondePosition;
 
 typedef struct {
@@ -44,6 +49,7 @@ typedef struct {
 	DataType type;
 	union {
 		SondeInfo info;
+		SondeRawPosition raw_pos;
 		SondePosition pos;
 		SondePTU ptu;
 		SondeDateTime datetime;

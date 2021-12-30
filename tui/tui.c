@@ -12,7 +12,7 @@
 
 #define PTU_INFO_COUNT 4    /* Temp, RH, pressure, dewpt */
 #define GPS_INFO_COUNT 6    /* lat, lot, alt, speed, heading, climb */
-#define SONDE_INFO_COUNT 4  /* Serial, burstkill, frame seq, date/time */
+#define SONDE_INFO_COUNT 5  /* Type, serial, burstkill, frame seq, date/time */
 #define INFO_COUNT (PTU_INFO_COUNT + GPS_INFO_COUNT + SONDE_INFO_COUNT)
 
 static void init_windows(int rows, int cols);
@@ -20,6 +20,7 @@ static void redraw();
 static void handle_resize();
 static void *main_loop(void* args);
 
+static char *_decoder_name[] = { "RS41", "DFM" };
 static int _update_interval;
 static int _running;
 static pthread_t _tid;
@@ -34,11 +35,12 @@ static struct {
 		char shutdown_timer[16];
 		int changed;
 	} data;
+	int active_decoder;
 } tui;
 
 
 void
-tui_init(int update_interval)
+tui_init(int update_interval, void (*decoder_changer)(int delta))
 {
 	int rows, cols;
 	setlocale(LC_ALL, "");
@@ -55,6 +57,7 @@ tui_init(int update_interval)
 
 	getmaxyx(stdscr, rows, cols);
 	init_windows(rows, cols);
+	keypad(tui.win, 1);
 
 	tui.data.serial[0] = 0;
 	tui.data.time[0] = 0;
@@ -62,7 +65,7 @@ tui_init(int update_interval)
 
 	_running = 1;
 	tui.data.changed = 1;
-	pthread_create(&_tid, NULL, main_loop, NULL);
+	pthread_create(&_tid, NULL, main_loop, decoder_changer);
 }
 
 void
@@ -76,8 +79,13 @@ tui_deinit()
 
 
 int
-tui_update(SondeData *data)
+tui_update(SondeData *data, int active_decoder)
 {
+	if (tui.active_decoder != active_decoder) {
+		tui.active_decoder = active_decoder;
+		tui.data.changed = 1;
+	}
+
 	switch (data->type) {
 		case EMPTY:
 		case FRAME_END:
@@ -104,11 +112,12 @@ tui_update(SondeData *data)
 			tui.data.pressure = data->data.ptu.pressure;
 			break;
 		case POSITION:
-			ecef_to_lla(&tui.data.lat, &tui.data.lon, &tui.data.alt,
-					data->data.pos.x, data->data.pos.y, data->data.pos.z);
-			ecef_to_spd_hdg(&tui.data.spd, &tui.data.hdg, &tui.data.climb,
-					tui.data.lat, tui.data.lon,
-					data->data.pos.dx, data->data.pos.dy, data->data.pos.dz);
+			tui.data.lat = data->data.pos.lat;
+			tui.data.lon = data->data.pos.lon;
+			tui.data.alt = data->data.pos.alt;
+			tui.data.spd = data->data.pos.speed;
+			tui.data.hdg = data->data.pos.heading;
+			tui.data.climb = data->data.pos.climb;
 			break;
 
 	}
@@ -120,10 +129,17 @@ tui_update(SondeData *data)
 static void*
 main_loop(void *args)
 {
+	void (*decoder_changer)(int delta) = args;
 	while (_running) {
 		switch (wgetch(tui.win)) {
 			case KEY_RESIZE:
 				handle_resize();
+				break;
+			case KEY_LEFT:
+				decoder_changer(-1);
+				break;
+			case KEY_RIGHT:
+				decoder_changer(+1);
 				break;
 			default:
 				break;
@@ -174,6 +190,8 @@ redraw()
 			0, 0, 0, 0,
 			0, 0, 0, 0);
 
+	mvwprintw(tui.win, start_row++, start_col - sizeof("Type:"),
+			"Type: < %s >", _decoder_name[tui.active_decoder]);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Serial no.:"),
 			"Serial no.: %s", tui.data.serial);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Frame no.:"),
