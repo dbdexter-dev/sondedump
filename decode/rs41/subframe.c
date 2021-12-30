@@ -140,20 +140,53 @@ rs41_subframe_temp_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 float
 rs41_subframe_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 {
-	uint32_t pressure_main = (uint32_t)ptu->pressure_main[0]
-	                       | (uint32_t)ptu->pressure_main[1] << 8
-	                       | (uint32_t)ptu->pressure_main[2] << 16;
-	uint32_t pressure_ref1 = (uint32_t)ptu->pressure_ref1[0]
-	                       | (uint32_t)ptu->pressure_ref1[1] << 8
-	                       | (uint32_t)ptu->pressure_ref1[2] << 16;
-	uint32_t pressure_ref2 = (uint32_t)ptu->pressure_ref2[0]
-	                       | (uint32_t)ptu->pressure_ref2[1] << 8
-	                       | (uint32_t)ptu->pressure_ref2[2] << 16;
+	const float adc_main = (uint32_t)ptu->pressure_main[0]
+	                      | (uint32_t)ptu->pressure_main[1] << 8
+	                      | (uint32_t)ptu->pressure_main[2] << 16;
+	const float adc_ref1 = (uint32_t)ptu->pressure_ref1[0]
+	                      | (uint32_t)ptu->pressure_ref1[1] << 8
+	                      | (uint32_t)ptu->pressure_ref1[2] << 16;
+	const float adc_ref2 = (uint32_t)ptu->pressure_ref2[0]
+	                      | (uint32_t)ptu->pressure_ref2[1] << 8
+	                      | (uint32_t)ptu->pressure_ref2[2] << 16;
 
-	if (pressure_ref2 - pressure_ref1 == 0) return NAN;
+	const float pt = ptu->pressure_temp;
+	float adc_raw, pressure, p_poly[6];
 
-	/* TODO use calibration data to determine pressure */
-	return pressure_main;
+	/* If no reference, return */
+	if (adc_ref2 - adc_ref1 == 0) return NAN;
+
+	/* Compute ADC raw value */
+	adc_raw = (adc_main - adc_ref1) / (adc_ref2 - adc_ref1);
+
+	/* Derive pressure from raw value */
+	p_poly[0] = calib->p_calib_coeff[0]
+	          + calib->p_calib_coeff[7] * pt
+	          + calib->p_calib_coeff[11] * pt * pt
+	          + calib->p_calib_coeff[15] * pt * pt * pt;
+	p_poly[1] = calib->p_calib_coeff[1]
+	          + calib->p_calib_coeff[8] * pt
+	          + calib->p_calib_coeff[12] * pt * pt
+	          + calib->p_calib_coeff[16] * pt * pt * pt;
+	p_poly[2] = calib->p_calib_coeff[2]
+	          + calib->p_calib_coeff[9] * pt
+	          + calib->p_calib_coeff[13] * pt * pt
+	          + calib->p_calib_coeff[17] * pt * pt * pt;
+	p_poly[3] = calib->p_calib_coeff[3]
+	          + calib->p_calib_coeff[10] * pt
+	          + calib->p_calib_coeff[14] * pt * pt;
+	p_poly[4] = calib->p_calib_coeff[4];
+	p_poly[5] = calib->p_calib_coeff[5];
+
+	pressure = p_poly[0]
+	         + p_poly[1] * adc_raw
+	         + p_poly[2] * adc_raw * adc_raw
+	         + p_poly[3] * adc_raw * adc_raw * adc_raw
+	         + p_poly[4] * adc_raw * adc_raw * adc_raw * adc_raw
+	         + p_poly[5] * adc_raw * adc_raw * adc_raw * adc_raw * adc_raw;
+
+
+	return pressure;
 }
 
 float
