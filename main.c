@@ -6,8 +6,8 @@
 #include <time.h>
 #include "decode/common.h"
 #include "decode/rs41/rs41.h"
-#include "gps/time.h"
 #include "gps/ecef.h"
+#include "gps/time.h"
 #include "io/gpx.h"
 #include "io/kml.h"
 #include "io/wavfile.h"
@@ -222,6 +222,7 @@ main(int argc, char *argv[])
 							printable.alt, printable.lat, printable.lon,
 							printable.speed, printable.heading, printable.climb);
 				}
+
 				has_data = 0;
 				break;
 			case POSITION:
@@ -236,7 +237,7 @@ main(int argc, char *argv[])
 				}
 				if (gpx_fname) {
 					if (!gpx.track_active) gpx_start_track(&gpx, printable.serial);
-					gpx_add_trackpoint(&gpx, printable.lat, printable.lon, printable.alt, printable.utc_time);
+					gpx_add_trackpoint(&gpx, printable.lat, printable.lon, printable.alt, printable.speed, printable.heading, printable.utc_time);
 				}
 				has_data = 1;
 				break;
