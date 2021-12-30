@@ -1,10 +1,10 @@
 #ifndef rs41_h
 #define rs41_h
 
-#include "decode/correlator/correlator.h"
 #include "decode/common.h"
-#include "demod/gfsk.h"
+#include "decode/correlator/correlator.h"
 #include "decode/ecc/rs.h"
+#include "demod/gfsk.h"
 #include "protocol.h"
 
 typedef struct {

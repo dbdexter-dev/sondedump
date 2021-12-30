@@ -36,6 +36,7 @@ set(LIBRARY_SOURCES
 	demod/gfsk.c demod/gfsk.h
 
 	decode/prng.c decode/prng.h
+	decode/manchester.c decode/manchester.h
 	decode/common.h
 
 	decode/ecc/crc.c decode/ecc/crc.h
@@ -45,6 +46,11 @@ set(LIBRARY_SOURCES
 	decode/rs41/frame.c decode/rs41/frame.h
 	decode/rs41/subframe.c decode/rs41/subframe.h
 	decode/rs41/protocol.h
+
+	decode/dfm09/dfm09.c decode/dfm09/dfm09.h
+	decode/dfm09/frame.c decode/dfm09/frame.h
+	decode/dfm09/subframe.c decode/dfm09/subframe.h
+	decode/dfm09/protocol.h
 
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h

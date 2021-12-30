@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 
 import matplotlib.pyplot as plt
+import sys
+import math
 
-normalize = False
+normalize = True
+remove_outliers = True
 show_3d = False
 
 points = []
-with open("/tmp/plot.data", "rb") as f:
+with open(sys.argv[1], "rb") as f:
     for line in f.readlines():
-        numbers = list(filter(len, line.split(b" ")))
+        numbers = list(filter(len, line.split(b",")))
         for i in range(len(numbers)):
             try:
                 numbers[i] = float(numbers[i])
@@ -16,20 +19,33 @@ with open("/tmp/plot.data", "rb") as f:
                 numbers[i] = 0
 
         try:
-            if numbers[0] > 0:
-                points.append(numbers)
+            points.append(numbers)
         except IndexError:
             pass
 
-for i in range(1, len(points[0])):
+ebs_vel = list(map(lambda x: math.sqrt(x[0]**2+x[1]**2), zip([x[1] for x in points], [x[2] for x in points])))
+for i in range(len(points)):
+    points[i].append(abs_vel[i])
+
+for i in range(len(points[0])):
     ys = [x[i] for x in points]
+
+    if remove_outliers:
+        mu = sum(ys)/len(ys)
+        sigma = math.sqrt(sum(map(lambda x: x**2, ys))/len(ys))
+
+        print("{} {}".format(mu, sigma))
+
+        ys = [y if abs((y-mu)/sigma) < 1 else mu for y in ys]
+
 
     if normalize:
         miny = min(filter(lambda x: x == x, ys))
         maxy = max(filter(lambda x: x == x,ys))
         print("[{}..{}]".format(miny, maxy))
-        if miny - maxy != 0:
+        if miny != maxy:
             ys = [(x-miny)/(maxy-miny) for x in ys]
 
-    plt.plot([x[0] for x in points], ys)
+    plt.plot(ys)
+plt.legend(list(range(len(points[0]))))
 plt.show()
