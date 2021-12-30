@@ -23,7 +23,6 @@ timing_init(Timing *t, float sym_freq, float zeta, float bw)
 	t->prev = 0;
 
 	update_alpha_beta(t, zeta, bw);
-	fprintf(stderr, "%e %e\n", t->alpha, t->beta);
 }
 
 int

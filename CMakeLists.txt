@@ -49,6 +49,7 @@ set(LIBRARY_SOURCES
 
 	decode/dfm09/dfm09.c decode/dfm09/dfm09.h
 	decode/dfm09/frame.c decode/dfm09/frame.h
+	decode/dfm09/subframe.c decode/dfm09/subframe.h
 	decode/dfm09/protocol.h
 
 	gps/ecef.c gps/ecef.h

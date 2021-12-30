@@ -5,7 +5,7 @@
 #include "utils.h"
 
 void
-bitcpy(uint8_t *dst, uint8_t *src, size_t offset, size_t bits)
+bitcpy(uint8_t *dst, const uint8_t *src, size_t offset, size_t bits)
 {
 	src += offset / 8;
 	offset %= 8;
@@ -24,6 +24,18 @@ bitcpy(uint8_t *dst, uint8_t *src, size_t offset, size_t bits)
 		*dst |= *src >> (8 - offset);
 		*dst &= ~((1 << (8-bits)) - 1);
 	}
+}
+
+uint64_t
+bitmerge(uint8_t *data, int nbits)
+{
+	uint64_t ret = 0;
+
+	for (; nbits >= 8; nbits-=8) {
+		ret = (ret << 8) | *data++;
+	}
+
+	return (ret << nbits) | (*data >> (7 - nbits));
 }
 
 char

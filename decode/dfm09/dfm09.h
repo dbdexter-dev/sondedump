@@ -9,7 +9,13 @@
 typedef struct {
 	GFSKDemod gfsk;
 	Correlator correlator;
-	DFM09Frame frame[4];
+	DFM09Frame frame[2];
+	DFM09ParsedFrame parsedFrame;
+	DFM09Calib calib;
+	struct tm gpsTime;
+	int gpsIdx;
+	SondeData gpsData, ptuData;
+	enum { READ, PARSE_PTU, PARSE_GPS } state;
 } DFM09Decoder;
 
 /**
