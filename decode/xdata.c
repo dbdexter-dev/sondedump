@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "xdata.h"
+#include "utils.h"
 
 #define FLOWRATE 30     /* Time taken for the pump to force 100mL of air through the sensor, in seconds */
 
@@ -56,7 +57,7 @@ xdata_decode(float curPressure, const char *asciiData, int len)
 static float
 o3CorrectionFactor(float pressure)
 {
-	for (int i=0; i<sizeof(_cfFactor)/sizeof(_cfFactor[0]); i++) {
+	for (int i=0; i<(int)LEN(_cfFactor); i++) {
 		if (pressure < _cfPressure[i]) return _cfFactor[i];
 	}
 	return 1;

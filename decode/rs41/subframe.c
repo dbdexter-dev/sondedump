@@ -190,7 +190,7 @@ rs41_subframe_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 }
 
 float
-rs41_subframe_temp_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
+rs41_subframe_temp_pressure(RS41Subframe_PTU *ptu)
 {
 	return ptu->pressure_temp/100.0;
 }

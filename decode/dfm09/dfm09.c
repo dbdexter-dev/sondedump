@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "decode/manchester.h"
 #include "decode/correlator/correlator.h"
 #include "frame.h"
@@ -17,6 +18,8 @@ dfm09_decoder_init(DFM09Decoder *d, int samplerate)
 	gfsk_init(&d->gfsk, samplerate, DFM09_BAUDRATE);
 	correlator_init(&d->correlator, DFM09_SYNCWORD, DFM09_SYNC_LEN);
 	d->gpsIdx = 0;
+	memset(&d->ptuData, 0, sizeof(d->ptuData));
+	memset(&d->gpsData, 0, sizeof(d->gpsData));
 #ifndef NDEBUG
 	debug = fopen("/tmp/dfm09frames.data", "wb");
 #endif
@@ -42,6 +45,7 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 	int offset;
 	int inverted;
 	uint32_t tmp;
+	int i;
 
 	switch (self->state) {
 		case READ:
@@ -78,7 +82,14 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 
 			/* Remove parity bits */
 			dfm09_unpack(&self->parsedFrame, self->frame);
-			self->state = PARSE_PTU;
+
+			/* If all zeroes, discard */
+			for (i=0; i<sizeof(self->parsedFrame); i++) {
+				if (((uint8_t*)&self->parsedFrame)[i] != 0) {
+					self->state = PARSE_PTU;
+					break;
+				}
+			}
 			break;
 
 		case PARSE_PTU:
@@ -154,10 +165,10 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 					/* GPS date */
 					tmp = bitmerge(gpsSubframe->data, 32);
 
-					self->gpsTime.tm_year = (tmp >> (32 - 12) & 0xFFF) - 1900;
-					self->gpsTime.tm_mon = tmp >> (32 - 16) & 0xF;
-					self->gpsTime.tm_mday = tmp >> (32 - 21) & 0x1F;
-					self->gpsTime.tm_hour = tmp >> (32 - 26) & 0x1F;
+					self->gpsTime.tm_year = ((tmp >> (32 - 12)) & 0xFFF) - 1900;
+					self->gpsTime.tm_mon = ((tmp >> (32 - 16)) & 0xF) - 1;
+					self->gpsTime.tm_mday = (tmp >> (32 - 21)) & 0x1F;
+					self->gpsTime.tm_hour = (tmp >> (32 - 26)) & 0x1F;
 					self->gpsTime.tm_min = tmp & 0x3F;
 
 					data.type = DATETIME;

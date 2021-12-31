@@ -10,7 +10,7 @@ float rs41_subframe_temp(RS41Subframe_PTU *ptu, RS41Calibration *calib);
 float rs41_subframe_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib);
 float rs41_subframe_temp_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib);
 float rs41_subframe_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib);
-float rs41_subframe_temp_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib);
+float rs41_subframe_temp_pressure(RS41Subframe_PTU *ptu);
 
 /* GPS position subframe */
 float rs41_subframe_x(RS41Subframe_GPSPos *gps);
