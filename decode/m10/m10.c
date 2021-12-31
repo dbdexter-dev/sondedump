@@ -9,6 +9,7 @@
 static FILE *debug;
 #endif
 
+enum state { READ, PARSE_GPS_POS, PARSE_GPS_TIME, PARSE_PTU };
 
 void
 m10_decoder_init(M10Decoder *d, int samplerate)
@@ -72,7 +73,7 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 
 			/* Correct inverted symbol phase */
 			if (inverted) {
-				for (i=0; i<2*sizeof(*self->frame); i++) {
+				for (i=0; i<2*(int)sizeof(*self->frame); i++) {
 					raw_frame[i] ^= 0xFF;
 				}
 			}
@@ -81,15 +82,14 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 			manchester_decode(raw_frame, raw_frame, 0, M10_FRAME_LEN*8);
 			m10_frame_descramble(self->frame);
 
-			if (self->frame[0].sync_mark[0] != 0x00 ||
-				self->frame[0].sync_mark[1] != 0xf0 ||
-				self->frame[0].sync_mark[2] != 0x64) {
+			/* If corrupted, don't decode */
+			if (m10_frame_correct(self->frame) < 0) {
 				data.type = EMPTY;
 				return data;
 			}
 
 #ifndef NDEBUG
-			fwrite(&self->frame[0], sizeof(*self->frame), 1, debug);
+			fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
 #endif
 			switch (self->frame[0].type) {
 				case M10_FTYPE_DATA:
@@ -152,6 +152,8 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 			break;
 
 		default:
+			data.type = EMPTY;
+			self->state = READ;
 			break;
 	}
 
