@@ -101,7 +101,7 @@ kml_start_track(KMLFile *kml, char *name)
 }
 
 void
-kml_add_trackpoint(KMLFile *kml, float lat, float lon, float alt, time_t time)
+kml_add_trackpoint(KMLFile *kml, float lat, float lon, float alt)
 {
 	if (!kml->track_active) return;
 	if (isnan(lat) || isnan(lon) || isnan(alt)) return;

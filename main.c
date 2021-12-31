@@ -247,11 +247,11 @@ main(int argc, char *argv[])
 				/* Add position to whichever files are open */
 				if (kml_fname) {
 					if (!kml.track_active) kml_start_track(&kml, printable.serial);
-					kml_add_trackpoint(&kml, printable.lat, printable.lon, printable.alt, printable.utc_time);
+					kml_add_trackpoint(&kml, printable.lat, printable.lon, printable.alt);
 				}
 				if (live_kml_fname) {
 					if (!live_kml.track_active) kml_start_track(&live_kml, printable.serial);
-					kml_add_trackpoint(&live_kml, printable.lat, printable.lon, printable.alt, printable.utc_time);
+					kml_add_trackpoint(&live_kml, printable.lat, printable.lon, printable.alt);
 				}
 				if (gpx_fname) {
 					if (!gpx.track_active) gpx_start_track(&gpx, printable.serial);
@@ -422,6 +422,7 @@ printf_data(const char *fmt, PrintableData *data)
 static void
 sigint_handler(int val)
 {
+	(void)val;
 	_interrupted = 1;
 }
 static void

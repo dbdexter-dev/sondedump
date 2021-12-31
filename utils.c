@@ -56,7 +56,36 @@ char
 float
 altitude_to_pressure(float alt)
 {
-	return 1013.25f * powf(1.0f - 2.25577f * 1e-5f * alt, 5.25588f);
+	const float g0 = 9.80665;
+	const float M = 0.0289644;
+	const float R_star = 8.3144598;
+
+	const float hbs[] = {0,       11000,   20000,   32000,  47000,  51000,  77000};
+	const float Lbs[] = {-0.0065, 0,       0.001,   0.0028, 0.0,   -0.0028, -0.002};
+	const float Pbs[] = {101325,  22632.1, 5474.89, 868.02, 110.91, 66.94,  3.96};
+	const float Tbs[] = {288.15,  216.65,  216.65,  228.65, 270.65, 270.65, 214.65};
+
+	float Lb, Pb, Tb, hb;
+	int b;
+
+	for (b=0; b<(int)LEN(Lbs); b++) {
+		if (alt < hbs[b+1]) {
+			Lb = Lbs[b];
+			Pb = Pbs[b];
+			Tb = Tbs[b];
+			hb = hbs[b];
+			break;
+		}
+	}
+
+	if (b == (int)LEN(Lbs)) {
+		Lb = Lbs[b-1];
+		Pb = Pbs[b-1];
+		Tb = Tbs[b-1];
+		hb = hbs[b-1];
+	}
+
+	return 1e-2 * Pb * powf((Tb + Lb * (alt - hb)) / Tb, - (g0 * M) / (R_star * Lb));
 }
 
 float
