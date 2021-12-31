@@ -101,7 +101,7 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 		case PARSE_PTU:
 			/* Parse new PTU data */
 			ptuSubframe = &self->parsed_frame.ptu;
-			self->calib.raw[ptuSubframe->type] = bitmerge(self->parsed_frame.ptu.data, 24);
+			self->calib.raw[ptuSubframe->type] = bitmerge(ptuSubframe->data, 24);
 
 			if (bitmerge(ptuSubframe->data, 24) == 0) {
 				self->ptu_type_serial = ptuSubframe->type + 1;

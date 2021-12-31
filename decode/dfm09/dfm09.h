@@ -9,7 +9,7 @@
 typedef struct {
 	GFSKDemod gfsk;
 	Correlator correlator;
-	DFM09Frame frame[2];
+	DFM09Frame frame[4];
 	DFM09ParsedFrame parsed_frame;
 	DFM09Calib calib;
 	struct tm gps_time;

@@ -14,7 +14,9 @@ Features:
 - Read FM-demodulated data directly from audio (requires `portaudio`)
 
 Supported models:
-- RS41-SG(P)
+- Vaisala RS41-SG(P)
+- Graw DFM-06/09
+- MeteoModem M10
 
 Build/install instructions
 --------------------------

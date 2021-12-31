@@ -10,6 +10,7 @@ float dfm09_subframe_humidity(DFM09Subframe_PTU *ptu, DFM09Calib *calib);
 float dfm09_subframe_pressure(DFM09Subframe_PTU *ptu, DFM09Calib *calib);
 
 /* GPS subframe */
+uint32_t dfm09_subframe_seq(DFM09Subframe_GPS *gps);
 int dfm09_subframe_time(DFM09Subframe_GPS *gps);
 void dfm09_subframe_date(struct tm *dst, DFM09Subframe_GPS *gps);
 float dfm09_subframe_lat(DFM09Subframe_GPS *gps);
