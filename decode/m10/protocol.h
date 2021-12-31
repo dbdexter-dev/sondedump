@@ -2,6 +2,7 @@
 #define m10_protocol_h
 
 #include <stdint.h>
+#include <time.h>
 
 /* Physical parameters */
 #define M10_BAUDRATE 9600
@@ -31,12 +32,13 @@ typedef struct {
 	uint8_t dlat[2], dlon[2], dalt[2];  /* x, y, z velocity */
 	uint8_t time[4];                    /* GPS time */
 	uint8_t lat[4], lon[4], alt[4];     /* Latitude, longitude, altitude */
+	uint8_t _pad0[6];
+	uint8_t week[2];
 } __attribute__((packed))M10Frame_9f;
 /* }}} */
 
-inline uint32_t m10_frame_9f_time(M10Frame_9f* f) {
-	return f->time[0] << 24 | f->time[1] << 16 | f->time[2] << 8 | f->time[3];
-}
+time_t m10_frame_9f_time(M10Frame_9f* f);
+
 inline int32_t m10_frame_9f_lat(M10Frame_9f* f) {
 	return f->lat[0] << 24 | f->lat[1] << 16 | f->lat[2] << 8 | f->lat[3];
 }

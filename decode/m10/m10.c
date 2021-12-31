@@ -41,7 +41,7 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 	uint8_t *const raw_frame = (uint8_t*)self->frame;
 	int inverted;
 	int i;
-	uint32_t time;
+	time_t time;
 	float lat, lon, alt;
 	float speed, heading, climb;
 	float dx, dy, dz;
@@ -109,9 +109,7 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 			time = m10_frame_9f_time(data_frame);
 
 			data.type = DATETIME;
-			/* FIXME ignoring the entire last byte FIXME */
-			data.data.datetime.datetime = time >> 10;
-			/* FIXME ignoring the entire last byte FIXME */
+			data.data.datetime.datetime = time;
 
 			self->state = PARSE_GPS_POS;
 			break;
@@ -122,11 +120,9 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 			lon = m10_frame_9f_lon(data_frame) * 360.0 / (1UL << 32);
 			alt = m10_frame_9f_alt(data_frame) / 1e3;
 
-			/* FIXME wrong scaling factors FIXME */
 			dx = (float)m10_frame_9f_dlat(data_frame) / 200.0;
 			dy = (float)m10_frame_9f_dlon(data_frame) / 200.0;
 			dz = (float)m10_frame_9f_dalt(data_frame) / 200.0;
-			/* FIXME wrong scaling factors FIXME */
 
 			climb = dz;
 			speed = sqrtf(dx*dx + dy*dy);
