@@ -217,7 +217,7 @@ main(int argc, char *argv[])
 
 		if (data.type == SOURCE_END) break;
 #ifdef ENABLE_TUI
-		tui_update(&data, _active_decoder);
+		tui_update(&data);
 #endif
 
 		switch (data.type) {
@@ -428,5 +428,6 @@ static void
 decoder_changer(int delta)
 {
 	_active_decoder = (_active_decoder + END + delta) % END;
+	tui_set_active_decoder(_active_decoder);
 }
 /* }}} */

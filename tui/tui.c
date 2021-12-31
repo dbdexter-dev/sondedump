@@ -12,21 +12,23 @@
 
 #define PTU_INFO_COUNT 4    /* Temp, RH, pressure, dewpt */
 #define GPS_INFO_COUNT 6    /* lat, lot, alt, speed, heading, climb */
-#define SONDE_INFO_COUNT 5  /* Type, serial, burstkill, frame seq, date/time */
+#define SONDE_INFO_COUNT 4  /* Serial, burstkill, frame seq, date/time */
 #define XDATA_INFO_COUNT 1  /* xdata */
 #define INFO_COUNT (PTU_INFO_COUNT + GPS_INFO_COUNT + SONDE_INFO_COUNT + XDATA_INFO_COUNT)
 
 static void init_windows(int rows, int cols);
 static void redraw();
+static void draw_tabs(WINDOW *win, int selected);
 static void handle_resize();
 static void *main_loop(void* args);
 
-static char *_decoder_name[] = { "RS41", "DFM" };
+static char *_decoder_names[] = { "RS41", "DFM" };
 static int _update_interval;
 static int _running;
 static pthread_t _tid;
 static struct {
 	WINDOW *win;
+	WINDOW *tabs;
 	struct {
 		int seq;
 		float temp, rh, pressure;
@@ -67,6 +69,7 @@ tui_init(int update_interval, void (*decoder_changer)(int delta))
 
 	_running = 1;
 	tui.data.changed = 1;
+	tui.active_decoder = 0;
 	pthread_create(&_tid, NULL, main_loop, decoder_changer);
 }
 
@@ -81,13 +84,8 @@ tui_deinit()
 
 
 int
-tui_update(SondeData *data, int active_decoder)
+tui_update(SondeData *data)
 {
-	if (tui.active_decoder != active_decoder) {
-		tui.active_decoder = active_decoder;
-		tui.data.changed = 1;
-	}
-
 	switch (data->type) {
 		case EMPTY:
 		case FRAME_END:
@@ -132,6 +130,14 @@ tui_update(SondeData *data, int active_decoder)
 	return 0;
 }
 
+int
+tui_set_active_decoder(int active_decoder)
+{
+	tui.active_decoder = active_decoder;
+	draw_tabs(tui.tabs, active_decoder);
+	return 0;
+}
+
 /* Static functions {{{ */
 static void*
 main_loop(void *args)
@@ -168,7 +174,7 @@ static void
 handle_resize()
 {
 	const int width = 50;
-	const int height = INFO_COUNT + 3 + 4;
+	const int height = INFO_COUNT + 3 + 3;
 	int rows, cols;
 	werase(stdscr);
 	endwin();
@@ -176,7 +182,9 @@ handle_resize()
 	refresh();
 	getmaxyx(stdscr, rows, cols);
 	wresize(tui.win, height, width);
+	wresize(tui.tabs, 1, width);
 	mvwin(tui.win, (rows - height) / 2, (cols - width) / 2);
+	mvwin(tui.tabs, (rows - height) / 2 - 1, (cols - width) / 2);
 	redraw();
 }
 static void
@@ -186,8 +194,10 @@ redraw()
 	int start_row, start_col;
 	float synthetic_pressure;
 
+	draw_tabs(tui.tabs, tui.active_decoder);
+
 	getmaxyx(tui.win, rows, cols);
-	start_row = (rows - INFO_COUNT - 5) / 2;
+	start_row = (rows - INFO_COUNT - 4) / 2;
 	start_col = cols / 2 - 1;
 
 	synthetic_pressure = (isnormal(tui.data.pressure) ?
@@ -197,10 +207,6 @@ redraw()
 	wborder(tui.win,
 			0, 0, 0, 0,
 			0, 0, 0, 0);
-
-	mvwprintw(tui.win, start_row++, start_col - sizeof("Type:"),
-			"Type: %s (TAB to change)", _decoder_name[tui.active_decoder]);
-	start_row++;
 
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Serial no.:"),
 			"Serial no.: %s", tui.data.serial);
@@ -243,16 +249,39 @@ redraw()
 }
 
 static void
+draw_tabs(WINDOW *win, int selected)
+{
+	int i, elemWidth;
+	int cols;
+
+	werase(win);
+	cols = getmaxx(win);
+	elemWidth = cols / LEN(_decoder_names);
+
+	for (i=0; i<(int)LEN(_decoder_names); i++) {
+		if (i == selected) wattron(win, A_STANDOUT);
+
+		mvwprintw(win, 0, i * elemWidth + (elemWidth - strlen(_decoder_names[i])) / 2, "%s",_decoder_names[i]);
+
+		if (i == selected) wattroff(win, A_STANDOUT);
+	}
+
+	wrefresh(win);
+}
+
+static void
 init_windows(int rows, int cols)
 {
 	const int width = 50;
-	const int height = INFO_COUNT + 3 + 4;
+	const int height = INFO_COUNT + 3 + 3;
 	tui.win = newwin(height, width, (rows - height) / 2, (cols - width) / 2);
+	tui.tabs = newwin(1, width, (rows - height) / 2 - 1, (cols - width) / 2);
 	wborder(tui.win,
 			0, 0, 0, 0,
 			0, 0, 0, 0);
 	wtimeout(tui.win, _update_interval);
 	wrefresh(tui.win);
+	wrefresh(tui.tabs);
 }
 
 /* }}} */
