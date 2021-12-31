@@ -182,9 +182,9 @@ handle_resize()
 	refresh();
 	getmaxyx(stdscr, rows, cols);
 	wresize(tui.win, height, width);
-	wresize(tui.tabs, 1, width);
+	wresize(tui.tabs, 2, width);
 	mvwin(tui.win, (rows - height) / 2, (cols - width) / 2);
-	mvwin(tui.tabs, (rows - height) / 2 - 1, (cols - width) / 2);
+	mvwin(tui.tabs, (rows - height) / 2 - 2, (cols - width) / 2);
 	redraw();
 }
 static void
@@ -251,18 +251,22 @@ redraw()
 static void
 draw_tabs(WINDOW *win, int selected)
 {
-	int i, elemWidth;
+	float elemWidth;
+	int i;
 	int cols;
 
 	werase(win);
 	cols = getmaxx(win);
-	elemWidth = cols / LEN(_decoder_names);
+	elemWidth = (float)cols / LEN(_decoder_names);
+	wborder(tui.tabs,
+			0, 0, 0, ' ',
+			0, 0, ACS_VLINE, ACS_VLINE);
 
 	for (i=0; i<(int)LEN(_decoder_names); i++) {
+		if (i != 0) mvwprintw(win, 1, i * elemWidth, "|");
+
 		if (i == selected) wattron(win, A_STANDOUT);
-
-		mvwprintw(win, 0, i * elemWidth + (elemWidth - strlen(_decoder_names[i])) / 2, "%s",_decoder_names[i]);
-
+		mvwprintw(win, 1, i * elemWidth + (elemWidth - strlen(_decoder_names[i])) / 2, "%s",_decoder_names[i]);
 		if (i == selected) wattroff(win, A_STANDOUT);
 	}
 
@@ -275,10 +279,13 @@ init_windows(int rows, int cols)
 	const int width = 50;
 	const int height = INFO_COUNT + 3 + 3;
 	tui.win = newwin(height, width, (rows - height) / 2, (cols - width) / 2);
-	tui.tabs = newwin(1, width, (rows - height) / 2 - 1, (cols - width) / 2);
+	tui.tabs = newwin(2, width, (rows - height) / 2 - 2, (cols - width) / 2);
 	wborder(tui.win,
 			0, 0, 0, 0,
 			0, 0, 0, 0);
+	wborder(tui.tabs,
+			0, 0, 0, ' ',
+			0, 0, ACS_VLINE, ACS_VLINE);
 	wtimeout(tui.win, _update_interval);
 	wrefresh(tui.win);
 	wrefresh(tui.tabs);
