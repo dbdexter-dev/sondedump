@@ -127,9 +127,8 @@ usage(const char *pname)
 			"   -g, --gpx <file>        Output GPX track to <file>\n"
 			"   -k, --kml <file>        Output KML track to <file>\n"
 			"   -l, --live-kml <file>   Output live KML track to <file>\n"
-#ifdef ENABLE_DIAGRAMS
-			"       --stuve <file>      Generate Stuve diagram and output to <file>\n"
-#endif
+			"   -t, --type <type>       Enable decoder for the given sonde type\n"
+			"                           Supported values: rs41, dfm, m10\n"
 
 	        "\n"
 	        "   -h, --help              Print this help screen\n"
@@ -161,9 +160,6 @@ version()
 			"sondedump v" VERSION
 #ifdef ENABLE_AUDIO
 			" +portaudio"
-#endif
-#ifdef ENABLE_DIAGRAMS
-			" +cairo"
 #endif
 #ifdef ENABLE_TUI
 			" +ncurses"

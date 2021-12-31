@@ -7,6 +7,7 @@
 #include "decode/common.h"
 #include "decode/rs41/rs41.h"
 #include "decode/dfm09/dfm09.h"
+#include "decode/m10/m10.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
 #include "io/gpx.h"
@@ -20,7 +21,7 @@
 #include "io/audio.h"
 #endif
 
-#define SHORTOPTS "a:c:f:gh:k:l:o:v"
+#define SHORTOPTS "a:c:f:gh:k:l:o:t:v"
 
 typedef struct {
 	int seq;
@@ -43,7 +44,7 @@ static void decoder_changer(int delta);
 static FILE *_wav;
 static int _bps;
 static int _interrupted;
-static enum { RS41=0, DFM=1, END } _active_decoder;
+static enum { RS41=0, DFM=1, M10=2, END } _active_decoder;
 static struct option longopts[] = {
 	{ "audio-device", 1, NULL, 'a'},
 	{ "fmt",          1, NULL, 'f' },
@@ -53,6 +54,7 @@ static struct option longopts[] = {
 	{ "kml",          1, NULL, 'k' },
 	{ "live-kml",     1, NULL, 'l' },
 	{ "output",       1, NULL, 'o' },
+	{ "type",         1, NULL, 't' },
 	{ "version",      0, NULL, 'v' },
 	{ NULL,           0, NULL,  0  }
 };
@@ -73,6 +75,7 @@ main(int argc, char *argv[])
 
 	RS41Decoder rs41decoder;
 	DFM09Decoder dfm09decoder;
+	M10Decoder m10decoder;
 
 	memset(&printable, 0, sizeof(PrintableData));
 
@@ -117,6 +120,15 @@ main(int argc, char *argv[])
 			case 'v':
 				version();
 				return 0;
+			case 't':
+				if (!strcmp(optarg, "rs41")) {
+					_active_decoder = RS41;
+				} else if (!strcmp(optarg, "dfm")) {
+					_active_decoder = DFM;
+				} else if (!strcmp(optarg, "m10")) {
+					_active_decoder = M10;
+				}
+				break;
 			case 'f':
 				output_fmt = optarg;
 #ifdef ENABLE_TUI
@@ -196,6 +208,7 @@ main(int argc, char *argv[])
 
 	rs41_decoder_init(&rs41decoder, samplerate);
 	dfm09_decoder_init(&dfm09decoder, samplerate);
+	m10_decoder_init(&m10decoder, samplerate);
 
 	/* Catch SIGINT to exit the loop */
 	_interrupted = 0;
@@ -208,6 +221,9 @@ main(int argc, char *argv[])
 				break;
 			case DFM:
 				data = dfm09_decode(&dfm09decoder, read_wrapper);
+				break;
+			case M10:
+				data = m10_decode(&m10decoder, read_wrapper);
 				break;
 			default:
 				break;
@@ -272,6 +288,7 @@ main(int argc, char *argv[])
 
 	rs41_decoder_deinit(&rs41decoder);
 	dfm09_decoder_deinit(&dfm09decoder);
+	m10_decoder_deinit(&m10decoder);
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO
 	if (input_from_audio) {
@@ -424,6 +441,7 @@ sigint_handler(int val)
 	(void)val;
 	_interrupted = 1;
 }
+
 static void
 decoder_changer(int delta)
 {
