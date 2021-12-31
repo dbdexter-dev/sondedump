@@ -20,6 +20,7 @@ typedef struct {
 	RS41Frame frame[2];
 	int state;
 	int offset;
+	int calibrated;
 	RS41Metadata metadata;
 	float pressure;
 } RS41Decoder;
