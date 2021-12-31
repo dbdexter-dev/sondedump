@@ -21,7 +21,7 @@
 #include "io/audio.h"
 #endif
 
-#define SHORTOPTS "a:c:f:gh:k:l:o:t:v"
+#define SHORTOPTS "a:c:f:g:hk:l:o:t:v"
 
 typedef struct {
 	int seq;
@@ -262,15 +262,15 @@ main(int argc, char *argv[])
 			case POSITION:
 				/* Add position to whichever files are open */
 				if (kml_fname) {
-					if (!kml.track_active) kml_start_track(&kml, printable.serial);
+					kml_start_track(&kml, printable.serial);
 					kml_add_trackpoint(&kml, printable.lat, printable.lon, printable.alt);
 				}
 				if (live_kml_fname) {
-					if (!live_kml.track_active) kml_start_track(&live_kml, printable.serial);
+					kml_start_track(&live_kml, printable.serial);
 					kml_add_trackpoint(&live_kml, printable.lat, printable.lon, printable.alt);
 				}
 				if (gpx_fname) {
-					if (!gpx.track_active) gpx_start_track(&gpx, printable.serial);
+					gpx_start_track(&gpx, printable.serial);
 					gpx_add_trackpoint(&gpx, printable.lat, printable.lon, printable.alt, printable.speed, printable.heading, printable.utc_time);
 				}
 				has_data = 1;

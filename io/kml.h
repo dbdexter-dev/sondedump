@@ -20,7 +20,6 @@ void kml_close(KMLFile *file);
 void kml_start_track(KMLFile *file, char *name);
 void kml_add_trackpoint(KMLFile *file, float lat, float lon, float alt);
 void kml_stop_track(KMLFile *file);
-void kml_end_track(KMLFile *file);
 
 
 #endif

@@ -7,6 +7,7 @@
 typedef struct {
 	FILE *fd;
 	int track_active;
+	char *cur_serial;
 } GPXFile;
 
 int gpx_init(GPXFile *file, char *fname);

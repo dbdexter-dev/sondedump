@@ -1,6 +1,9 @@
 #include <ctype.h>
 #include <math.h>
+#include <stdlib.h>
+#include <string.h>
 #include "gpx.h"
+#include "utils.h"
 
 #define GPX_TIME_FORMAT "%Y-%m-%dT%H:%M:%SZ"
 
@@ -8,7 +11,7 @@ int
 gpx_init(GPXFile *file, char *fname)
 {
 	file->fd = fopen(fname, "wb");
-	file->track_active = 0;
+	file->cur_serial = NULL;
 
 	if (!file->fd) return 1;
 
@@ -24,7 +27,7 @@ gpx_init(GPXFile *file, char *fname)
 void
 gpx_close(GPXFile *file)
 {
-	if (file->track_active) gpx_stop_track(file);
+	if (file->cur_serial) gpx_stop_track(file);
 
 	if (file && file->fd) {
 		fprintf(file->fd, "</gpx>\n");
@@ -42,17 +45,20 @@ gpx_start_track(GPXFile *file, char *name)
 		if (!isalnum(name[i])) return;
 	}
 
-	if (file->track_active) gpx_stop_track(file);
+	if (file->cur_serial != NULL && !strcmp(name, file->cur_serial)) return;
+
+	if (file->cur_serial != NULL) gpx_stop_track(file);
+	file->cur_serial = my_strdup(name);
 
 	fprintf(file->fd, "<trk>\n");
 	fprintf(file->fd, "<name>%s</name>\n", name);
 	fprintf(file->fd, "<trkseg>\n");
-	file->track_active = 1;
 }
 
 void
 gpx_add_trackpoint(GPXFile *file, float lat, float lon, float alt, float spd, float hdg, time_t time)
 {
+	if (!file->cur_serial) return;
 	char timestr[sizeof("YYYY-MM-DDThh:mm:ssZ")+1];
 
 	/* Prevent NaNs from breaking the GPX specification */
@@ -75,6 +81,6 @@ gpx_stop_track(GPXFile *file)
 {
 	fprintf(file->fd, "</trkseg>\n");
 	fprintf(file->fd, "</trk>\n");
-	file->track_active = 0;
+	free(file->cur_serial);
+	file->cur_serial = NULL;
 }
-

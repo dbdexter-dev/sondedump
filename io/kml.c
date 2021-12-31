@@ -78,7 +78,7 @@ void
 kml_close(KMLFile *kml)
 {
 	if (!kml->fd) return;
-	if (kml->track_active) kml_end_track(kml);
+	if (kml->track_active) kml_stop_track(kml);
 	if (kml->sonde_serial) free(kml->sonde_serial);
 	fclose(kml->fd);
 }
@@ -87,6 +87,9 @@ void
 kml_start_track(KMLFile *kml, char *name)
 {
 	if (kml->live_update) fseek(kml->fd, kml->next_update_fseek, SEEK_SET);
+	if (kml->sonde_serial != NULL && !strcmp(kml->sonde_serial, name)) return;
+	if (kml->sonde_serial != NULL) kml_stop_track(kml);
+
 	kml->sonde_serial = my_strdup(name);
 	fprintf(kml->fd,
 			"<name>%s</name>"
@@ -115,7 +118,7 @@ kml_add_trackpoint(KMLFile *kml, float lat, float lon, float alt)
 }
 
 void
-kml_end_track(KMLFile *kml)
+kml_stop_track(KMLFile *kml)
 {
 	if (kml->live_update) fseek(kml->fd, kml->next_update_fseek, SEEK_SET);
 	fprintf(kml->fd,
