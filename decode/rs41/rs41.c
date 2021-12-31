@@ -195,8 +195,10 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 
 					data.type = INFO;
 
+					strncpy(self->serial, status->serial, 8);
+					self->serial[8] = 0;
 					data.data.info.seq = status->frame_seq;
-					data.data.info.sonde_serial = status->serial;
+					data.data.info.sonde_serial = self->serial;
 					burstkill_timer = self->metadata.data.burstkill_timer;
 					data.data.info.burstkill_status = (burstkill_timer == 0xFFFF ? -1 : burstkill_timer);
 					break;

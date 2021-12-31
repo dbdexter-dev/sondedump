@@ -29,7 +29,7 @@ typedef struct {
 	float temp, rh, pressure;
 	time_t utc_time;
 	int shutdown_timer;
-	char serial[8+1];
+	char serial[32];
 	char xdata[128];
 } PrintableData;
 
@@ -319,7 +319,6 @@ fill_printable_data(PrintableData *to_print, SondeData *data)
 			break;
 		case INFO:
 			strncpy(to_print->serial, data->data.info.sonde_serial, LEN(to_print->serial)-1);
-			to_print->serial[8] = 0;
 			to_print->seq = data->data.info.seq;
 			to_print->shutdown_timer = data->data.info.burstkill_status;
 			break;

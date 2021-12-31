@@ -94,6 +94,7 @@ dfm09_unpack(DFM09ParsedFrame *dst, DFM09Frame *src)
 	}
 }
 
+/* Static functions {{{ */
 static int
 parity(uint8_t x)
 {
@@ -147,3 +148,4 @@ dfm09_temp(uint32_t raw_temp, uint32_t raw_ref1, uint32_t raw_ref2)
 
 	return temp;
 }
+/* }}} */

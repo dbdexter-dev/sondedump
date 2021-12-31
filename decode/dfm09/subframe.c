@@ -28,3 +28,62 @@ dfm09_subframe_temp(DFM09Subframe_PTU *ptu, DFM09Calib *calib)
 
 	return temp;
 }
+
+uint32_t
+dfm09_subframe_seq(DFM09Subframe_GPS *gps)
+{
+	return bitmerge(gps->data, 32);
+}
+
+int
+dfm09_subframe_time(DFM09Subframe_GPS *gps)
+{
+	return bitmerge(gps->data + 4, 16) / 1000;
+}
+
+void
+dfm09_subframe_date(struct tm *dst, DFM09Subframe_GPS *gps)
+{
+	const uint32_t raw = bitmerge(gps->data, 32);
+
+	dst->tm_year = ((raw >> (32 - 12)) & 0xFFF) - 1900;
+	dst->tm_mon = ((raw >> (32 - 16)) & 0xF) - 1;
+	dst->tm_mday = (raw >> (32 - 21)) & 0x1F;
+	dst->tm_hour = (raw >> (32 - 26)) & 0x1F;
+	dst->tm_min = raw & 0x3F;
+}
+
+float
+dfm09_subframe_lat(DFM09Subframe_GPS *gps)
+{
+	return (int32_t)bitmerge(gps->data, 32) / 1e7;
+}
+
+float
+dfm09_subframe_lon(DFM09Subframe_GPS *gps)
+{
+	return (int32_t)bitmerge(gps->data, 32) / 1e7;
+}
+float
+dfm09_subframe_alt(DFM09Subframe_GPS *gps)
+{
+	return (int32_t)bitmerge(gps->data, 32) / 1e2;
+}
+
+float
+dfm09_subframe_spd(DFM09Subframe_GPS *gps)
+{
+	return bitmerge(gps->data + 4, 16) / 1e2;
+}
+
+float
+dfm09_subframe_hdg(DFM09Subframe_GPS *gps)
+{
+	return bitmerge(gps->data + 4, 16) / 1e2;
+}
+
+float
+dfm09_subframe_climb(DFM09Subframe_GPS *gps)
+{
+	return (int16_t)bitmerge(gps->data + 4, 16) / 1e2;
+}

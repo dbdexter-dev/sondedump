@@ -23,6 +23,7 @@ typedef struct {
 	int calibrated;
 	RS41Metadata metadata;
 	float pressure;
+	char serial[9];
 } RS41Decoder;
 
 /**

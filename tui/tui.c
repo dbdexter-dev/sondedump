@@ -33,7 +33,7 @@ static struct {
 		int seq;
 		float temp, rh, pressure;
 		float lat, lon, alt, spd, hdg, climb;
-		char serial[8+1];
+		char serial[32];
 		char time[32];
 		char shutdown_timer[16];
 		char xdata[128];

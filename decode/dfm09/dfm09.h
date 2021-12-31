@@ -10,12 +10,15 @@ typedef struct {
 	GFSKDemod gfsk;
 	Correlator correlator;
 	DFM09Frame frame[2];
-	DFM09ParsedFrame parsedFrame;
+	DFM09ParsedFrame parsed_frame;
 	DFM09Calib calib;
-	struct tm gpsTime;
-	int gpsIdx;
-	SondeData gpsData, ptuData;
+	struct tm gps_time;
+	int gps_idx, ptu_type_serial;
+	SondeData gps_data, ptu_data;
 	int state;
+
+	char serial[10];
+	uint64_t raw_serial;
 } DFM09Decoder;
 
 /**

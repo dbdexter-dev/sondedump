@@ -37,6 +37,7 @@ gpx_start_track(GPXFile *file, char *name)
 {
 	int i;
 
+	if (name[0] == 0) return;
 	for (i=0; name[i] != 0; i++) {
 		if (!isalnum(name[i])) return;
 	}
