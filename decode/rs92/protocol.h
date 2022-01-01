@@ -15,9 +15,6 @@
 #define RS92_DATA_LEN 210
 #define RS92_RS_LEN 24
 
-#define RS92_CALIB_FRAGSIZE 16
-#define RS92_CALIB_FRAGCOUNT 0x20
-
 /* Reed-Solomon ECC parameters */
 #define RS92_REEDSOLOMON_N 255
 #define RS92_REEDSOLOMON_K 231
@@ -28,6 +25,13 @@
 
 
 #define RS92_SFTYPE_INFO 0x65
+#define RS92_SFTYPE_PTU 0x69
+#define RS92_SFTYPE_GPSINFO 0x68
+#define RS92_SFTYPE_GPSRAW 0x67
+
+#define RS92_CALIB_FRAGSIZE 16
+#define RS92_CALIB_FRAGCOUNT 0x20
+
 
 #define RS92_SERIAL_LEN 10
 
@@ -39,7 +43,7 @@ typedef struct {
 
 typedef struct {
 	uint8_t type;
-	uint8_t len;
+	uint8_t len;    /* In words (2x8 bits), data section only (CRC not included) */
 	uint8_t data[RS92_SUBFRAME_MAX_LEN];
 } __attribute__((packed)) RS92Subframe;
 

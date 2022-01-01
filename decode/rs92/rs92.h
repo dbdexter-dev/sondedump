@@ -18,6 +18,8 @@ typedef struct {
 	RSDecoder rs;
 	RS92Frame frame[5];
 	RS92Metadata metadata;
+	int state;
+	int offset;
 } RS92Decoder;
 
 /**
