@@ -9,7 +9,9 @@
 static FILE *debug;
 #endif
 
-enum state { READ, PARSE_GPS_POS, PARSE_GPS_TIME, PARSE_PTU };
+enum state { READ,
+             PARSE_M10_INFO, PARSE_M10_GPS_POS, PARSE_M10_GPS_TIME, PARSE_M10_PTU,
+             PARSE_M20_INFO, PARSE_M20_GPS_POS, PARSE_M20_GPS_TIME, PARSE_M20_PTU };
 
 void
 m10_decoder_init(M10Decoder *d, int samplerate)
@@ -37,7 +39,7 @@ m10_decoder_deinit(M10Decoder *d)
 SondeData
 m10_decode(M10Decoder *self, int (*read)(float *dst))
 {
-	SondeData data;
+	SondeData data = {.type = EMPTY};
 	uint8_t *const raw_frame = (uint8_t*)self->frame;
 	int inverted;
 	int i;
@@ -82,19 +84,18 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 			manchester_decode(raw_frame, raw_frame, 0, M10_FRAME_LEN*8);
 			m10_frame_descramble(self->frame);
 
-			/* If corrupted, don't decode */
-			if (m10_frame_correct(self->frame) < 0) {
-				data.type = EMPTY;
-				return data;
-			}
-
-#ifndef NDEBUG
-			fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
-#endif
 			switch (self->frame[0].type) {
 				case M10_FTYPE_DATA:
-					/* GPS + PTU data */
-					self->state = PARSE_GPS_TIME;
+					/* If corrupted, don't decode */
+					if (m10_frame_correct(self->frame) < 0) {
+						data.type = EMPTY;
+						return data;
+					}
+
+					/* M10 GPS + PTU data */
+					self->state = PARSE_M10_INFO;
+					break;
+				case M20_FTYPE_DATA:
 					break;
 				default:
 					/* Unknown frame type */
@@ -102,27 +103,43 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 					data.type = EMPTY;
 					return data;
 			}
+#ifndef NDEBUG
+			fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
+			fflush(debug);
+#endif
 
-			__attribute__((fallthrough));
-		case PARSE_GPS_TIME:
+			break;
+
+		/* M10 frame decoding {{{ */
+		case PARSE_M10_INFO:
+			data_frame = (M10Frame_9f*)&self->frame[0];
+
+			data.type = INFO;
+			m10_frame_9f_serial(self->serial, data_frame);
+			data.data.info.sonde_serial = self->serial;
+
+			self->state = PARSE_M10_GPS_TIME;
+			break;
+
+		case PARSE_M10_GPS_TIME:
 			data_frame = (M10Frame_9f*)&self->frame[0];
 			time = m10_frame_9f_time(data_frame);
 
 			data.type = DATETIME;
 			data.data.datetime.datetime = time;
 
-			self->state = PARSE_GPS_POS;
+			self->state = PARSE_M10_GPS_POS;
 			break;
 
-		case PARSE_GPS_POS:
+		case PARSE_M10_GPS_POS:
 			data_frame = (M10Frame_9f*)&self->frame[0];
-			lat = m10_frame_9f_lat(data_frame) * 360.0 / (1UL << 32);
-			lon = m10_frame_9f_lon(data_frame) * 360.0 / (1UL << 32);
-			alt = m10_frame_9f_alt(data_frame) / 1e3;
+			lat = m10_frame_9f_lat(data_frame);
+			lon = m10_frame_9f_lon(data_frame);
+			alt = m10_frame_9f_alt(data_frame);
 
-			dx = (float)m10_frame_9f_dlat(data_frame) / 200.0;
-			dy = (float)m10_frame_9f_dlon(data_frame) / 200.0;
-			dz = (float)m10_frame_9f_dalt(data_frame) / 200.0;
+			dx = m10_frame_9f_dlat(data_frame);
+			dy = m10_frame_9f_dlon(data_frame);
+			dz = m10_frame_9f_dalt(data_frame);
 
 			climb = dz;
 			speed = sqrtf(dx*dx + dy*dy);
@@ -137,15 +154,16 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 			data.data.pos.heading = heading;
 			data.data.pos.climb = climb;
 
-			self->state = PARSE_PTU;
+			self->state = PARSE_M10_PTU;
 
 			break;
 
-		case PARSE_PTU:
+		case PARSE_M10_PTU:
 			/* TODO */
-			data.type = EMPTY;
+			data.type = FRAME_END;
 			self->state = READ;
 			break;
+		/* }}} */
 
 		default:
 			data.type = EMPTY;

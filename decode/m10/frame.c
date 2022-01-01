@@ -11,7 +11,7 @@ m10_frame_descramble(M10Frame *frame)
 	int i;
 
 	topbit = 0;
-	for (i=0; i<sizeof(*frame); i++) {
+	for (i=0; i<(int)sizeof(*frame); i++) {
 		tmp = raw_frame[i] << 7;
 		raw_frame[i] ^= 0xFF ^ (topbit | raw_frame[i] >> 1);
 		topbit = tmp;

@@ -52,22 +52,30 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 	uint16_t serial_shard;
 	uint64_t local_serial;
 	int serial_idx;
+	uint8_t *raw_frame = (uint8_t*)self->frame;
 
 	switch (self->state) {
 		case READ:
 			/* Read a new frame worth of bits */
-			if (!gfsk_demod(&self->gfsk, (uint8_t*)self->frame, 0, DFM09_FRAME_LEN, read)) {
+			if (!gfsk_demod(&self->gfsk, raw_frame, 0, DFM09_FRAME_LEN, read)) {
 				data.type = SOURCE_END;
 				return data;
 			}
 
-			offset = correlate(&self->correlator, &inverted, (uint8_t*)self->frame, DFM09_FRAME_LEN/8);
+			inverted = 0;
+			offset = correlate(&self->correlator, &inverted, raw_frame, DFM09_FRAME_LEN/8);
 			if (offset) {
-				if (!gfsk_demod(&self->gfsk, (uint8_t*)self->frame + DFM09_FRAME_LEN/8, 0, offset, read)) {
+				if (!gfsk_demod(&self->gfsk, raw_frame  + DFM09_FRAME_LEN/8, 0, offset, read)) {
 					data.type = SOURCE_END;
 					return data;
 				}
-				bitcpy((uint8_t*)self->frame, (uint8_t*)self->frame, offset, DFM09_FRAME_LEN);
+				bitcpy(raw_frame, raw_frame, offset, DFM09_FRAME_LEN);
+			}
+
+			if (inverted) {
+				for (i=0; i<2*DFM09_FRAME_LEN/8; i++) {
+					raw_frame[i] ^= 0xFF;
+				}
 			}
 
 			/* Rebuild frame from received bits */
@@ -81,7 +89,7 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 
 			/* Error correct, and exit prematurely if too many errors are found */
 			errcount = dfm09_correct(self->frame);
-			if (errcount < 0 || errcount > 4) {
+			if (errcount < 0 || errcount > 8) {
 				data.type = EMPTY;
 				return data;
 			}
@@ -99,11 +107,11 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 			break;
 
 		case PARSE_PTU:
-			/* Parse new PTU data */
+			/* PTU subframe parsing {{{ */
 			ptuSubframe = &self->parsed_frame.ptu;
 			self->calib.raw[ptuSubframe->type] = bitmerge(ptuSubframe->data, 24);
 
-			if (bitmerge(ptuSubframe->data, 24) == 0) {
+			if ((bitmerge(ptuSubframe->data, 24) & 0xFFFF) == 0) {
 				self->ptu_type_serial = ptuSubframe->type + 1;
 			}
 
@@ -127,18 +135,24 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 				default:
 					if (ptuSubframe->type == self->ptu_type_serial) {
 						/* Serial number */
-						serial_idx = 3 - (bitmerge(ptuSubframe->data, 24) & 0xF);
-						serial_shard = (bitmerge(ptuSubframe->data, 24) >> 4) & 0xFFFF;
+						if (ptuSubframe->type == DFM06_SERIAL_TYPE) {
+							/* DFM06: direct serial number */
+							sprintf(self->serial, "D%06lX", bitmerge(ptuSubframe->data, 24));
+						} else {
+							/* DFM09: serial number spans multiple subframes */
+							serial_idx = 3 - (bitmerge(ptuSubframe->data, 24) & 0xF);
+							serial_shard = (bitmerge(ptuSubframe->data, 24) >> 4) & 0xFFFF;
 
-						/* Write 16 bit shard into the overall serial number */
-						self->raw_serial &= ~((uint64_t)((1 << 16) - 1) << (16*serial_idx));
-						self->raw_serial |= (uint64_t)serial_shard << (16*serial_idx);
+							/* Write 16 bit shard into the overall serial number */
+							self->raw_serial &= ~((uint64_t)((1 << 16) - 1) << (16*serial_idx));
+							self->raw_serial |= (uint64_t)serial_shard << (16*serial_idx);
 
-						/* Convert raw serial to string */
-						if ((bitmerge(ptuSubframe->data, 24) & 0xF) == 0) {
-							local_serial = self->raw_serial;
-							while (!(local_serial & 0xFFFF)) local_serial >>= 16;
-							sprintf(self->serial, "D%08ld", local_serial);
+							/* If potentially complete, convert raw serial to string */
+							if ((bitmerge(ptuSubframe->data, 24) & 0xF) == 0) {
+								local_serial = self->raw_serial;
+								while (!(local_serial & 0xFFFF)) local_serial >>= 16;
+								sprintf(self->serial, "D%08ld", local_serial);
+							}
 						}
 					}
 					break;
@@ -147,11 +161,13 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 			self->gps_idx = 0;
 			self->state = PARSE_GPS;
 			break;
+			/* }}} */
 
 		case PARSE_GPS:
-			/* Parse GPS subframe */
+			/* GPS/info subframe parsing {{{ */
 			gpsSubframe = &self->parsed_frame.gps[self->gps_idx++];
 			if (self->gps_idx > 2) {
+				data.type = FRAME_END;
 				self->state = READ;
 				break;
 			}
@@ -160,7 +176,7 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 				case 0x00:
 					/* Frame number */
 					data.type = INFO;
-					data.data.info.seq = bitmerge(gpsSubframe->data, 32);
+					data.data.info.seq = dfm09_subframe_seq(gpsSubframe);
 					data.data.info.sonde_serial = self->serial;
 					data.data.info.board_model = "";
 					data.data.info.board_serial = "";
@@ -203,6 +219,7 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 					break;
 			}
 			break;
+			/* }}} */
 
 		default:
 			self->state = READ;

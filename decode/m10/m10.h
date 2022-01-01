@@ -12,6 +12,7 @@ typedef struct {
 	M10Frame frame[4];
 	int offset;
 	int state;
+	char serial[16];
 } M10Decoder;
 
 
