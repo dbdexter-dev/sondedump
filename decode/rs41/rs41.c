@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "decode/ecc/crc.h"
-#include "decode/prng.h"
 #include "decode/xdata.h"
 #include "frame.h"
 #include "gps/ecef.h"

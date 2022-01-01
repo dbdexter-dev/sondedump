@@ -35,7 +35,6 @@ set(LIBRARY_SOURCES
 	demod/dsp/agc.c demod/dsp/agc.h
 	demod/gfsk.c demod/gfsk.h
 
-	decode/prng.c decode/prng.h
 	decode/manchester.c decode/manchester.h
 	decode/common.h
 	decode/xdata.c decode/xdata.h
