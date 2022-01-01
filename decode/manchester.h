@@ -3,6 +3,6 @@
 
 #include <stdint.h>
 
-void manchester_decode(uint8_t *dst, uint8_t *src, int offset, int nbits);
+void manchester_decode(uint8_t *dst, uint8_t *src, int nbits);
 
 #endif

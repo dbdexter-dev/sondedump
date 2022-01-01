@@ -81,7 +81,7 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 			}
 
 			/* Manchester decode, then massage bits into shape */
-			manchester_decode(raw_frame, raw_frame, 0, M10_FRAME_LEN*8);
+			manchester_decode(raw_frame, raw_frame, M10_FRAME_LEN*8);
 			m10_frame_descramble(self->frame);
 
 			switch (self->frame[0].type) {

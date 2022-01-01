@@ -48,7 +48,7 @@ static void decoder_changer(int delta);
 static FILE *_wav;
 static int _bps;
 static int _interrupted;
-static enum { RS41=0, RS92, DFM, M10, END } _active_decoder;
+static enum { RS41=0, RS92=1, DFM=2, M10=3, END } _active_decoder;
 static struct option longopts[] = {
 	{ "audio-device", 1, NULL, 'a'},
 	{ "fmt",          1, NULL, 'f' },

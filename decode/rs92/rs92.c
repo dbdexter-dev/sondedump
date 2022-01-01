@@ -36,35 +36,36 @@ rs92_decode(RS92Decoder *self, int (*read)(float *dst))
 	SondeData data;
 	int offset, inverted;
 	int i;
+	uint8_t *raw_frame = (uint8_t*)self->frame;
 
 	/* Read a new frame worth of bits */
-	if (!gfsk_demod(&self->gfsk, (uint8_t*)self->frame, 0, RS92_FRAME_LEN*2*8, read)) {
+	if (!gfsk_demod(&self->gfsk, raw_frame, 0, RS92_FRAME_LEN, read)) {
 		data.type = SOURCE_END;
 		return data;
 	}
 
 	/* Find synchronization marker */
-	offset = correlate(&self->correlator, &inverted, (uint8_t*)self->frame, RS92_FRAME_LEN*2);
+	offset = correlate(&self->correlator, &inverted, raw_frame, RS92_FRAME_LEN);
 
 	/* Compensate offset */
 	if (offset) {
-		if (!gfsk_demod(&self->gfsk, (uint8_t*)self->frame, RS92_FRAME_LEN*2*8, offset, read)) {
+		if (!gfsk_demod(&self->gfsk, raw_frame + RS92_FRAME_LEN/8, 0, offset, read)) {
 			data.type = SOURCE_END;
 			return data;
 		}
 
-		bitcpy((uint8_t*)self->frame, (uint8_t*)self->frame, offset, RS92_FRAME_LEN*2*8);
+		bitcpy(raw_frame, raw_frame, offset, RS92_FRAME_LEN);
 	}
 
 	/* Correct phase errors */
 	if (inverted) {
 		for (i=0; i<RS92_FRAME_LEN*2; i++) {
-			((uint8_t*)self->frame)[i] ^= 0xFF;
+			raw_frame[i] ^= 0xFF;
 		}
 	}
 
 	/* Manchester decode, then remove padding and reorder bits */
-	manchester_decode((uint8_t*)self->frame, (uint8_t*)self->frame, 0, RS92_FRAME_LEN*8);
+	manchester_decode((uint8_t*)self->frame, (uint8_t*)self->frame, RS92_FRAME_LEN);
 	rs92_frame_descramble(self->frame);
 
 #ifndef NDEBUG

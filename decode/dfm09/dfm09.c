@@ -79,7 +79,7 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 			}
 
 			/* Rebuild frame from received bits */
-			dfm09_manchester_decode(self->frame, (uint8_t*)self->frame);
+			manchester_decode(raw_frame, raw_frame, DFM09_FRAME_LEN);
 			dfm09_deinterleave(self->frame);
 
 #ifndef NDEBUG
