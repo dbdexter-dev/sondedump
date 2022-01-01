@@ -133,6 +133,12 @@ main(int argc, char *argv[])
 					_active_decoder = DFM;
 				} else if (!strcmp(optarg, "m10")) {
 					_active_decoder = M10;
+				} else if (!strcmp(optarg, "rs92")) {
+					_active_decoder = RS92;
+				} else {
+					fprintf(stderr, "Unsupported type: %s\n", optarg);
+					usage(argv[0]);
+					return 1;
 				}
 				break;
 			case 'f':

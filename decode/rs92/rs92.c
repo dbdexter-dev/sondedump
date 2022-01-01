@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "decode/manchester.h"
 #include "decode/correlator/correlator.h"
 #include "frame.h"
@@ -14,6 +15,12 @@ rs92_decoder_init(RS92Decoder *d, int samplerate)
 {
 	gfsk_init(&d->gfsk, samplerate, RS92_BAUDRATE);
 	correlator_init(&d->correlator, RS92_SYNCWORD, RS92_SYNC_LEN);
+
+	rs_init(&d->rs, RS92_REEDSOLOMON_N, RS92_REEDSOLOMON_K, RS92_REEDSOLOMON_POLY,
+			RS92_REEDSOLOMON_FIRST_ROOT, RS92_REEDSOLOMON_ROOT_SKIP);
+
+	memset(&d->metadata.missing, 0xFF, sizeof(d->metadata.missing));
+	d->metadata.missing[sizeof(d->metadata.missing)-1] &= ~((1 << (7 - RS92_CALIB_FRAGCOUNT%8)) - 1);
 #ifndef NDEBUG
 	debug = fopen("/tmp/rs92frames.data", "wb");
 #endif
@@ -45,7 +52,7 @@ rs92_decode(RS92Decoder *self, int (*read)(float *dst))
 	}
 
 	/* Find synchronization marker */
-	offset = correlate(&self->correlator, &inverted, raw_frame, RS92_FRAME_LEN);
+	offset = correlate(&self->correlator, &inverted, raw_frame, RS92_FRAME_LEN/8);
 
 	/* Compensate offset */
 	if (offset) {
@@ -57,19 +64,22 @@ rs92_decode(RS92Decoder *self, int (*read)(float *dst))
 		bitcpy(raw_frame, raw_frame, offset, RS92_FRAME_LEN);
 	}
 
-	/* Correct phase errors */
+	/* Correct potentially inverted phase */
 	if (inverted) {
-		for (i=0; i<RS92_FRAME_LEN*2; i++) {
+		for (i=0; i<2*RS92_FRAME_LEN/8; i++) {
 			raw_frame[i] ^= 0xFF;
 		}
 	}
 
 	/* Manchester decode, then remove padding and reorder bits */
-	manchester_decode((uint8_t*)self->frame, (uint8_t*)self->frame, RS92_FRAME_LEN);
+	manchester_decode(raw_frame, raw_frame, RS92_FRAME_LEN);
 	rs92_frame_descramble(self->frame);
 
+	/* Error correct */
+	printf("%d\n", rs92_frame_correct(self->frame, &self->rs));
+
 #ifndef NDEBUG
-	fwrite((uint8_t*)self->frame, RS92_BARE_FRAME_LEN, 1, debug);
+	fwrite(raw_frame, RS92_BARE_FRAME_LEN, 1, debug);
 #endif
 
 	data.type = EMPTY;

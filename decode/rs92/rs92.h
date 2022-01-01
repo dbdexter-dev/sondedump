@@ -3,13 +3,21 @@
 
 #include "decode/common.h"
 #include "decode/correlator/correlator.h"
+#include "decode/ecc/rs.h"
 #include "demod/gfsk.h"
 #include "protocol.h"
 
 typedef struct {
+	RS92Calibration data;
+	uint8_t missing[sizeof(RS92Calibration)/8/RS92_CALIB_FRAGSIZE+1];
+} RS92Metadata;
+
+typedef struct {
 	GFSKDemod gfsk;
 	Correlator correlator;
-	RS92Frame frame[4];
+	RSDecoder rs;
+	RS92Frame frame[5];
+	RS92Metadata metadata;
 } RS92Decoder;
 
 /**
