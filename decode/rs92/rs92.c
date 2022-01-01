@@ -4,7 +4,10 @@
 #include "decode/ecc/crc.h"
 #include "decode/manchester.h"
 #include "frame.h"
+#include "gps/time.h"
 #include "rs92.h"
+
+static int rs92_update_metadata(RS92Metadata *m, RS92Subframe_Info *s);
 
 #ifndef NDEBUG
 static FILE *debug;
@@ -47,8 +50,9 @@ rs92_decode(RS92Decoder *self, int (*read)(float *dst))
 	int offset, inverted;
 	int i;
 	uint8_t *raw_frame = (uint8_t*)self->frame;
-	RS92Subframe* subframe;
+	RS92Subframe *subframe;
 	RS92Subframe_Info *info;
+	RS92Subframe_GPSRaw *gps_raw;
 
 
 	switch (self->state) {
@@ -74,7 +78,7 @@ rs92_decode(RS92Decoder *self, int (*read)(float *dst))
 
 			/* Correct potentially inverted phase */
 			if (inverted) {
-				for (i=0; i<2*RS92_FRAME_LEN/8; i++) {
+				for (i=0; i<RS92_FRAME_LEN/8; i++) {
 					raw_frame[i] ^= 0xFF;
 				}
 			}
@@ -118,22 +122,48 @@ rs92_decode(RS92Decoder *self, int (*read)(float *dst))
 				case RS92_SFTYPE_INFO:
 					info = (RS92Subframe_Info*)subframe;
 
+					self->calibrated = rs92_update_metadata(&self->metadata, info);
+
 					data.type = INFO;
 					data.data.info.seq = info->seq;
 					data.data.info.sonde_serial = info->serial + 2; /* Skip whitespace */
 					data.data.info.burstkill_status = -1;
-
 					break;
 				case RS92_SFTYPE_PTU:
 					break;
-				case RS92_SFTYPE_GPSINFO:
-					break;
 				case RS92_SFTYPE_GPSRAW:
+					gps_raw = (RS92Subframe_GPSRaw*)subframe;
+
+					data.type = DATETIME;
+					data.data.datetime.datetime = gps_time_to_utc(gps_raw->week, gps_raw->ms);
 					break;
 				default:
 					break;
 			}
+			break;
+		default:
+			self->state = READ;
+			break;
 	}
 
 	return data;
 }
+
+/* Static functions {{{ */
+static int
+rs92_update_metadata(RS92Metadata *m, RS92Subframe_Info *s)
+{
+	int i;
+	int frag_offset;
+
+	frag_offset = s->frag_seq * LEN(s->frag_data);
+	memcpy((uint8_t*)&m->data + frag_offset, s->frag_data, LEN(s->frag_data));
+	m->missing[s->frag_seq/8] &= ~(1 << (7 - s->frag_seq%8));
+
+	for (i=0; i<(int)sizeof(m->missing); i++) {
+		if (m->missing[i]) return 0;
+	}
+
+	return 1;
+}
+/* }}} */

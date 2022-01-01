@@ -37,6 +37,7 @@ correlate(Correlator *c, int *inverted, uint8_t *restrict hard_frame, int len)
 
 	/* If the syncword is found at offset 0, we're already sync'd up: return */
 	if (inverse_correlate_u64(syncword, window & syncmask) == 0) {
+		*inverted = 0;
 		return 0;
 	}
 

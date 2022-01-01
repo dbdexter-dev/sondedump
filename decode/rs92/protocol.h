@@ -26,7 +26,6 @@
 
 #define RS92_SFTYPE_INFO 0x65
 #define RS92_SFTYPE_PTU 0x69
-#define RS92_SFTYPE_GPSINFO 0x68
 #define RS92_SFTYPE_GPSRAW 0x67
 
 #define RS92_CALIB_FRAGSIZE 16
@@ -60,6 +59,18 @@ typedef struct {
 	uint8_t frag_data[16];
 	uint16_t crc;
 } __attribute__((packed)) RS92Subframe_Info;
+
+typedef struct {
+	uint8_t type;
+	uint8_t len;
+
+	uint32_t ms;
+	uint16_t week;
+
+	uint8_t snr[12];
+
+	uint16_t crc;
+} __attribute__((packed)) RS92Subframe_GPSRaw;
 /* }}} */
 
 typedef struct {

@@ -9,7 +9,7 @@
 #include "rs41.h"
 #include "subframe.h"
 
-static int rs41_update_metadata(RS41Metadata *m, RS41Subframe_Status *s);
+static int rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s);
 
 #ifndef NDEBUG
 static FILE *debug;
@@ -112,7 +112,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 	int burstkill_timer;
 	float x, y, z, dx, dy, dz;
 
-	RS41Subframe_Status *status;
+	RS41Subframe_Info *status;
 	RS41Subframe_PTU *ptu;
 	RS41Subframe_GPSInfo *gpsinfo;
 	RS41Subframe_GPSPos *gpspos;
@@ -189,8 +189,8 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					break;
 				case RS41_SFTYPE_INFO:
 					/* Frame sequence number, serial no., board info, calibration data */
-					status = (RS41Subframe_Status*)subframe;
-					self->calibrated = rs41_update_metadata(&self->metadata, (RS41Subframe_Status*)subframe);
+					status = (RS41Subframe_Info*)subframe;
+					self->calibrated = rs41_update_metadata(&self->metadata, (RS41Subframe_Info*)subframe);
 
 					data.type = INFO;
 
@@ -265,7 +265,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 
 /* Static functions {{{ */
 static int
-rs41_update_metadata(RS41Metadata *m, RS41Subframe_Status *s)
+rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s)
 {
 	size_t frag_offset;
 	int num_segments;

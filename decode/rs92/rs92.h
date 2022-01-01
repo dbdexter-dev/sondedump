@@ -20,6 +20,7 @@ typedef struct {
 	RS92Metadata metadata;
 	int state;
 	int offset;
+	int calibrated;
 } RS92Decoder;
 
 /**

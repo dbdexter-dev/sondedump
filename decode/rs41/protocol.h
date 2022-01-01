@@ -80,7 +80,7 @@ typedef struct {
 	uint8_t frag_count;
 	uint8_t frag_seq;
 	uint8_t frag_data[16];
-} __attribute__((packed)) RS41Subframe_Status;
+} __attribute__((packed)) RS41Subframe_Info;
 
 typedef struct {
 	uint8_t type;
