@@ -39,7 +39,10 @@ static int printf_data(const char *fmt, PrintableData *data);
 static int wav_read_wrapper(float *dst);
 static int raw_read_wrapper(float *dst);
 static void sigint_handler(int val);
+
+#ifdef ENABLE_TUI
 static void decoder_changer(int delta);
+#endif
 
 static FILE *_wav;
 static int _bps;
@@ -442,10 +445,12 @@ sigint_handler(int val)
 	_interrupted = 1;
 }
 
+#ifdef ENABLE_TUI
 static void
 decoder_changer(int delta)
 {
 	_active_decoder = (_active_decoder + END + delta) % END;
 	tui_set_active_decoder(_active_decoder);
 }
+#endif
 /* }}} */

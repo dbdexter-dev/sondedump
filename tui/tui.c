@@ -134,7 +134,6 @@ int
 tui_set_active_decoder(int active_decoder)
 {
 	tui.active_decoder = active_decoder;
-	draw_tabs(tui.tabs, active_decoder);
 	return 0;
 }
 
