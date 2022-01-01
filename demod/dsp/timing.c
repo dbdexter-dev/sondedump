@@ -92,5 +92,4 @@ update_alpha_beta(Timing *t, float damp, float bw)
 	t->alpha = 4*damp*bw/denom;
 	t->beta = 4*bw*bw/denom;
 }
-
 /* }}} */

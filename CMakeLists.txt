@@ -56,6 +56,10 @@ set(LIBRARY_SOURCES
 	decode/m10/frame.c decode/m10/frame.h
 	decode/m10/protocol.c decode/m10/protocol.h
 
+	decode/rs92/rs92.c decode/rs92/rs92.h
+	decode/rs92/frame.c decode/rs92/frame.h
+	decode/rs92/protocol.h
+
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h
 

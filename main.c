@@ -8,6 +8,7 @@
 #include "decode/rs41/rs41.h"
 #include "decode/dfm09/dfm09.h"
 #include "decode/m10/m10.h"
+#include "decode/rs92/rs92.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
 #include "io/gpx.h"
@@ -47,11 +48,12 @@ static void decoder_changer(int delta);
 static FILE *_wav;
 static int _bps;
 static int _interrupted;
-static enum { RS41=0, DFM=1, M10=2, END } _active_decoder;
+static enum { RS41=0, RS92, DFM, M10, END } _active_decoder;
 static struct option longopts[] = {
 	{ "audio-device", 1, NULL, 'a'},
 	{ "fmt",          1, NULL, 'f' },
 	{ "csv",          1, NULL, 'c' },
+	{ "decoders",     1, NULL, 'd' },
 	{ "gpx",          1, NULL, 'g' },
 	{ "help",         0, NULL, 'h' },
 	{ "kml",          1, NULL, 'k' },
@@ -77,6 +79,7 @@ main(int argc, char *argv[])
 	FILE *csv_fd = NULL;
 
 	RS41Decoder rs41decoder;
+	RS92Decoder rs92decoder;
 	DFM09Decoder dfm09decoder;
 	M10Decoder m10decoder;
 
@@ -212,6 +215,7 @@ main(int argc, char *argv[])
 	rs41_decoder_init(&rs41decoder, samplerate);
 	dfm09_decoder_init(&dfm09decoder, samplerate);
 	m10_decoder_init(&m10decoder, samplerate);
+	rs92_decoder_init(&rs92decoder, samplerate);
 
 	/* Catch SIGINT to exit the loop */
 	_interrupted = 0;
@@ -221,6 +225,9 @@ main(int argc, char *argv[])
 		switch (_active_decoder) {
 			case RS41:
 				data = rs41_decode(&rs41decoder, read_wrapper);
+				break;
+			case RS92:
+				data = rs92_decode(&rs92decoder, read_wrapper);
 				break;
 			case DFM:
 				data = dfm09_decode(&dfm09decoder, read_wrapper);
@@ -292,6 +299,7 @@ main(int argc, char *argv[])
 	rs41_decoder_deinit(&rs41decoder);
 	dfm09_decoder_deinit(&dfm09decoder);
 	m10_decoder_deinit(&m10decoder);
+	rs92_decoder_deinit(&rs92decoder);
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO
 	if (input_from_audio) {
