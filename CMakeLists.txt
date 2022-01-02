@@ -58,6 +58,7 @@ set(LIBRARY_SOURCES
 
 	decode/rs92/rs92.c decode/rs92/rs92.h
 	decode/rs92/frame.c decode/rs92/frame.h
+	decode/rs92/subframe.c decode/rs92/subframe.h
 	decode/rs92/protocol.h
 
 	gps/ecef.c gps/ecef.h

@@ -142,13 +142,15 @@ tui_set_active_decoder(int active_decoder)
 static void*
 main_loop(void *args)
 {
+	int ch;
 	void (*decoder_changer)(int delta) = args;
 	while (_running) {
-		switch (wgetch(tui.win)) {
+		switch (ch = wgetch(tui.win)) {
 			case KEY_RESIZE:
 				handle_resize();
 				break;
 			case KEY_LEFT:
+			case KEY_BTAB:
 				decoder_changer(-1);
 				break;
 			case KEY_RIGHT:
@@ -266,7 +268,7 @@ draw_tabs(WINDOW *win, int selected)
 		if (i != 0) mvwprintw(win, 1, i * elemWidth, "|");
 
 		if (i == selected) wattron(win, A_STANDOUT);
-		mvwprintw(win, 1, i * elemWidth + (elemWidth - strlen(_decoder_names[i])) / 2, "%s",_decoder_names[i]);
+		mvwprintw(win, 1, i * elemWidth + (elemWidth - strlen(_decoder_names[i]) + 1) / 2, "%s",_decoder_names[i]);
 		if (i == selected) wattroff(win, A_STANDOUT);
 	}
 

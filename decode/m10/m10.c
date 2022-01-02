@@ -52,8 +52,10 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 	switch (self->state) {
 		case READ:
 			/* Copy residual bits from the previous frame */
-			self->frame[0] = self->frame[2];
-			self->frame[1] = self->frame[3];
+			if (self->offset) {
+				self->frame[0] = self->frame[2];
+				self->frame[1] = self->frame[3];
+			}
 
 			/* Demod until a frame worth of bits is ready */
 			if (!gfsk_demod(&self->gfsk, raw_frame, self->offset, M10_FRAME_LEN*2*8-self->offset, read)) {

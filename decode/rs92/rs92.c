@@ -4,8 +4,10 @@
 #include "decode/ecc/crc.h"
 #include "decode/manchester.h"
 #include "frame.h"
+#include "gps/ecef.h"
 #include "gps/time.h"
 #include "rs92.h"
+#include "subframe.h"
 
 static int rs92_update_metadata(RS92Metadata *m, RS92Subframe_Info *s);
 
@@ -48,8 +50,9 @@ rs92_decode(RS92Decoder *self, int (*read)(float *dst))
 {
 	SondeData data = {.type = EMPTY};
 	int offset, inverted;
-	int i;
+	int i, errors;
 	uint8_t *raw_frame = (uint8_t*)self->frame;
+	float pdop, x, y, z;
 	RS92Subframe *subframe;
 	RS92Subframe_Info *info;
 	RS92Subframe_GPSRaw *gps_raw;
@@ -88,10 +91,10 @@ rs92_decode(RS92Decoder *self, int (*read)(float *dst))
 			rs92_frame_descramble(self->frame);
 
 			/* Error correct */
-			rs92_frame_correct(self->frame, &self->rs);
+			errors = rs92_frame_correct(self->frame, &self->rs);
 
 #ifndef NDEBUG
-			fwrite(raw_frame, RS92_BARE_FRAME_LEN, 1, debug);
+			if (errors >= 0) fwrite(raw_frame, RS92_BARE_FRAME_LEN, 1, debug);
 #endif
 
 			/* Prepare to parse subframes */
@@ -135,7 +138,17 @@ rs92_decode(RS92Decoder *self, int (*read)(float *dst))
 					gps_raw = (RS92Subframe_GPSRaw*)subframe;
 
 					data.type = DATETIME;
-					data.data.datetime.datetime = gps_time_to_utc(gps_raw->week, gps_raw->ms);
+					data.data.datetime.datetime = gps_time_to_utc(0, gps_raw->ms);
+
+					/*
+					data.type = POSITION;
+					pdop = rs92_subframe_xyz(&x, &y, &z, gps_raw);
+					ecef_to_lla(&data.data.pos.lat, &data.data.pos.lon, &data.data.pos.alt, x, y, z);
+					data.data.pos.climb = 0;
+					data.data.pos.speed = 0;
+					data.data.pos.heading = 0;
+					*/
+
 					break;
 				default:
 					break;

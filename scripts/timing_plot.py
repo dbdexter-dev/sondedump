@@ -3,21 +3,27 @@
 import matplotlib.pyplot as plt
 import sys
 
-pre = []
-post = []
+normalize = True
+
+data = [[]]
 with open(sys.argv[1], "r") as f:
     for line in f.readlines():
         try:
-            newdata = list(map(float, line.split(" ")))
-            if (abs(newdata[0]) < 100 and abs(newdata[1]) < 100):
-                pre.append(newdata[0])
-                post.append(newdata[1])
+            newdata = list(map(lambda x: int(x, 16), line.strip().split(" ")))
+            for i,val in enumerate(newdata):
+                if i >= len(data):
+                    data.append([0 for i in range(len(data[0]))])
+                data[i].append(val)
         except ValueError:
             pass
         except IndexError:
             pass
 
-plt.plot(pre)
-plt.plot(post)
+
+for sequence in data:
+    if normalize:
+        (vmin, vmax) = (min(sequence), max(sequence))
+        sequence = [(x-vmin)/(vmax-vmin) for x in sequence]
+    plt.plot(sequence)
 plt.show()
 

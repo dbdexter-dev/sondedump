@@ -32,7 +32,7 @@ dfm09_subframe_temp(DFM09Subframe_PTU *ptu, DFM09Calib *calib)
 uint32_t
 dfm09_subframe_seq(DFM09Subframe_GPS *gps)
 {
-	return bitmerge(gps->data, 32);
+	return bitmerge(gps->data + 3, 8);
 }
 
 int

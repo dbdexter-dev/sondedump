@@ -31,6 +31,7 @@
 #define RS92_CALIB_FRAGSIZE 16
 #define RS92_CALIB_FRAGCOUNT 0x20
 
+#define RS92_GPS_COUNT 12
 
 #define RS92_SERIAL_LEN 10
 
@@ -65,14 +66,15 @@ typedef struct {
 	uint8_t len;
 
 	uint32_t ms;
-	uint8_t _pad0[10];
+	uint8_t _pad0[2];
+	uint16_t prn[4];
 
-	uint8_t sat_info[12];
+	uint8_t sat_info[RS92_GPS_COUNT];
 	struct {
 		int32_t p_range;
-		uint8_t p_range2[3];
+		uint8_t doppler[3];
 		uint8_t snr;
-	} sat_data[12];
+	} sat_data[RS92_GPS_COUNT];
 
 	uint16_t crc;
 } __attribute__((packed)) RS92Subframe_GPSRaw;
