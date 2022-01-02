@@ -49,6 +49,7 @@ static FILE *_wav;
 static int _bps;
 static int _interrupted;
 static enum { RS41=0, RS92=1, DFM=2, M10=3, END } _active_decoder;
+static int _decoder_changed;
 static struct option longopts[] = {
 	{ "audio-device", 1, NULL, 'a'},
 	{ "fmt",          1, NULL, 'f' },
@@ -214,7 +215,7 @@ main(int argc, char *argv[])
 	}
 #ifdef ENABLE_TUI
 	if (tui_enabled) {
-		tui_init(-1, &decoder_changer);
+		tui_init(-1, &decoder_changer, _active_decoder);
 	}
 #endif
 
@@ -228,6 +229,13 @@ main(int argc, char *argv[])
 	has_data = 0;
 	signal(SIGINT, sigint_handler);
 	while (!_interrupted) {
+		/* If decoder changed, reset printable data store */
+		if (_decoder_changed) {
+			_decoder_changed = 0;
+			memset(&printable, 0, sizeof(printable));
+		}
+
+		/* Decode data */
 		switch (_active_decoder) {
 			case RS41:
 				data = rs41_decode(&rs41decoder, read_wrapper);
@@ -461,10 +469,9 @@ sigint_handler(int val)
 
 #ifdef ENABLE_TUI
 static void
-decoder_changer(int delta)
+decoder_changer(int decoder)
 {
-	_active_decoder = (_active_decoder + END + delta) % END;
-	tui_set_active_decoder(_active_decoder);
+	_active_decoder = decoder % END;
 }
 #endif
 /* }}} */

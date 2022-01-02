@@ -44,7 +44,7 @@ static struct {
 
 
 void
-tui_init(int update_interval, void (*decoder_changer)(int delta))
+tui_init(int update_interval, void (*decoder_changer)(int delta), int active_decoder)
 {
 	int rows, cols;
 	setlocale(LC_ALL, "");
@@ -69,7 +69,7 @@ tui_init(int update_interval, void (*decoder_changer)(int delta))
 
 	_running = 1;
 	tui.data.changed = 1;
-	tui.active_decoder = 0;
+	tui.active_decoder = active_decoder;
 	pthread_create(&_tid, NULL, main_loop, decoder_changer);
 }
 
@@ -130,14 +130,6 @@ tui_update(SondeData *data)
 	return 0;
 }
 
-int
-tui_set_active_decoder(int active_decoder)
-{
-	tui.active_decoder = active_decoder;
-	draw_tabs(tui.tabs, active_decoder);
-	return 0;
-}
-
 /* Static functions {{{ */
 static void*
 main_loop(void *args)
@@ -151,11 +143,17 @@ main_loop(void *args)
 				break;
 			case KEY_LEFT:
 			case KEY_BTAB:
-				decoder_changer(-1);
+				tui.active_decoder = (tui.active_decoder - 1) % LEN(_decoder_names);
+				memset(&tui.data, 0, sizeof(tui.data));
+				decoder_changer(tui.active_decoder);
+				tui.data.changed = 1;
 				break;
 			case KEY_RIGHT:
 			case '\t':
-				decoder_changer(+1);
+				tui.active_decoder = (tui.active_decoder + 1) % LEN(_decoder_names);
+				memset(&tui.data, 0, sizeof(tui.data));
+				decoder_changer(tui.active_decoder);
+				tui.data.changed = 1;
 				break;
 			default:
 				break;
