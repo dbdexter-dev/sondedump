@@ -155,6 +155,7 @@ rs41_subframe_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 
 	/* If no reference, return */
 	if (adc_ref2 - adc_ref1 == 0) return NAN;
+	if (adc_main == 0) return NAN;
 
 	/* Compute ADC raw value */
 	adc_raw = (adc_main - adc_ref1) / (adc_ref2 - adc_ref1);
@@ -187,12 +188,6 @@ rs41_subframe_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 
 
 	return pressure;
-}
-
-float
-rs41_subframe_temp_pressure(RS41Subframe_PTU *ptu)
-{
-	return ptu->pressure_temp/100.0;
 }
 
 float

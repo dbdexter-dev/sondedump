@@ -83,7 +83,9 @@ rs41_decoder_init(RS41Decoder *d, int samplerate)
 
 	d->state = READ;
 	d->metadata.initialized = 0;
+	d->pressure = 0;
 	memcpy(&d->metadata.data, _default_calib_data, sizeof(d->metadata.data));
+	d->metadata.data.burstkill_timer = 0xFFFF;
 
 #ifndef NDEBUG
 	debug = fopen("/tmp/rs41frames.data", "wb");
@@ -111,6 +113,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 	int i;
 	int burstkill_timer;
 	float x, y, z, dx, dy, dz;
+	uint8_t *raw_frame = (uint8_t*)self->frame;
 
 	RS41Subframe_Info *status;
 	RS41Subframe_PTU *ptu;
@@ -121,26 +124,26 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 	switch (self->state) {
 		case READ:
 			/* Read a frame worth of bits */
-			if (!gfsk_demod(&self->gfsk, (uint8_t*)self->frame, 0, RS41_MAX_FRAME_LEN*8, read)) {
+			if (!gfsk_demod(&self->gfsk, raw_frame, 0, RS41_MAX_FRAME_LEN*8, read)) {
 				data.type = SOURCE_END;
 				return data;
 			}
 
 			/* Find the offset with the strongest correlation with the sync marker */
-			offset = correlate(&self->correlator, &inverted, (uint8_t*)self->frame, RS41_MAX_FRAME_LEN);
+			offset = correlate(&self->correlator, &inverted, raw_frame, RS41_MAX_FRAME_LEN);
 			if (offset) {
 				/* Read more bits to compensate for the frame offset */
-				if (!gfsk_demod(&self->gfsk, (uint8_t*)self->frame + RS41_MAX_FRAME_LEN, 0, offset, read)) {
+				if (!gfsk_demod(&self->gfsk, raw_frame + RS41_MAX_FRAME_LEN, 0, offset, read)) {
 					data.type = SOURCE_END;
 					return data;
 				}
-				bitcpy((uint8_t*)self->frame, (uint8_t*)self->frame, offset, 8*RS41_MAX_FRAME_LEN);
+				bitcpy(raw_frame, raw_frame, offset, 8*RS41_MAX_FRAME_LEN);
 			}
 
 			/* Invert if necessary */
 			if (inverted) {
 				for (i=0; i<RS41_MAX_FRAME_LEN; i++) {
-					((uint8_t*)self->frame)[i] ^= 0xFF;
+					raw_frame[i] ^= 0xFF;
 				}
 			}
 
@@ -211,7 +214,6 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					data.data.ptu.rh = rs41_subframe_humidity(ptu, &self->metadata.data);
 					data.data.ptu.pressure = rs41_subframe_pressure(ptu, &self->metadata.data);
 					data.data.ptu.calibrated = self->calibrated;
-					self->pressure = (data.data.ptu.pressure > 0 ? data.data.ptu.pressure : self->pressure);
 					break;
 				case RS41_SFTYPE_GPSPOS:
 					/* GPS position */
@@ -229,7 +231,6 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					ecef_to_lla(&data.data.pos.lat, &data.data.pos.lon, &data.data.pos.alt, x, y, z);
 					ecef_to_spd_hdg(&data.data.pos.speed, &data.data.pos.heading, &data.data.pos.climb,
 							data.data.pos.lat, data.data.pos.lon, dx, dy, dz);
-					self->pressure = (self->pressure > 0 ? self->pressure : altitude_to_pressure(data.data.pos.alt));
 
 					break;
 				case RS41_SFTYPE_GPSINFO:

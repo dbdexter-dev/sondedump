@@ -68,7 +68,7 @@ altitude_to_pressure(float alt)
 	float Lb, Pb, Tb, hb;
 	int b;
 
-	for (b=0; b<(int)LEN(Lbs); b++) {
+	for (b=0; b<(int)LEN(Lbs)-1; b++) {
 		if (alt < hbs[b+1]) {
 			Lb = Lbs[b];
 			Pb = Pbs[b];
@@ -78,14 +78,17 @@ altitude_to_pressure(float alt)
 		}
 	}
 
-	if (b == (int)LEN(Lbs)) {
-		Lb = Lbs[b-1];
-		Pb = Pbs[b-1];
-		Tb = Tbs[b-1];
-		hb = hbs[b-1];
+	if (b == (int)LEN(Lbs) - 1) {
+		Lb = Lbs[b];
+		Pb = Pbs[b];
+		Tb = Tbs[b];
+		hb = hbs[b];
 	}
 
-	return 1e-2 * Pb * powf((Tb + Lb * (alt - hb)) / Tb, - (g0 * M) / (R_star * Lb));
+	if (Lb != 0) {
+		return 1e-2 * Pb * powf((Tb + Lb * (alt - hb)) / Tb, - (g0 * M) / (R_star * Lb));
+	}
+	return 1e-2 * Pb * expf(-g0 * M * (alt - hb) / (R_star * Tb));
 }
 
 float

@@ -65,9 +65,14 @@ typedef struct {
 	uint8_t len;
 
 	uint32_t ms;
-	uint16_t week;
+	uint8_t _pad0[10];
 
-	uint8_t snr[12];
+	uint8_t sat_info[12];
+	struct {
+		int32_t p_range;
+		uint8_t p_range2[3];
+		uint8_t snr;
+	} sat_data[12];
 
 	uint16_t crc;
 } __attribute__((packed)) RS92Subframe_GPSRaw;
