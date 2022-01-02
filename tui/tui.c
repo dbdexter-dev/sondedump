@@ -22,7 +22,7 @@ static void draw_tabs(WINDOW *win, int selected);
 static void handle_resize();
 static void *main_loop(void* args);
 
-static char *_decoder_names[] = { "RS41", "DFM", "M10" };
+static char *_decoder_names[] = { "RS41", "DFM", "M10", "iMS100" };
 static int _update_interval;
 static int _running;
 static pthread_t _tid;

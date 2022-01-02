@@ -131,7 +131,7 @@ usage(const char *pname)
 			"   -k, --kml <file>        Output KML track to <file>\n"
 			"   -l, --live-kml <file>   Output live KML track to <file>\n"
 			"   -t, --type <type>       Enable decoder for the given sonde type\n"
-			"                           Supported values: rs41, dfm, m10\n"
+			"                           Supported values: rs41, dfm, m10, ims100\n"
 
 	        "\n"
 	        "   -h, --help              Print this help screen\n"

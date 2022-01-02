@@ -3,13 +3,13 @@
 import matplotlib.pyplot as plt
 import sys
 
-normalize = True
+normalize = False
 
 data = [[]]
 with open(sys.argv[1], "r") as f:
     for line in f.readlines():
         try:
-            newdata = list(map(lambda x: int(x, 16), line.strip().split(" ")))
+            newdata = list(map(float, line.strip().split(" ")))
             for i,val in enumerate(newdata):
                 if i >= len(data):
                     data.append([0 for i in range(len(data[0]))])
