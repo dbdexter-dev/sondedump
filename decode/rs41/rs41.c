@@ -84,6 +84,7 @@ rs41_decoder_init(RS41Decoder *d, int samplerate)
 	d->state = READ;
 	d->metadata.initialized = 0;
 	d->pressure = 0;
+	d->offset = 0;
 	memcpy(&d->metadata.data, _default_calib_data, sizeof(d->metadata.data));
 	d->metadata.data.burstkill_timer = 0xFFFF;
 
@@ -108,7 +109,6 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 	SondeData data;
 	RS41Subframe *subframe;
 	int frame_data_len;
-	int offset;
 	int inverted;
 	int i;
 	int burstkill_timer;
@@ -123,21 +123,24 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 
 	switch (self->state) {
 		case READ:
-			/* Read a frame worth of bits */
-			if (!gfsk_demod(&self->gfsk, raw_frame, 0, RS41_MAX_FRAME_LEN*8, read)) {
+			/* Copy residual bits from the previous frame */
+			if (self->offset) self->frame[0] = self->frame[1];
+
+			/* Demod until a frame worth of bits is ready */
+			if (!gfsk_demod(&self->gfsk, raw_frame, self->offset, RS41_MAX_FRAME_LEN*8 - self->offset, read)) {
 				data.type = SOURCE_END;
 				return data;
 			}
 
 			/* Find the offset with the strongest correlation with the sync marker */
-			offset = correlate(&self->correlator, &inverted, raw_frame, RS41_MAX_FRAME_LEN);
-			if (offset) {
+			self->offset = correlate(&self->correlator, &inverted, raw_frame, RS41_MAX_FRAME_LEN);
+			if (self->offset) {
 				/* Read more bits to compensate for the frame offset */
-				if (!gfsk_demod(&self->gfsk, raw_frame + RS41_MAX_FRAME_LEN, 0, offset, read)) {
+				if (!gfsk_demod(&self->gfsk, raw_frame + RS41_MAX_FRAME_LEN, 0, self->offset, read)) {
 					data.type = SOURCE_END;
 					return data;
 				}
-				bitcpy(raw_frame, raw_frame, offset, 8*RS41_MAX_FRAME_LEN);
+				bitcpy(raw_frame, raw_frame, self->offset, 8*RS41_MAX_FRAME_LEN);
 			}
 
 			/* Invert if necessary */
@@ -157,7 +160,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 #endif
 
 			/* Prepare to parse subframes */
-			self->offset = 0;
+			self->frame_offset = 0;
 			self->pressure = 0;
 			self->state = PARSE_SUBFRAME;
 			__attribute__((fallthrough));
@@ -167,11 +170,11 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 			frame_data_len = RS41_DATA_LEN + (rs41_frame_is_extended(self->frame) ? RS41_XDATA_LEN : 0);
 
 			/* Update pointer to the subframe */
-			subframe = (RS41Subframe*)&self->frame->data[self->offset];
-			self->offset += subframe->len + 4;
+			subframe = (RS41Subframe*)&self->frame->data[self->frame_offset];
+			self->frame_offset += subframe->len + 4;
 
 			/* If the frame ends out of bounds, we reached the end: read next */
-			if (self->offset >= frame_data_len) {
+			if (self->frame_offset >= frame_data_len) {
 				data.type = FRAME_END;
 				self->state = READ;
 				break;
@@ -214,6 +217,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					data.data.ptu.rh = rs41_subframe_humidity(ptu, &self->metadata.data);
 					data.data.ptu.pressure = rs41_subframe_pressure(ptu, &self->metadata.data);
 					data.data.ptu.calibrated = self->calibrated;
+					self->pressure = data.data.ptu.pressure;
 					break;
 				case RS41_SFTYPE_GPSPOS:
 					/* GPS position */
@@ -231,6 +235,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					ecef_to_lla(&data.data.pos.lat, &data.data.pos.lon, &data.data.pos.alt, x, y, z);
 					ecef_to_spd_hdg(&data.data.pos.speed, &data.data.pos.heading, &data.data.pos.climb,
 							data.data.pos.lat, data.data.pos.lon, dx, dy, dz);
+					if (!(self->pressure > 0)) self->pressure = altitude_to_pressure(data.data.pos.alt);
 
 					break;
 				case RS41_SFTYPE_GPSINFO:

@@ -150,7 +150,7 @@ rs41_subframe_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 	                      | (uint32_t)ptu->pressure_ref2[1] << 8
 	                      | (uint32_t)ptu->pressure_ref2[2] << 16;
 
-	const float pt = ptu->pressure_temp;
+	const float pt = ptu->pressure_temp / 100.0;
 	float adc_raw, pressure, p_poly[6];
 
 	/* If no reference, return */
