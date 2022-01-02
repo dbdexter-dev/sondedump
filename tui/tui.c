@@ -22,7 +22,7 @@ static void draw_tabs(WINDOW *win, int selected);
 static void handle_resize();
 static void *main_loop(void* args);
 
-static char *_decoder_names[] = { "RS41", "RS92", "DFM", "M10" };
+static char *_decoder_names[] = { "RS41", "DFM", "M10" };
 static int _update_interval;
 static int _running;
 static pthread_t _tid;
@@ -266,7 +266,7 @@ draw_tabs(WINDOW *win, int selected)
 		if (i != 0) mvwprintw(win, 1, i * elemWidth, "|");
 
 		if (i == selected) wattron(win, A_STANDOUT);
-		mvwprintw(win, 1, i * elemWidth + (elemWidth - strlen(_decoder_names[i]) + 1) / 2, "%s",_decoder_names[i]);
+		mvwprintw(win, 1, i * elemWidth + roundf(elemWidth - strlen(_decoder_names[i])) / 2, "%s",_decoder_names[i]);
 		if (i == selected) wattroff(win, A_STANDOUT);
 	}
 
