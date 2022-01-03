@@ -62,4 +62,14 @@ typedef struct {
 	} data;
 } SondeData;
 
+typedef struct {
+	int seq;
+	float lat, lon, alt;
+	float speed, heading, climb;
+	float temp, rh, pressure;
+	time_t utc_time;
+	int shutdown_timer;
+	char serial[32];
+	char xdata[128];
+} PrintableData;
 #endif

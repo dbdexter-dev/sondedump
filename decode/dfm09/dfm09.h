@@ -22,7 +22,7 @@ typedef struct {
 } DFM09Decoder;
 
 /**
- * Initialize a Vaisala dfm09 frame decoder
+ * Initialize a Graw dfm09 frame decoder
  *
  * @param d decoder to init
  * @param samplerate samplerate of the raw FM-demodulated stream

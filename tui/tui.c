@@ -29,16 +29,8 @@ static pthread_t _tid;
 static struct {
 	WINDOW *win;
 	WINDOW *tabs;
-	struct {
-		int seq;
-		float temp, rh, pressure;
-		float lat, lon, alt, spd, hdg, climb;
-		char serial[32];
-		char time[32];
-		char shutdown_timer[16];
-		char xdata[128];
-		int changed;
-	} data;
+	PrintableData data;
+	int data_changed;
 	int active_decoder;
 } tui;
 
@@ -63,12 +55,10 @@ tui_init(int update_interval, void (*decoder_changer)(int delta), int active_dec
 	init_windows(rows, cols);
 	keypad(tui.win, 1);
 
-	tui.data.serial[0] = 0;
-	tui.data.time[0] = 0;
-	tui.data.shutdown_timer[0] = 0;
+	memset(&tui.data, 0, sizeof(tui.data));
 
 	_running = 1;
-	tui.data.changed = 1;
+	tui.data_changed = 1;
 	tui.active_decoder = active_decoder;
 	pthread_create(&_tid, NULL, main_loop, decoder_changer);
 }
@@ -84,8 +74,15 @@ tui_deinit()
 
 
 int
-tui_update(SondeData *data)
+tui_update(PrintableData *data)
 {
+	tui.data = *data;
+	tui.data_changed = 1;
+
+	return 0;
+}
+
+#if 0
 	switch (data->type) {
 		case EMPTY:
 		case FRAME_END:
@@ -129,6 +126,7 @@ tui_update(SondeData *data)
 	tui.data.changed = 1;
 	return 0;
 }
+#endif
 
 /* Static functions {{{ */
 static void*
@@ -146,23 +144,23 @@ main_loop(void *args)
 				tui.active_decoder = (tui.active_decoder - 1) % LEN(_decoder_names);
 				memset(&tui.data, 0, sizeof(tui.data));
 				decoder_changer(tui.active_decoder);
-				tui.data.changed = 1;
+				tui.data_changed = 1;
 				break;
 			case KEY_RIGHT:
 			case '\t':
 				tui.active_decoder = (tui.active_decoder + 1) % LEN(_decoder_names);
 				memset(&tui.data, 0, sizeof(tui.data));
 				decoder_changer(tui.active_decoder);
-				tui.data.changed = 1;
+				tui.data_changed = 1;
 				break;
 			default:
 				break;
 		}
 
-		if (tui.data.changed) {
+		if (tui.data_changed) {
 			redraw();
 			mvwprintw(tui.win, 1, 1, "*");
-			tui.data.changed = 0;
+			tui.data_changed = 0;
 		} else {
 			mvwprintw(tui.win, 1, 1, " ");
 		}
@@ -193,15 +191,29 @@ redraw()
 	int rows, cols;
 	int start_row, start_col;
 	float synthetic_pressure;
+	char time[64], shutdown_timer[32];
 
+	/* Draw tabs at top of the TUI */
 	draw_tabs(tui.tabs, tui.active_decoder);
+
+	/* Format data to be printable */
+	strftime(time, LEN(time), "%a %b %d %Y %H:%M:%S", gmtime(&tui.data.utc_time));
+	if (tui.data.shutdown_timer > 0) {
+		sprintf(shutdown_timer, "%d:%02d:%02d",
+				tui.data.shutdown_timer/3600,
+				tui.data.shutdown_timer/60%60,
+				tui.data.shutdown_timer%60
+				);
+	} else {
+		shutdown_timer[0] = 0;
+	}
+
+	synthetic_pressure = (isnormal(tui.data.pressure) ?
+			tui.data.pressure : altitude_to_pressure(tui.data.alt));
 
 	getmaxyx(tui.win, rows, cols);
 	start_row = (rows - INFO_COUNT - 4) / 2;
 	start_col = cols / 2 - 1;
-
-	synthetic_pressure = (isnormal(tui.data.pressure) ?
-			tui.data.pressure : altitude_to_pressure(tui.data.alt));
 
 	werase(tui.win);
 	wborder(tui.win,
@@ -213,9 +225,9 @@ redraw()
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Frame no.:"),
 			"Frame no.: %d", tui.data.seq);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Onboard time:"),
-			"Onboard time: %s", tui.data.time);
+			"Onboard time: %s", time);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Shutdown in:"),
-			"Shutdown in: %s", tui.data.shutdown_timer);
+			"Shutdown in: %s", shutdown_timer);
 	start_row++;
 
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Latitude:"),
@@ -225,9 +237,9 @@ redraw()
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Altitude:"),
 			"Altitude: %.0fm", tui.data.alt);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Speed:"),
-			"Speed: %.1fm/s", tui.data.spd);
+			"Speed: %.1fm/s", tui.data.speed);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Heading:"),
-			"Heading: %.0f'", tui.data.hdg);
+			"Heading: %.0f'", tui.data.heading);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Climb:"),
 			"Climb: %+.1fm/s", tui.data.climb);
 	start_row++;

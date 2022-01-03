@@ -23,17 +23,6 @@
 
 #define SHORTOPTS "a:c:f:g:hk:l:o:t:v"
 
-typedef struct {
-	int seq;
-	float lat, lon, alt;
-	float speed, heading, climb;
-	float temp, rh, pressure;
-	time_t utc_time;
-	int shutdown_timer;
-	char serial[32];
-	char xdata[128];
-} PrintableData;
-
 static void fill_printable_data(PrintableData *to_print, SondeData *data);
 static int printf_data(const char *fmt, PrintableData *data);
 static int wav_read_wrapper(float *dst);
@@ -215,6 +204,7 @@ main(int argc, char *argv[])
 	}
 #endif
 
+	/* Initialize decoders */
 	rs41_decoder_init(&rs41decoder, samplerate);
 	dfm09_decoder_init(&dfm09decoder, samplerate);
 	m10_decoder_init(&m10decoder, samplerate);
@@ -223,6 +213,9 @@ main(int argc, char *argv[])
 	_interrupted = 0;
 	has_data = 0;
 	signal(SIGINT, sigint_handler);
+
+
+	/* Process decoded frames */
 	while (!_interrupted) {
 		/* If decoder changed, reset printable data store */
 		if (_decoder_changed) {
@@ -248,16 +241,14 @@ main(int argc, char *argv[])
 		fill_printable_data(&printable, &data);
 
 		if (data.type == SOURCE_END) break;
-#ifdef ENABLE_TUI
-		tui_update(&data);
-#endif
-
 		switch (data.type) {
 			case FRAME_END:
 				/* Write line at the end of the frame */
 				if (has_data) {
 #ifdef ENABLE_TUI
-					if (!tui_enabled) {
+					if (tui_enabled) {
+						tui_update(&printable);
+					} else {
 						printf_data(output_fmt, &printable);
 					}
 #else
@@ -290,6 +281,8 @@ main(int argc, char *argv[])
 					gpx_add_trackpoint(&gpx, printable.lat, printable.lon, printable.alt, printable.speed, printable.heading, printable.utc_time);
 				}
 				has_data = 1;
+				break;
+			case EMPTY:
 				break;
 			default:
 				has_data = 1;
@@ -332,7 +325,7 @@ raw_read_wrapper(float *dst)
 {
 	int16_t tmp;
 
-	if (!fread(&tmp, 2, 1, _wav)) return 0;;
+	if (!fread(&tmp, 2, 1, _wav)) return 0;
 
 	*dst = tmp;
 	return 1;
@@ -463,6 +456,7 @@ static void
 decoder_changer(int decoder)
 {
 	_active_decoder = decoder % END;
+	_decoder_changed = 1;
 }
 #endif
 /* }}} */
