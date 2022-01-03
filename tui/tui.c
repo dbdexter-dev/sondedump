@@ -82,52 +82,6 @@ tui_update(PrintableData *data)
 	return 0;
 }
 
-#if 0
-	switch (data->type) {
-		case EMPTY:
-		case FRAME_END:
-		case UNKNOWN:
-		case SOURCE_END:
-			return 0;
-		case DATETIME:
-			strftime(tui.data.time, LEN(tui.data.time), "%a %b %d %Y %H:%M:%S", gmtime(&data->data.datetime.datetime));
-			break;
-		case INFO:
-			strncpy(tui.data.serial, data->data.info.sonde_serial, LEN(tui.data.serial)-1);
-			if (data->data.info.burstkill_status > 0) {
-				sprintf(tui.data.shutdown_timer, "%d:%02d:%02d",
-						data->data.info.burstkill_status/3600,
-						data->data.info.burstkill_status/60%60,
-						data->data.info.burstkill_status%60
-						);
-			}
-			tui.data.seq = data->data.info.seq;
-			break;
-		case PTU:
-			tui.data.temp = data->data.ptu.temp;
-			tui.data.rh = data->data.ptu.rh;
-			tui.data.pressure = data->data.ptu.pressure;
-			break;
-		case POSITION:
-			tui.data.lat = data->data.pos.lat;
-			tui.data.lon = data->data.pos.lon;
-			tui.data.alt = data->data.pos.alt;
-			tui.data.spd = data->data.pos.speed;
-			tui.data.hdg = data->data.pos.heading;
-			tui.data.climb = data->data.pos.climb;
-			break;
-		case XDATA:
-			strcpy(tui.data.xdata, data->data.xdata.data);
-			break;
-		default:
-			break;
-
-	}
-	tui.data.changed = 1;
-	return 0;
-}
-#endif
-
 /* Static functions {{{ */
 static void*
 main_loop(void *args)

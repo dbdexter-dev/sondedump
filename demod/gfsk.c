@@ -4,6 +4,12 @@
 #include "gfsk.h"
 #include "utils.h"
 
+#define NDEBUG
+
+#ifndef NDEBUG
+static FILE *debug;
+#endif
+
 int
 gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 {
@@ -22,6 +28,10 @@ gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 	/* Initialize symbol timing recovery */
 	timing_init(&g->timing, sym_freq, SYM_ZETA, sym_freq/250);
 
+#ifndef NDEBUG
+	debug = fopen("/tmp/demod.data", "wb");
+#endif
+
 	return 0;
 }
 
@@ -29,6 +39,12 @@ void
 gfsk_deinit(GFSKDemod *g)
 {
 	filter_deinit(&g->lpf);
+#ifndef NDEBUG
+	if (debug) {
+		fclose(debug);
+		debug = NULL;
+	}
+#endif
 }
 
 int
@@ -43,7 +59,7 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(f
 	bit_offset %= 8;
 
 	/* Initialize first byte that will be touched */
-	tmp = (*dst & ~((1 << bit_offset) - 1)) >> bit_offset;
+	tmp = *dst >> (8 - bit_offset);
 	interm = 0;
 	while (len > 0) {
 		/* Read a new sample and filter it */
@@ -51,18 +67,25 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(f
 		symbol = agc_apply(&g->agc, symbol);
 		filter_fwd_sample(&g->lpf, symbol);
 
-		//printf("%f ", filter_get(&g->lpf));
+#ifndef NDEBUG
+		fprintf(debug, "%f ", filter_get(&g->lpf));
+#endif
 
 		switch (advance_timeslot(&g->timing)) {
 			case 1:
 				/* Half-way slot */
 				interm = filter_get(&g->lpf);
-				//printf("0\n");
+#ifndef NDEBUG
+				fprintf(debug, "0\n");
+#endif
 				break;
 			case 2:
 				/* Correct slot: update time estimate */
 				symbol = filter_get(&g->lpf);
 				retime(&g->timing, interm, symbol);
+#ifndef NDEBUG
+				fprintf(debug, "%f\n", symbol);
+#endif
 
 				/* Slice sample to get bit value */
 				tmp = (tmp << 1) | (symbol > 0 ? 1 : 0);
@@ -74,17 +97,18 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(f
 					*dst++ = tmp;
 					tmp = 0;
 				}
-				//printf("%f\n", symbol);
 				break;
 			default:
-				//printf("0\n");
+#ifndef NDEBUG
+				fprintf(debug, "0\n");
+#endif
 				break;
 
 		}
 	}
 
 	/* Last write */
-	*dst = (tmp << (8 - (bit_offset % 8)));
+	if (bit_offset%8) *dst = (tmp << (8 - (bit_offset % 8)));
 
 	return bit_offset;
 }

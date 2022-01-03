@@ -62,7 +62,6 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 				return data;
 			}
 
-			inverted = 0;
 			offset = correlate(&self->correlator, &inverted, raw_frame, DFM09_FRAME_LEN/8);
 			if (offset) {
 				if (!gfsk_demod(&self->gfsk, raw_frame  + DFM09_FRAME_LEN/8, 0, offset, read)) {
@@ -73,7 +72,7 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 			}
 
 			if (inverted) {
-				for (i=0; i<2*DFM09_FRAME_LEN/8; i++) {
+				for (i=0; i<DFM09_FRAME_LEN/8; i++) {
 					raw_frame[i] ^= 0xFF;
 				}
 			}
