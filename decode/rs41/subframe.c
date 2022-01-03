@@ -179,6 +179,7 @@ rs41_subframe_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 	p_poly[4] = calib->p_calib_coeff[4];
 	p_poly[5] = calib->p_calib_coeff[5];
 
+	adc_raw = calib->p_calib_coeff[6] / adc_raw;
 	pressure = p_poly[0]
 	         + p_poly[1] * adc_raw
 	         + p_poly[2] * adc_raw * adc_raw
