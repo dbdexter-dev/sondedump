@@ -42,19 +42,19 @@ set(LIBRARY_SOURCES
 	decode/ecc/crc.c decode/ecc/crc.h
 	decode/ecc/rs.c decode/ecc/rs.h
 
-	decode/rs41/rs41.c decode/rs41/rs41.h
-	decode/rs41/frame.c decode/rs41/frame.h
-	decode/rs41/subframe.c decode/rs41/subframe.h
-	decode/rs41/protocol.h
+	sonde/rs41/rs41.c sonde/rs41/rs41.h
+	sonde/rs41/frame.c sonde/rs41/frame.h
+	sonde/rs41/subframe.c sonde/rs41/subframe.h
+	sonde/rs41/protocol.h
 
-	decode/dfm09/dfm09.c decode/dfm09/dfm09.h
-	decode/dfm09/frame.c decode/dfm09/frame.h
-	decode/dfm09/subframe.c decode/dfm09/subframe.h
-	decode/dfm09/protocol.h
+	sonde/dfm09/dfm09.c sonde/dfm09/dfm09.h
+	sonde/dfm09/frame.c sonde/dfm09/frame.h
+	sonde/dfm09/subframe.c sonde/dfm09/subframe.h
+	sonde/dfm09/protocol.h
 
-	decode/m10/m10.c decode/m10/m10.h
-	decode/m10/frame.c decode/m10/frame.h
-	decode/m10/protocol.c decode/m10/protocol.h
+	sonde/m10/m10.c sonde/m10/m10.h
+	sonde/m10/frame.c sonde/m10/frame.h
+	sonde/m10/protocol.c sonde/m10/protocol.h
 
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h

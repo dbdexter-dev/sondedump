@@ -37,7 +37,7 @@ m10_frame_correct(M10Frame *frame)
 static uint16_t
 m10_crc_step(uint16_t c, uint8_t b)
 {
-		int c0, c1, t, t6, t7, s;
+	int c0, c1, t, t6, t7, s;
 	c1 = c & 0xFF;
 	// B
 	b  = (b >> 1) | ((b & 1) << 7);

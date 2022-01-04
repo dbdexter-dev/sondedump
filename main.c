@@ -5,9 +5,9 @@
 #include <string.h>
 #include <time.h>
 #include "decode/common.h"
-#include "decode/rs41/rs41.h"
-#include "decode/dfm09/dfm09.h"
-#include "decode/m10/m10.h"
+#include "sonde/rs41/rs41.h"
+#include "sonde/dfm09/dfm09.h"
+#include "sonde/m10/m10.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
 #include "io/gpx.h"

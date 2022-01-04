@@ -6,7 +6,7 @@
 
 /* Obtained by autocorrelating the extra data found at the end of frames from a
  * radiosonde with ozone sensor */
-static const uint8_t prn[RS41_PRN_PERIOD] = {
+static const uint8_t _prn[RS41_PRN_PERIOD] = {
 	0x96, 0x83, 0x3e, 0x51, 0xb1, 0x49, 0x08, 0x98,
 	0x32, 0x05, 0x59, 0x0e, 0xf9, 0x44, 0xc6, 0x26,
 	0x21, 0x60, 0xc2, 0xea, 0x79, 0x5d, 0x6d, 0xa1,
@@ -31,7 +31,7 @@ rs41_frame_descramble(RS41Frame *frame)
 		for (int j=0; j<8; j++) {
 			tmp |= ((raw_frame[i] >> (7-j)) & 0x1) << j;
 		}
-		raw_frame[i] = tmp ^ prn[i % LEN(prn)];
+		raw_frame[i] = tmp ^ _prn[i % LEN(_prn)];
 	}
 }
 
