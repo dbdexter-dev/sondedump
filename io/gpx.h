@@ -6,6 +6,7 @@
 
 typedef struct {
 	FILE *fd;
+	size_t offset;
 	int track_active;
 	char *cur_serial;
 } GPXFile;

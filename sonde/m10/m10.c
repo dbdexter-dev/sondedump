@@ -1,5 +1,6 @@
 #include <math.h>
 #include <stdio.h>
+#include "decode/framer.h"
 #include "decode/manchester.h"
 #include "frame.h"
 #include "gps/time.h"
@@ -41,8 +42,6 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 {
 	SondeData data = {.type = EMPTY};
 	uint8_t *const raw_frame = (uint8_t*)self->frame;
-	int inverted;
-	int i;
 	time_t time;
 	float lat, lon, alt;
 	float speed, heading, climb;
@@ -57,33 +56,17 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 				self->frame[1] = self->frame[3];
 			}
 
-			/* Demod until a frame worth of bits is ready */
-			if (!gfsk_demod(&self->gfsk, raw_frame, self->offset, M10_FRAME_LEN*2*8-self->offset, read)) {
+			/* Read a new frame */
+			self->offset = read_frame_gfsk(&self->gfsk, &self->correlator,
+					raw_frame, read, M10_FRAME_LEN, self->offset);
+
+			if (self->offset < 0) {
 				data.type = SOURCE_END;
 				return data;
 			}
 
-			/* Find sync marker */
-			self->offset = correlate(&self->correlator, &inverted, raw_frame, M10_FRAME_LEN*2);
-
-			/* Align frame being decoded to sync marker */
-			if (self->offset) {
-				if (!gfsk_demod(&self->gfsk, raw_frame + M10_FRAME_LEN*2, 0, self->offset, read)) {
-					data.type = SOURCE_END;
-					return data;
-				}
-				bitcpy(raw_frame, raw_frame, self->offset, M10_FRAME_LEN*2*8);
-			}
-
-			/* Correct inverted symbol phase */
-			if (inverted) {
-				for (i=0; i<2*(int)sizeof(*self->frame); i++) {
-					raw_frame[i] ^= 0xFF;
-				}
-			}
-
 			/* Manchester decode, then massage bits into shape */
-			manchester_decode(raw_frame, raw_frame, M10_FRAME_LEN*8);
+			manchester_decode(raw_frame, raw_frame, M10_FRAME_LEN);
 			m10_frame_descramble(self->frame);
 
 			switch (self->frame[0].type) {
@@ -93,7 +76,6 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 						data.type = EMPTY;
 						return data;
 					}
-
 					/* M10 GPS + PTU data */
 					self->state = PARSE_M10_INFO;
 					break;
@@ -105,10 +87,13 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 					data.type = EMPTY;
 					return data;
 			}
+
 #ifndef NDEBUG
 			fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
 			fflush(debug);
 #endif
+
+
 
 			break;
 

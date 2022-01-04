@@ -8,10 +8,10 @@
 #define M10_BAUDRATE 9600
 
 /* Frame parameters */
-#define M10_FRAME_LEN 103
+#define M10_FRAME_LEN 1664
 
-#define M10_SYNCWORD 0x6666b366
-#define M10_SYNCLEN 4
+#define M10_SYNCWORD 0x6666b3665659
+#define M10_SYNCLEN 6
 
 #define M10_FTYPE_DATA 0x9F
 #define M20_FTYPE_DATA 0x20
@@ -19,7 +19,7 @@
 typedef struct {
 	uint8_t sync_mark[3];
 	uint8_t type;
-	uint8_t data[M10_FRAME_LEN-6];
+	uint8_t data[97];
 	uint8_t crc[2];
 } __attribute__((packed)) M10Frame;
 

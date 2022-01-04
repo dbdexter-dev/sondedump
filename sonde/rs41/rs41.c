@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "decode/framer.h"
 #include "decode/ecc/crc.h"
 #include "decode/xdata.h"
 #include "frame.h"
@@ -109,11 +110,9 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 	SondeData data;
 	RS41Subframe *subframe;
 	int frame_data_len;
-	int inverted;
-	int i;
 	int burstkill_timer;
 	float x, y, z, dx, dy, dz;
-	uint8_t *raw_frame = (uint8_t*)self->frame;
+	uint8_t *const raw_frame = (uint8_t*)self->frame;
 
 	RS41Subframe_Info *status;
 	RS41Subframe_PTU *ptu;
@@ -126,28 +125,13 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 			/* Copy residual bits from the previous frame */
 			if (self->offset) self->frame[0] = self->frame[1];
 
-			/* Demod until a frame worth of bits is ready */
-			if (!gfsk_demod(&self->gfsk, raw_frame, self->offset, RS41_MAX_FRAME_LEN*8 - self->offset, read)) {
+			/* Read a new frame */
+			self->offset = read_frame_gfsk(&self->gfsk, &self->correlator,
+					raw_frame, read, RS41_FRAME_LEN, self->offset);
+
+			if (self->offset < 0) {
 				data.type = SOURCE_END;
 				return data;
-			}
-
-			/* Find the offset with the strongest correlation with the sync marker */
-			self->offset = correlate(&self->correlator, &inverted, raw_frame, RS41_MAX_FRAME_LEN);
-			if (self->offset) {
-				/* Read more bits to compensate for the frame offset */
-				if (!gfsk_demod(&self->gfsk, raw_frame + RS41_MAX_FRAME_LEN, 0, self->offset, read)) {
-					data.type = SOURCE_END;
-					return data;
-				}
-				bitcpy(raw_frame, raw_frame, self->offset, 8*RS41_MAX_FRAME_LEN);
-			}
-
-			/* Invert if necessary */
-			if (inverted) {
-				for (i=0; i<RS41_MAX_FRAME_LEN; i++) {
-					raw_frame[i] ^= 0xFF;
-				}
 			}
 
 			/* Descramble and error correct */
@@ -156,7 +140,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 
 #ifndef NDEBUG
 			/* Output the frame to file */
-			fwrite(self->frame, RS41_MAX_FRAME_LEN, 1, debug);
+			fwrite(self->frame, RS41_FRAME_LEN, 1, debug);
 #endif
 
 			/* Prepare to parse subframes */
