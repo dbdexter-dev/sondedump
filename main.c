@@ -235,6 +235,8 @@ main(int argc, char *argv[])
 				data = m10_decode(&m10decoder, read_wrapper);
 				break;
 			default:
+				/* Silence, GCC! */
+				data.type = EMPTY;
 				break;
 		}
 

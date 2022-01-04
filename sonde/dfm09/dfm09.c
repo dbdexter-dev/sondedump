@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include "decode/framer.h"
 #include "decode/manchester.h"
 #include "decode/correlator/correlator.h"
 #include "frame.h"
@@ -46,35 +47,18 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 	DFM09Subframe_PTU *ptuSubframe;
 	SondeData data = {.type = EMPTY};
 	int errcount;
-	int offset;
-	int inverted;
 	int i;
 	uint16_t serial_shard;
 	uint64_t local_serial;
 	int serial_idx;
-	uint8_t *raw_frame = (uint8_t*)self->frame;
+	uint8_t *const raw_frame = (uint8_t*)self->frame;
 
 	switch (self->state) {
 		case READ:
-			/* Read a new frame worth of bits */
-			if (!gfsk_demod(&self->gfsk, raw_frame, 0, DFM09_FRAME_LEN, read)) {
+			/* Read a new frame */
+			if (read_frame_gfsk(&self->gfsk, &self->correlator, raw_frame, read, DFM09_FRAME_LEN, 0) < 0) {
 				data.type = SOURCE_END;
 				return data;
-			}
-
-			offset = correlate(&self->correlator, &inverted, raw_frame, DFM09_FRAME_LEN/8);
-			if (offset) {
-				if (!gfsk_demod(&self->gfsk, raw_frame  + DFM09_FRAME_LEN/8, 0, offset, read)) {
-					data.type = SOURCE_END;
-					return data;
-				}
-				bitcpy(raw_frame, raw_frame, offset, DFM09_FRAME_LEN);
-			}
-
-			if (inverted) {
-				for (i=0; i<DFM09_FRAME_LEN/8; i++) {
-					raw_frame[i] ^= 0xFF;
-				}
 			}
 
 			/* Rebuild frame from received bits */

@@ -36,11 +36,13 @@ set(LIBRARY_SOURCES
 	demod/gfsk.c demod/gfsk.h
 
 	decode/manchester.c decode/manchester.h
-	decode/common.h
+	decode/framer.c decode/framer.h
 	decode/xdata.c decode/xdata.h
+	decode/common.h
 
 	decode/ecc/crc.c decode/ecc/crc.h
 	decode/ecc/rs.c decode/ecc/rs.h
+
 
 	sonde/rs41/rs41.c sonde/rs41/rs41.h
 	sonde/rs41/frame.c sonde/rs41/frame.h
