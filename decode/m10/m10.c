@@ -93,11 +93,6 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 						data.type = EMPTY;
 						return data;
 					}
-#ifndef NDEBUG
-			fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
-			fflush(debug);
-#endif
-
 					/* M10 GPS + PTU data */
 					self->state = PARSE_M10_INFO;
 					break;
@@ -109,6 +104,12 @@ m10_decode(M10Decoder *self, int (*read)(float *dst))
 					data.type = EMPTY;
 					return data;
 			}
+
+#ifndef NDEBUG
+			fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
+			fflush(debug);
+#endif
+
 
 
 			break;

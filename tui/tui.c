@@ -200,8 +200,8 @@ redraw()
 
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Temperature:"),
 			"Temperature: %.1f'C", tui.data.temp);
-	mvwprintw(tui.win, start_row++, start_col - sizeof("Relative hum.:"),
-			"Relative hum.: %.0f%%", tui.data.rh);
+	mvwprintw(tui.win, start_row++, start_col - sizeof("Rel. humidity:"),
+			"Rel. humidity: %.0f%%", tui.data.rh);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Dew point:"),
 			"Dew point: %.1f'C", dewpt(tui.data.temp, tui.data.rh));
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Pressure:"),
