@@ -47,7 +47,16 @@ void bitcpy(uint8_t *dst, const uint8_t *src, size_t src_offset, size_t num_bits
  * @param nbits number of bits to merge
  * @return merged bits
  */
-uint64_t bitmerge(uint8_t *data, int nbits);
+uint64_t bitmerge(const uint8_t *data, int nbits);
+
+/**
+ * Count the number of bits set within a byte array
+ *
+ * @param data input array
+ * @param len length of the input arary, in bytes
+ * @return number of bits set in the array
+ */
+int count_ones(const uint8_t *data, size_t len);
 
 /**
  * Calculate pressure at a given altitude

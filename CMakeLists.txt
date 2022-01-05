@@ -59,7 +59,7 @@ set(LIBRARY_SOURCES
 
 	sonde/ims100/ims100.c sonde/ims100/ims100.h
 	sonde/ims100/frame.c sonde/ims100/frame.h
-	sonde/ims100/protocol.h
+	sonde/ims100/protocol.c sonde/ims100/protocol.h
 
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h

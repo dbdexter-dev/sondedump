@@ -27,7 +27,7 @@ bitcpy(uint8_t *dst, const uint8_t *src, size_t offset, size_t bits)
 }
 
 uint64_t
-bitmerge(uint8_t *data, int nbits)
+bitmerge(const uint8_t *data, int nbits)
 {
 	uint64_t ret = 0;
 
@@ -36,6 +36,22 @@ bitmerge(uint8_t *data, int nbits)
 	}
 
 	return (ret << nbits) | (*data >> (7 - nbits));
+}
+
+int
+count_ones(const uint8_t *data, size_t len)
+{
+	uint8_t tmp;
+	int count = 0;
+
+	for (; len>0; len--) {
+		tmp = *data++;
+		for (; tmp; count++) {
+			tmp &= tmp-1;
+		}
+	}
+
+	return count;
 }
 
 char

@@ -11,6 +11,8 @@ read_frame_gfsk(GFSKDemod *gfsk, Correlator *corr, uint8_t *dst, int (*read)(flo
 
 	/* Find sync marker */
 	offset = correlate(corr, &inverted, dst, framelen/8);
+
+	/* Second read and realignment (if necessary) */
 	if (offset) {
 		if (!gfsk_demod(gfsk, dst, framelen, offset, read)) return -1;
 		bitcpy(dst, dst, offset, framelen);

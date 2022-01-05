@@ -13,6 +13,7 @@ typedef struct {
  * Initialize the given Reed-Solomon decoder
  */
 int rs_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t first_root, int root_skip);
+int bch_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t *roots);
 void rs_deinit(RSDecoder *d);
 
 /**

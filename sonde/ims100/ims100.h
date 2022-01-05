@@ -3,12 +3,14 @@
 
 #include "decode/common.h"
 #include "decode/correlator/correlator.h"
+#include "decode/ecc/rs.h"
 #include "demod/gfsk.h"
 #include "protocol.h"
 
 typedef struct {
 	GFSKDemod gfsk;
 	Correlator correlator;
+	RSDecoder rs;
 	IMS100Frame frame[4];
 	int state;
 } IMS100Decoder;

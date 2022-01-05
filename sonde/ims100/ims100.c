@@ -10,13 +10,16 @@
 static FILE *debug;
 #endif
 
-enum { READ, PARSE };
+enum { READ, PARSE_EVEN_TIME, PARSE_EVEN_POS, PARSE_ODD, PARSE_END };
 
 void
 ims100_decoder_init(IMS100Decoder *d, int samplerate)
 {
 	gfsk_init(&d->gfsk, samplerate, IMS100_BAUDRATE);
 	correlator_init(&d->correlator, IMS100_SYNCWORD, IMS100_SYNC_LEN);
+	bch_init(&d->rs, IMS100_REEDSOLOMON_N, IMS100_REEDSOLOMON_K,
+			IMS100_REEDSOLOMON_POLY, ims100_bch_roots);
+
 	d->state = READ;
 #ifndef NDEBUG
 	debug = fopen("/tmp/ims100frames.data", "wb");
@@ -37,6 +40,9 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 {
 	SondeData data = {.type = EMPTY};
 	uint8_t *const raw_frame = (uint8_t*)self->frame;
+	unsigned int seq;
+	const IMS100FrameEven *even = (IMS100FrameEven*)self->frame[0].data;
+	const IMS100FrameOdd *odd = (IMS100FrameOdd*)self->frame[0].data;
 
 	switch (self->state) {
 		case READ:
@@ -48,12 +54,38 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 
 			manchester_decode(raw_frame, raw_frame, IMS100_FRAME_LEN);
 			ims100_frame_descramble(self->frame);
+			ims100_frame_error_correct(self->frame, &self->rs);
 
+			seq = IMS100Frame_seq(self->frame);
+			self->state = (seq & 0x01) ? PARSE_ODD : PARSE_EVEN_TIME;
+			break;
+
+		/* Even frame parsing {{{ */
+		case PARSE_EVEN_TIME:
 #ifndef NDEBUG
-			fwrite(raw_frame, IMS100_FRAME_LEN/2/8, 1, debug);
+			fwrite(raw_frame, sizeof(self->frame[0]), 1, debug);
 			fflush(debug);
 #endif
 
+			data.type = DATETIME;
+			data.data.datetime.datetime = IMS100FrameEven_time(even);
+
+			self->state = PARSE_EVEN_POS;
+			break;
+		case PARSE_EVEN_POS:
+			self->state = PARSE_END;
+			break;
+		/* }}} */
+
+		/* Odd frame parsing {{{ */
+		case PARSE_ODD:
+			self->state = PARSE_END;
+			break;
+		/* }}} */
+
+		case PARSE_END:
+			data.type = FRAME_END;
+			self->state = READ;
 			break;
 		default:
 			break;
