@@ -50,6 +50,11 @@ void bitcpy(uint8_t *dst, const uint8_t *src, size_t src_offset, size_t num_bits
 uint64_t bitmerge(const uint8_t *data, int nbits);
 
 /**
+ * Pack loose bits together, with an optional offset
+ */
+void bitpack(uint8_t *dst, const uint8_t *src, int bit_offset, int nbits);
+
+/**
  * Count the number of bits set within a byte array
  *
  * @param data input array

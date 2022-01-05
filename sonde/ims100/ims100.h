@@ -12,6 +12,8 @@ typedef struct {
 	Correlator correlator;
 	RSDecoder rs;
 	IMS100Frame frame[4];
+	IMS100FrameEven even;
+	IMS100FrameOdd odd;
 	int state;
 } IMS100Decoder;
 

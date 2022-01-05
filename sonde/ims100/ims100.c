@@ -41,8 +41,6 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 	SondeData data = {.type = EMPTY};
 	uint8_t *const raw_frame = (uint8_t*)self->frame;
 	unsigned int seq;
-	const IMS100FrameEven *even = (IMS100FrameEven*)self->frame[0].data;
-	const IMS100FrameOdd *odd = (IMS100FrameOdd*)self->frame[0].data;
 
 	switch (self->state) {
 		case READ:
@@ -58,17 +56,22 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 
 			seq = IMS100Frame_seq(self->frame);
 			self->state = (seq & 0x01) ? PARSE_ODD : PARSE_EVEN_TIME;
+			if (seq & 0x1) {
+			} else {
+				ims100_frame_unpack_even(&self->even, self->frame);
+			}
+
 			break;
 
 		/* Even frame parsing {{{ */
 		case PARSE_EVEN_TIME:
 #ifndef NDEBUG
-			fwrite(raw_frame, sizeof(self->frame[0]), 1, debug);
+			fwrite(&self->even, sizeof(self->even), 1, debug);
 			fflush(debug);
 #endif
 
 			data.type = DATETIME;
-			data.data.datetime.datetime = IMS100FrameEven_time(even);
+			data.data.datetime.datetime = IMS100FrameEven_time(&self->even);
 
 			self->state = PARSE_EVEN_POS;
 			break;

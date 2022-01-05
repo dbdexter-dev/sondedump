@@ -38,6 +38,31 @@ bitmerge(const uint8_t *data, int nbits)
 	return (ret << nbits) | (*data >> (7 - nbits));
 }
 
+void
+bitpack(uint8_t *dst, const uint8_t *src, int bit_offset, int nbits)
+{
+	uint8_t tmp;
+
+	dst += bit_offset/8;
+	bit_offset %= 8;
+
+	tmp = *dst >> (8 - bit_offset);
+	for (; nbits > 0; nbits--) {
+		tmp = (tmp << 1) | *src++;
+		bit_offset++;
+
+		if (!(bit_offset % 8)) {
+			*dst++ = tmp;
+			tmp = 0;
+		}
+	}
+
+	if (bit_offset % 8) {
+		*dst &= (1 << (8 - bit_offset%8)) - 1;
+		*dst |= tmp << (8 - bit_offset%8);
+	}
+}
+
 int
 count_ones(const uint8_t *data, size_t len)
 {
