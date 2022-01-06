@@ -2,6 +2,7 @@
 #define ims100_protocol_h
 
 #include <stdint.h>
+#include <math.h>
 #include <time.h>
 #include "utils.h"
 
@@ -27,19 +28,18 @@ extern uint8_t ims100_bch_roots[];
 typedef struct {
 	/* Offset 0 */
 	uint8_t seq[2];
-	uint8_t data[18];
+	uint8_t _pad0[18];
 	uint8_t ms[2];
 	uint8_t hour;
 	uint8_t min;
 
 	/* Offset 24 */
-	uint8_t data2[4];
-	uint8_t alt[2];
-	uint8_t pad;
-	uint8_t lon[3];
-	uint8_t lat[3];
+	uint8_t date[2];
+	uint8_t lat[4];
+	uint8_t lon[4];
+	uint8_t alt[3];
 
-	uint8_t padding[11];
+	uint8_t padding[12];
 
 	uint32_t valid;
 } __attribute__((packed)) IMS100FrameEven;
@@ -79,18 +79,22 @@ inline time_t IMS100FrameEven_time(const IMS100FrameEven *frame) {
 }
 
 inline float IMS100FrameEven_lat(const IMS100FrameEven *frame) {
-	int32_t raw_lat = ((int32_t)frame->lat[0] << 24 | (int32_t)frame->lat[1] << 16 | (int32_t)frame->lat[2] << 8) >> 8;
-	return raw_lat / 1e5;
+	if ((frame->valid & 0x000300) != 0x000300) return NAN;
+	int32_t raw_lat = ((int32_t)frame->lat[0] << 24 | (int32_t)frame->lat[1] << 16 | (int32_t)frame->lat[2] << 8 | (int32_t)frame->lat[3]);
+	return raw_lat / 1e6;
 
 }
 
 inline float IMS100FrameEven_lon(const IMS100FrameEven *frame) {
-	int32_t raw_lon = ((int32_t)frame->lon[0] << 24 | (int32_t)frame->lon[1] << 16 | (int32_t)frame->lon[2] << 8) >> 8;
-	return raw_lon / 1e5;
+	if ((frame->valid & 0x0000C0) != 0x0000C0) return NAN;
+	int32_t raw_lon = ((int32_t)frame->lon[0] << 24 | (int32_t)frame->lon[1] << 16 | (int32_t)frame->lon[2] << 8 | (int32_t)frame->lon[3]);
+	return raw_lon / 1e6;
 }
 
 inline float IMS100FrameEven_alt(const IMS100FrameEven *frame) {
-	return ((int16_t)frame->alt[0] << 8 | frame->alt[1]);
+	if ((frame->valid & 0x000030) != 0x000030) return NAN;
+	int32_t raw_alt = (int32_t)frame->alt[0] << 24 | (int32_t)frame->alt[1] << 16 | (int32_t)frame->alt[2] << 8;
+	return (raw_alt >> 8) / 1e2;
 }
 
 
