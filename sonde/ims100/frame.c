@@ -28,7 +28,6 @@ ims100_frame_error_correct(IMS100Frame *frame, RSDecoder *rs)
 	errcount = 0;
 	memset(message, 0, sizeof(message));
 
-
 	/* For each subframe within the frame */
 	for (i=0; i < 8 * (int)sizeof(*frame); i += IMS100_SUBFRAME_LEN) {
 		/* For each message in the subframe */
@@ -47,11 +46,15 @@ ims100_frame_error_correct(IMS100Frame *frame, RSDecoder *rs)
 			if (errdelta < 0 || errcount < 0) errcount = -1;
 			else errcount += errdelta;
 
-			/* Move back corrected bits */
-			bitpack(raw_frame, message + start_idx, offset, IMS100_MESSAGE_LEN);
+			if (errdelta < 0) {
+				/* If ECC fails, clear the message */
+				bitclear(raw_frame, offset, 2 * IMS100_SUBFRAME_VALUELEN);
+			} else if (errdelta) {
+				/* Else, copy corrected bits back */
+				bitpack(raw_frame, message + start_idx, offset, IMS100_MESSAGE_LEN);
+			}
 		}
 	}
-
 	return errcount;
 }
 
@@ -64,7 +67,7 @@ ims100_frame_unpack_even(IMS100FrameEven *dst, IMS100Frame *src)
 void
 ims100_frame_unpack_odd(IMS100FrameEven *dst, IMS100Frame *src)
 {
-	dst->valid = ims100_unpack_internal((uint8_t*)dst, src);
+	dst->valid = ims100_unpack_internal((uint8_t*)dst->seq, src);
 }
 
 static uint32_t
@@ -78,7 +81,7 @@ ims100_unpack_internal(uint8_t *dst, const IMS100Frame *frame)
 	/* For each subframe within the frame */
 	for (i=0; i < 8 * (int)sizeof(*frame); i += IMS100_SUBFRAME_LEN) {
 		/* For each message in the subframe */
-		for (j= 8 * sizeof(frame->syncword); j < IMS100_SUBFRAME_LEN; j += IMS100_MESSAGE_LEN) {
+		for (j = 8 * sizeof(frame->syncword); j < IMS100_SUBFRAME_LEN; j += IMS100_MESSAGE_LEN) {
 			offset = i + j;
 
 			/* Copy first message */

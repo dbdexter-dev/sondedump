@@ -18,7 +18,7 @@ ims100_decoder_init(IMS100Decoder *d, int samplerate)
 	gfsk_init(&d->gfsk, samplerate, IMS100_BAUDRATE);
 	correlator_init(&d->correlator, IMS100_SYNCWORD, IMS100_SYNC_LEN);
 	bch_init(&d->rs, IMS100_REEDSOLOMON_N, IMS100_REEDSOLOMON_K,
-			IMS100_REEDSOLOMON_POLY, ims100_bch_roots);
+			IMS100_REEDSOLOMON_POLY, ims100_bch_roots, IMS100_REEDSOLOMON_T);
 
 	d->state = READ;
 #ifndef NDEBUG
@@ -76,6 +76,12 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			self->state = PARSE_EVEN_POS;
 			break;
 		case PARSE_EVEN_POS:
+			data.type = POSITION;
+
+			data.data.pos.lat = IMS100FrameEven_lat(&self->even);
+			data.data.pos.lon = IMS100FrameEven_lon(&self->even);
+			data.data.pos.alt = IMS100FrameEven_alt(&self->even);
+
 			self->state = PARSE_END;
 			break;
 		/* }}} */
@@ -91,6 +97,7 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			self->state = READ;
 			break;
 		default:
+			self->state = READ;
 			break;
 	}
 

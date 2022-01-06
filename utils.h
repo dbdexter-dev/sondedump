@@ -54,6 +54,8 @@ uint64_t bitmerge(const uint8_t *data, int nbits);
  */
 void bitpack(uint8_t *dst, const uint8_t *src, int bit_offset, int nbits);
 
+void bitclear(uint8_t *dst, int bit_offset, int nbits);
+
 /**
  * Count the number of bits set within a byte array
  *

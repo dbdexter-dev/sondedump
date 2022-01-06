@@ -63,6 +63,33 @@ bitpack(uint8_t *dst, const uint8_t *src, int bit_offset, int nbits)
 	}
 }
 
+void
+bitclear(uint8_t *dst, int bit_offset, int nbits)
+{
+	dst += bit_offset/8;
+	bit_offset %= 8;
+
+	/* Special case where start and end might be in the same byte */
+	if (bit_offset + nbits < 8) {
+		*dst &= ~((1 << (8 - bit_offset)) - 1)
+		        | ((1 << (8 - bit_offset - nbits)) - 1);
+		return;
+	}
+
+	if (bit_offset) {
+		*dst &= ~((1 << (8 - bit_offset)) - 1);
+		dst++;
+		nbits -= (8 - bit_offset);
+	}
+
+	memset(dst, 0, nbits/8);
+	dst += nbits/8;
+
+	if (nbits % 8) {
+		*dst &= (1 << (8 - nbits % 8)) - 1;
+	}
+}
+
 int
 count_ones(const uint8_t *data, size_t len)
 {

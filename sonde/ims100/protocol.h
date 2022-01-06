@@ -18,20 +18,28 @@
 
 #define IMS100_REEDSOLOMON_N 63
 #define IMS100_REEDSOLOMON_K 51
-#define IMS100_REEDSOLOMON_T (IMS100_REEDSOLOMON_N-IMS100_REEDSOLOMON_K)
+#define IMS100_REEDSOLOMON_T 4
 #define IMS100_REEDSOLOMON_POLY 0x61
 
 extern uint8_t ims100_bch_roots[];
 
 /* Even & odd frame types {{{ */
 typedef struct {
+	/* Offset 0 */
 	uint8_t seq[2];
-	uint8_t data[2 * 9];
+	uint8_t data[18];
 	uint8_t ms[2];
 	uint8_t hour;
 	uint8_t min;
 
-	uint8_t data2[2 * 12];
+	/* Offset 24 */
+	uint8_t data2[4];
+	uint8_t alt[2];
+	uint8_t pad;
+	uint8_t lon[3];
+	uint8_t lat[3];
+
+	uint8_t padding[11];
 
 	uint32_t valid;
 } __attribute__((packed)) IMS100FrameEven;
@@ -69,5 +77,21 @@ inline time_t IMS100FrameEven_time(const IMS100FrameEven *frame) {
 	     + (time_t)IMS100FrameEven_min(frame) * 60
 	     + (time_t)IMS100FrameEven_hour(frame) * 3600;
 }
+
+inline float IMS100FrameEven_lat(const IMS100FrameEven *frame) {
+	int32_t raw_lat = ((int32_t)frame->lat[0] << 24 | (int32_t)frame->lat[1] << 16 | (int32_t)frame->lat[2] << 8) >> 8;
+	return raw_lat / 1e5;
+
+}
+
+inline float IMS100FrameEven_lon(const IMS100FrameEven *frame) {
+	int32_t raw_lon = ((int32_t)frame->lon[0] << 24 | (int32_t)frame->lon[1] << 16 | (int32_t)frame->lon[2] << 8) >> 8;
+	return raw_lon / 1e5;
+}
+
+inline float IMS100FrameEven_alt(const IMS100FrameEven *frame) {
+	return ((int16_t)frame->alt[0] << 8 | frame->alt[1]);
+}
+
 
 #endif

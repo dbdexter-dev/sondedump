@@ -22,6 +22,7 @@ rs_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t first_root, int r
 	ret = rs_init_internal(d, n, k, gen_poly);
 
 	d->first_root = first_root;
+	d->t = t;
 
 	/* Compute polynomial roots */
 	for (i=0; i<t; i++) {
@@ -38,15 +39,15 @@ rs_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t first_root, int r
 }
 
 int
-bch_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t *roots)
+bch_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t *roots, int root_count)
 {
-	const int t = n - k;
 	int i;
 	int ret;
 
 	ret = rs_init_internal(d, n, k, gen_poly);
-	memcpy(d->zeroes, roots, t * sizeof(roots[0]));
+	memcpy(d->zeroes, roots, root_count * sizeof(roots[0]));
 	d->first_root = -1;
+	d->t = root_count;
 
 	/* Initialize the gap'th log table */
 	for (i=0; i<n+1; i++) {
@@ -98,8 +99,7 @@ int
 rs_fix_block(const RSDecoder *self, uint8_t *data)
 {
 	const int rs_n = self->n;
-	const int rs_k = self->k;
-	const int rs_t = rs_n - rs_k;
+	const int rs_t = self->t;
 	const int rs_t2 = rs_t / 2;
 	const uint8_t *alpha = self->alpha;
 	const uint8_t *logtable = self->logtable;
@@ -175,7 +175,7 @@ rs_fix_block(const RSDecoder *self, uint8_t *data)
 	/* Roots bruteforcing */
 	error_count = 0;
 	for (i=1; i<=rs_n && error_count < lambda_deg; i++) {
-		if (poly_eval(lambda, i, lambda_deg+1, alpha, logtable, rs_n) == 0) {
+		if (poly_eval(lambda, i, rs_t2+1, alpha, logtable, rs_n) == 0) {
 			lambda_root[error_count] = i;
 			error_pos[error_count] = logtable[gaproots[gfdiv(1, i, alpha, logtable, rs_n)]];
 			error_count++;
