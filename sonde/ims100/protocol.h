@@ -22,6 +22,17 @@
 #define IMS100_REEDSOLOMON_T 4
 #define IMS100_REEDSOLOMON_POLY 0x61
 
+#define IMS100_DATA_VALID(bits, mask) (((bits) & (mask)) == (mask))
+
+#define IMS100_EVEN_MASK_SPEED   0x000002
+#define IMS100_EVEN_MASK_HEADING 0x000004
+#define IMS100_EVEN_MASK_ALT     0x000060
+#define IMS100_EVEN_MASK_LON     0x000180
+#define IMS100_EVEN_MASK_LAT     0x000600
+#define IMS100_EVEN_MASK_DATE    0x000800
+#define IMS100_EVEN_MASK_TIME    0x003000
+#define IMS100_EVEN_MASK_SEQ     0x800000
+
 extern uint8_t ims100_bch_roots[];
 
 /* Even & odd frame types {{{ */
@@ -39,12 +50,20 @@ typedef struct {
 	uint8_t lon[4];
 	uint8_t alt[3];
 
-	uint8_t padding[12];
+	uint8_t _pad1[5];
+	uint8_t heading[2];
+	uint8_t speed[2];
+
+	uint8_t padding[2];
 
 	uint32_t valid;
 } __attribute__((packed)) IMS100FrameEven;
 
 typedef struct {
+	uint8_t seq[2];
+	uint8_t data[46];
+
+	uint32_t valid;
 } __attribute__((packed)) IMS100FrameOdd;
 /* }}} */
 
@@ -54,48 +73,5 @@ typedef struct {
 
 	uint8_t data[70];
 } __attribute__((packed)) IMS100Frame;
-
-inline uint16_t IMS100Frame_seq(const IMS100Frame *frame) {
-	return (uint16_t)frame->seq[0] << 8 | frame->seq[1];
-}
-
-inline uint16_t IMS100FrameEven_ms(const IMS100FrameEven *frame) {
-	return (uint16_t)frame->ms[0] << 8 | frame->ms[1];
-}
-
-inline uint8_t IMS100FrameEven_hour(const IMS100FrameEven *frame) {
-	return frame->hour;
-}
-
-inline uint8_t IMS100FrameEven_min(const IMS100FrameEven *frame) {
-	return frame->min;
-}
-
-inline time_t IMS100FrameEven_time(const IMS100FrameEven *frame) {
-	if ((frame->valid & 0xF000) != 0xF000) return 0;
-	return (time_t)IMS100FrameEven_ms(frame) / 1000
-	     + (time_t)IMS100FrameEven_min(frame) * 60
-	     + (time_t)IMS100FrameEven_hour(frame) * 3600;
-}
-
-inline float IMS100FrameEven_lat(const IMS100FrameEven *frame) {
-	if ((frame->valid & 0x000300) != 0x000300) return NAN;
-	int32_t raw_lat = ((int32_t)frame->lat[0] << 24 | (int32_t)frame->lat[1] << 16 | (int32_t)frame->lat[2] << 8 | (int32_t)frame->lat[3]);
-	return raw_lat / 1e6;
-
-}
-
-inline float IMS100FrameEven_lon(const IMS100FrameEven *frame) {
-	if ((frame->valid & 0x0000C0) != 0x0000C0) return NAN;
-	int32_t raw_lon = ((int32_t)frame->lon[0] << 24 | (int32_t)frame->lon[1] << 16 | (int32_t)frame->lon[2] << 8 | (int32_t)frame->lon[3]);
-	return raw_lon / 1e6;
-}
-
-inline float IMS100FrameEven_alt(const IMS100FrameEven *frame) {
-	if ((frame->valid & 0x000030) != 0x000030) return NAN;
-	int32_t raw_alt = (int32_t)frame->alt[0] << 24 | (int32_t)frame->alt[1] << 16 | (int32_t)frame->alt[2] << 8;
-	return (raw_alt >> 8) / 1e2;
-}
-
 
 #endif

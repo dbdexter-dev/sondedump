@@ -84,7 +84,6 @@ gpx_add_trackpoint(GPXFile *file, float lat, float lon, float alt, float spd, fl
 	fprintf(file->fd, "<trkpt lat=\"%f\" lon=\"%f\">\n", lat, lon);
 	fprintf(file->fd, "<time>%s</time>\n", timestr);
 	fprintf(file->fd, "<ele>%f</ele>\n", alt);
-	fprintf(file->fd, "<time>%s</time>\n", timestr);
 	fprintf(file->fd, "<speed>%f</speed>\n", spd);
 	fprintf(file->fd, "<course>%f</course>\n", hdg);
 	fprintf(file->fd, "</trkpt>\n");

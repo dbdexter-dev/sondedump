@@ -1,7 +1,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 #include "utils.h"
 
 void
@@ -119,6 +118,27 @@ char
 	}
 
 	return ret;
+}
+
+time_t
+my_timegm(struct tm *tm)
+{
+    time_t ret;
+    char *tz;
+
+    tz = getenv("TZ");
+    if (tz) tz = strdup(tz);
+    setenv("TZ", "", 1);
+    tzset();
+    ret = mktime(tm);
+    if (tz) {
+        setenv("TZ", tz, 1);
+        free(tz);
+    } else {
+        setenv("TZ", "", 1);
+	}
+    tzset();
+    return ret;
 }
 
 float

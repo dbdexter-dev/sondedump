@@ -1,8 +1,9 @@
 #ifndef utils_h
 #define utils_h
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <time.h>
 
 #ifndef VERSION
 #define VERSION "(unknown version)"
@@ -102,6 +103,14 @@ float sat_mixing_ratio(float temp, float p);
 char *my_strdup(char *str);
 
 /**
+ * timegm, but portable since it's not part of the C standard
+ *
+ * @param tm UTC time decomposed as if by gmtime
+ * @return UTC time, such that gmtime(my_timegm(tm)) = tm
+ */
+time_t my_timegm(struct tm *tm);
+
+/**
  * Write usage info to stdout
  *
  * @param progname executable name
@@ -112,6 +121,7 @@ void  usage(const char *progname);
  * Write version info to stdout
  */
 void  version();
+
 #endif
 
 
