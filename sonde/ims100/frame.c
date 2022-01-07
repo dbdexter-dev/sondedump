@@ -1,8 +1,10 @@
+#include <math.h>
 #include <string.h>
 #include <time.h>
 #include "frame.h"
 
-static uint32_t ims100_unpack_internal(uint8_t *dst, const IMS100Frame *src);
+static uint32_t ims100_unpack_internal(uint8_t *dst, const
+IMS100Frame *src);
 
 void
 ims100_frame_descramble(IMS100Frame *frame)
@@ -86,7 +88,8 @@ ims100_frame_unpack_odd(IMS100FrameOdd *dst, IMS100Frame *src)
 }
 
 static uint32_t
-ims100_unpack_internal(uint8_t *dst, const IMS100Frame *frame)
+ims100_unpack_internal(uint8_t *dst, const
+IMS100Frame *frame)
 {
 	int i, j, offset;
 	uint8_t staging[3];
@@ -125,17 +128,20 @@ ims100_unpack_internal(uint8_t *dst, const IMS100Frame *frame)
 	return validmask;
 }
 
-uint16_t IMS100Frame_seq(const IMS100Frame *frame) {
+uint16_t
+IMS100Frame_seq(const IMS100Frame *frame) {
 	return (uint16_t)frame->seq[0] << 8 | frame->seq[1];
 }
 
-uint16_t IMS100FrameEven_seq(const IMS100FrameEven *frame) {
-	if (!IMS100_DATA_VALID(frame->valid, IMS100_EVEN_MASK_SEQ)) return 0;
+int
+IMS100FrameEven_seq(const IMS100FrameEven *frame) {
+	if (!IMS100_DATA_VALID(frame->valid, IMS100_MASK_SEQ)) return -1;
 
 	return (uint16_t)frame->seq[0] << 8 | frame->seq[1];
 }
 
-time_t IMS100FrameEven_time(const IMS100FrameEven *frame) {
+time_t
+IMS100FrameEven_time(const IMS100FrameEven *frame) {
 	if (!IMS100_DATA_VALID(frame->valid, IMS100_EVEN_MASK_TIME | IMS100_EVEN_MASK_DATE)) return 0;
 
 	const uint16_t raw_date = (uint16_t)frame->date[0] << 8 | frame->date[1];
@@ -160,7 +166,8 @@ time_t IMS100FrameEven_time(const IMS100FrameEven *frame) {
 	return my_timegm(&tm);
 }
 
-float IMS100FrameEven_lat(const IMS100FrameEven *frame) {
+float
+IMS100FrameEven_lat(const IMS100FrameEven *frame) {
 	if (!IMS100_DATA_VALID(frame->valid, IMS100_EVEN_MASK_LAT)) return NAN;
 
 	int32_t raw_lat = ((int32_t)frame->lat[0] << 24
@@ -172,7 +179,8 @@ float IMS100FrameEven_lat(const IMS100FrameEven *frame) {
 
 }
 
-float IMS100FrameEven_lon(const IMS100FrameEven *frame) {
+float
+IMS100FrameEven_lon(const IMS100FrameEven *frame) {
 	if (!IMS100_DATA_VALID(frame->valid, IMS100_EVEN_MASK_LON)) return NAN;
 
 	int32_t raw_lon = ((int32_t)frame->lon[0] << 24
@@ -183,7 +191,8 @@ float IMS100FrameEven_lon(const IMS100FrameEven *frame) {
 	return raw_lon / 1e6;
 }
 
-float IMS100FrameEven_alt(const IMS100FrameEven *frame) {
+float
+IMS100FrameEven_alt(const IMS100FrameEven *frame) {
 	if (!IMS100_DATA_VALID(frame->valid, IMS100_EVEN_MASK_ALT)) return NAN;
 
 	int32_t raw_alt = (int32_t)frame->alt[0] << 24
@@ -193,7 +202,8 @@ float IMS100FrameEven_alt(const IMS100FrameEven *frame) {
 	return (raw_alt >> 8) / 1e2;
 }
 
-float IMS100FrameEven_speed(const IMS100FrameEven *frame) {
+float
+IMS100FrameEven_speed(const IMS100FrameEven *frame) {
 	if (!IMS100_DATA_VALID(frame->valid, IMS100_EVEN_MASK_SPEED)) return NAN;
 
 	uint16_t raw_speed = (uint16_t)frame->speed[0] << 8 | (uint16_t)frame->speed[1];
@@ -201,7 +211,9 @@ float IMS100FrameEven_speed(const IMS100FrameEven *frame) {
 	return raw_speed / 3.280840e2;  // Feet per second what the...? But empirically plausible
 }
 
-float IMS100FrameEven_heading(const IMS100FrameEven *frame) {
+float
+IMS100FrameEven_heading(const
+IMS100FrameEven *frame) {
 	if (!IMS100_DATA_VALID(frame->valid, IMS100_EVEN_MASK_HEADING)) return NAN;
 
 	int16_t raw_heading = (int16_t)frame->heading[0] << 8 | (int16_t)frame->heading[1];
@@ -209,9 +221,61 @@ float IMS100FrameEven_heading(const IMS100FrameEven *frame) {
 	return raw_heading / 1e2;
 }
 
+float
+IMS100FrameEven_temp(const IMS100FrameEven *frame, const IMS100Calibration *calib)
+{
+	const float adc_val = (uint16_t)frame->temp_val[0] << 8 | frame->temp_val[1];
+	const float adc_ref = (uint16_t)frame->temp_ref[0] << 8 | frame->temp_ref[1];
+	float calib_coeffs[4];
+	float calib_temps[12];
+	float calib_temp_resists[12];
+	float rt_freq, rt_resist, rt_temp, x, linear_percent;
+	int i;
 
-uint16_t IMS100FrameOdd_seq(const IMS100FrameOdd *frame) {
-	if (!IMS100_DATA_VALID(frame->valid, IMS100_EVEN_MASK_SEQ)) return 0;
+	/* Parse coefficients as BE floats */
+	for (i=0; i<4; i++) {
+		calib_coeffs[i] = ieee754_be(calib->calib_coeffs[i][1]);
+	}
+	for (i=0; i<12; i++) {
+		calib_temps[i] = ieee754_be(calib->temps[i]);
+		calib_temp_resists[i] = ieee754_be(calib->temp_resists[i]);
+	}
+
+	/* Convert ADC values to resistance frequency */
+	rt_freq = 4.0 * adc_val / adc_ref;
+	x = 1.0 / (rt_freq - 1.0);
+
+	/* Convert resistance frequency to resistance value */
+	rt_resist = calib_coeffs[3]
+	          + calib_coeffs[2] * x
+	          + calib_coeffs[1] * x * x
+	          + calib_coeffs[0] * x * x * x;
+	//rt_resist = logf(rt_resist);
+
+
+	/* Spline our way from resistance to temperature */
+	rt_temp = NAN;
+	for (i=0; i<12 - 1; i++) {
+		if (rt_resist < calib_temp_resists[i+1]) {
+			linear_percent = (rt_resist - calib_temp_resists[i]) / (calib_temp_resists[i+1] - calib_temp_resists[i]);
+			rt_temp = calib_temps[i] + (calib_temps[i+1] - calib_temps[i]) * linear_percent;
+			rt_temp = MAX(-100, MIN(100, rt_temp));
+			break;
+		}
+	}
+
+	return rt_temp;
+}
+
+float
+IMS100FrameEven_rh(const IMS100FrameEven *frame, const IMS100Calibration *calib)
+{
+	return 0;
+}
+
+int
+IMS100FrameOdd_seq(const IMS100FrameOdd *frame) {
+	if (!IMS100_DATA_VALID(frame->valid, IMS100_MASK_SEQ)) return -1;
 
 	return (uint16_t)frame->seq[0] << 8 | frame->seq[1];
 }

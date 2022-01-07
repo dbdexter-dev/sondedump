@@ -67,6 +67,11 @@ void bitclear(uint8_t *dst, int bit_offset, int nbits);
 int count_ones(const uint8_t *data, size_t len);
 
 /**
+ * Convert 4 bytes into a IEEE754 float
+ */
+float ieee754_be(const uint8_t *raw);
+
+/**
  * Calculate pressure at a given altitude
  *
  * @param alt altitude

@@ -14,6 +14,7 @@ typedef struct {
 	IMS100Frame frame[4];
 	IMS100FrameEven even;
 	IMS100FrameOdd odd;
+	IMS100Calibration calib;
 	int state;
 } IMS100Decoder;
 
