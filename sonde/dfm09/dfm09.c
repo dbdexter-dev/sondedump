@@ -1,11 +1,28 @@
+#include <include/dfm09.h>
 #include <stdio.h>
 #include <string.h>
 #include "decode/framer.h"
 #include "decode/manchester.h"
 #include "decode/correlator/correlator.h"
+#include "demod/gfsk.h"
 #include "frame.h"
-#include "dfm09.h"
+#include "protocol.h"
 #include "subframe.h"
+
+struct dfm09decoder {
+	GFSKDemod gfsk;
+	Correlator correlator;
+	DFM09Frame frame[4];
+	DFM09ParsedFrame parsed_frame;
+	DFM09Calib calib;
+	struct tm gps_time;
+	int gps_idx, ptu_type_serial;
+	SondeData gps_data, ptu_data;
+	int state;
+
+	char serial[10];
+	uint64_t raw_serial;
+};
 
 enum { READ, PARSE_PTU, PARSE_GPS };
 
@@ -13,9 +30,12 @@ enum { READ, PARSE_PTU, PARSE_GPS };
 static FILE *debug;
 #endif
 
-void
-dfm09_decoder_init(DFM09Decoder *d, int samplerate)
+DFM09Decoder*
+dfm09_decoder_init(int samplerate)
 {
+	DFM09Decoder *d = malloc(sizeof(*d));
+	if (!d) return NULL;
+
 	gfsk_init(&d->gfsk, samplerate, DFM09_BAUDRATE);
 	correlator_init(&d->correlator, DFM09_SYNCWORD, DFM09_SYNC_LEN);
 	d->gps_idx = 0;
@@ -27,6 +47,8 @@ dfm09_decoder_init(DFM09Decoder *d, int samplerate)
 #ifndef NDEBUG
 	debug = fopen("/tmp/dfm09frames.data", "wb");
 #endif
+
+	return d;
 }
 
 
@@ -34,6 +56,7 @@ void
 dfm09_decoder_deinit(DFM09Decoder *d)
 {
 	gfsk_deinit(&d->gfsk);
+	free(d);
 #ifndef NDEBUG
 	fclose(debug);
 #endif
