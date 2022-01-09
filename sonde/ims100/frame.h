@@ -4,23 +4,14 @@
 #include "decode/ecc/rs.h"
 #include "protocol.h"
 
-void ims100_frame_descramble(IMS100Frame *frame);
-int ims100_frame_error_correct(IMS100Frame *frame, RSDecoder *rs);
+void ims100_frame_descramble(IMS100ECCFrame *frame);
+int ims100_frame_error_correct(IMS100ECCFrame *frame, RSDecoder *rs);
 
-void ims100_frame_unpack_even(IMS100FrameEven *dst, IMS100Frame *src);
-void ims100_frame_unpack_odd(IMS100FrameOdd *dst, IMS100Frame *src);
+void ims100_frame_unpack(IMS100Frame *dst, const IMS100ECCFrame *src);
 
 uint16_t IMS100Frame_seq(const IMS100Frame *frame);
+float IMS100Frame_temp(const IMS100Frame *frame, const IMS100Calibration *calib);
+float IMS100Frame_rh(const IMS100Frame *frame, const IMS100Calibration *calib);
+uint16_t IMS100Frame_subtype(const IMS100Frame *frame);
 
-time_t IMS100FrameEven_time(const IMS100FrameEven *frame);
-int IMS100FrameEven_seq(const IMS100FrameEven *frame);
-float IMS100FrameEven_lat(const IMS100FrameEven *frame);
-float IMS100FrameEven_lon(const IMS100FrameEven *frame);
-float IMS100FrameEven_alt(const IMS100FrameEven *frame);
-float IMS100FrameEven_speed(const IMS100FrameEven *frame);
-float IMS100FrameEven_heading(const IMS100FrameEven *frame);
-float IMS100FrameEven_temp(const IMS100FrameEven *frame, const IMS100Calibration *calib);
-float IMS100FrameEven_rh(const IMS100FrameEven *frame, const IMS100Calibration *calib);
-
-int IMS100FrameOdd_seq(const IMS100FrameOdd *frame);
 #endif

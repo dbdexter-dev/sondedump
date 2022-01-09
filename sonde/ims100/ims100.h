@@ -11,11 +11,16 @@ typedef struct {
 	GFSKDemod gfsk;
 	Correlator correlator;
 	RSDecoder rs;
-	IMS100Frame frame[4];
-	IMS100FrameEven even;
-	IMS100FrameOdd odd;
+	IMS100ECCFrame raw_frame[4];
+	IMS100Frame frame;
 	IMS100Calibration calib;
+	uint64_t calib_bitmask;
 	int state;
+
+	struct {
+		float alt;
+		time_t time;
+	} prev_alt, cur_alt;
 } IMS100Decoder;
 
 /**

@@ -24,33 +24,32 @@
 
 #define IMS100_DATA_VALID(bits, mask) (((bits) & (mask)) == (mask))
 
-#define IMS100_EVEN_MASK_SPEED   0x000002
-#define IMS100_EVEN_MASK_HEADING 0x000004
-#define IMS100_EVEN_MASK_ALT     0x000060
-#define IMS100_EVEN_MASK_LON     0x000180
-#define IMS100_EVEN_MASK_LAT     0x000600
-#define IMS100_EVEN_MASK_DATE    0x000800
-#define IMS100_EVEN_MASK_TIME    0x003000
+#define IMS100_GPS_MASK_SPEED   0x000002
+#define IMS100_GPS_MASK_HEADING 0x000004
+#define IMS100_GPS_MASK_ALT     0x000060
+#define IMS100_GPS_MASK_LON     0x000180
+#define IMS100_GPS_MASK_LAT     0x000600
+#define IMS100_GPS_MASK_DATE    0x000800
+#define IMS100_GPS_MASK_TIME    0x003000
 
 #define IMS100_MASK_SEQ     0x800000
-#define IMS100_MASK_CALIB   0x1E0000
+#define IMS100_MASK_CALIB   0x180000
+#define IMS100_MASK_SUBTYPE 0x020000
+#define IMS100_MASK_PTU     0x00FC00
+
+#define IMS100_SUBTYPE_GPS  0x30c1
+#define IMS100_SUBTYPE_META 0x31c1
+
+#define IMS100_CALIB_PTU_MASK   0x0000FFFFFFFFFFFF
 
 #define IMS100_CALIB_FRAGSIZE 4
 #define IMS100_CALIB_FRAGCOUNT 64
 
 extern uint8_t ims100_bch_roots[];
 
-/* Even & odd frame types {{{ */
+/* Even & odd seq frame types {{{ */
 typedef struct {
-	/* Offset 0 */
-	uint8_t seq[2];
-	uint8_t _pad0[2];
-	uint8_t calib[IMS100_CALIB_FRAGSIZE];
-	uint8_t _pad1[2];
-	uint8_t temp_val[2];
-	uint8_t rh_val[2];
-	uint8_t temp_ref[2];
-	uint8_t _pad2[4];
+	uint8_t _pad0[4];
 	uint8_t ms[2];
 	uint8_t hour;
 	uint8_t min;
@@ -63,34 +62,52 @@ typedef struct {
 	uint8_t _pad3[5];
 	uint8_t heading[2];
 	uint8_t speed[2];
-
-	uint8_t padding[2];
-
-	uint32_t valid;
-} __attribute__((packed)) IMS100FrameEven;
+	uint8_t _pad4[2];
+} __attribute__((packed)) IMS100FrameGPS;
 
 typedef struct {
-	uint8_t seq[2];
-	uint8_t _pad0[2];
-	uint8_t calib[4];
-	uint8_t data[40];
+	uint8_t _pad3[10];
 
-	uint32_t valid;
-} __attribute__((packed)) IMS100FrameOdd;
+	/* Offset 26 */
+	uint8_t flags;
+	uint8_t fragment_seq;
+	uint8_t fragment_data[16];
+	uint8_t _pad4[2];
+} __attribute__((packed)) IMS100FrameMeta;
 /* }}} */
 
+typedef struct {
+	/* Offset 0 */
+	uint8_t seq[2];
+	uint8_t adc_ref[2];
+	uint8_t calib[IMS100_CALIB_FRAGSIZE];
+	uint8_t _pad1[2];
+	uint8_t adc_temp[2];
+	uint8_t adc_rh[2];
+	uint8_t subtype[2];
+
+	/* Offset 16 */
+	union {
+		IMS100FrameGPS gps;
+		IMS100FrameMeta meta;
+	} data;
+
+	uint32_t valid;
+} __attribute__((packed)) IMS100Frame;
+
+/* Frame as received, including all the ECC blocks and parity bits */
 typedef struct {
 	uint8_t syncword[3];
 	uint8_t seq[2];
 
 	uint8_t data[70];
-} __attribute__((packed)) IMS100Frame;
+} __attribute__((packed)) IMS100ECCFrame;
 
 typedef struct {
 	uint8_t _unk0[70];
 	uint8_t temps[12][4];         /* Calibration temperatures, +60..-85'C. IEEE754, big endian */
 	uint8_t _unk2[16];
-	uint8_t temp_resists[12][4];  /* Natural log of thermistor kOhm @ temp. IEEE754, big endian */
+	uint8_t temp_resists[12][4];  /* Thermistor kOhm @ temp. IEEE754, big endian */
 	uint8_t _unk3[16];
 	uint8_t calib_coeffs[4][2][4];
 	uint8_t coeffs[4][4];
