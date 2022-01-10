@@ -6,8 +6,6 @@
 #include "subframe.h"
 #include "utils.h"
 
-static float wv_sat_pressure(float temp);
-
 float
 rs41_subframe_temp(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 {
@@ -223,31 +221,5 @@ float
 rs41_subframe_dz(RS41Subframe_GPSPos *gps)
 {
 	return gps->dz / 100.0;
-}
-
-static float
-wv_sat_pressure(float temp)
-{
-	const float coeffs[] = {-0.493158, 1 + 4.6094296e-3, -1.3746454e-5, 1.2743214e-8};
-	float T, p;
-	int i;
-
-	temp += 273.15f;
-
-	T = 0;
-	for (i=LEN(coeffs)-1; i>=0; i--) {
-		T *= temp;
-		T += coeffs[i];
-	}
-
-	p = expf(-5800.2206f / T
-		  + 1.3914993f
-		  + 6.5459673f * logf(T)
-		  - 4.8640239e-2f * T
-		  + 4.1764768e-5f * T * T
-		  - 1.4452093e-8f * T * T * T);
-
-	return p / 100.0f;
-
 }
 

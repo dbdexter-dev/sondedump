@@ -42,7 +42,7 @@ set(LIBRARY_SOURCES
 	decode/ecc/crc.c decode/ecc/crc.h
 	decode/ecc/rs.c decode/ecc/rs.h
 
-	sonde/rs41/rs41.c
+	sonde/rs41/rs41.c 
 	sonde/rs41/frame.c sonde/rs41/frame.h
 	sonde/rs41/subframe.c sonde/rs41/subframe.h
 	sonde/rs41/protocol.h
@@ -51,6 +51,11 @@ set(LIBRARY_SOURCES
 	sonde/dfm09/frame.c sonde/dfm09/frame.h
 	sonde/dfm09/subframe.c sonde/dfm09/subframe.h
 	sonde/dfm09/protocol.h
+
+	sonde/ims100/ims100.c
+	sonde/ims100/frame.c sonde/ims100/frame.h
+	sonde/ims100/subframe.c sonde/ims100/subframe.h
+	sonde/ims100/protocol.c sonde/ims100/protocol.h
 
 	sonde/m10/m10.c
 	sonde/m10/frame.c sonde/m10/frame.h

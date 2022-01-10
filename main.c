@@ -5,6 +5,7 @@
 #include <string.h>
 #include <time.h>
 #include <include/dfm09.h>
+#include <include/ims100.h>
 #include <include/m10.h>
 #include <include/rs41.h>
 #include "gps/ecef.h"
@@ -35,7 +36,7 @@ static void decoder_changer(int delta);
 static FILE *_wav;
 static int _bps;
 static int _interrupted;
-static enum { RS41=0, DFM, M10, END } _active_decoder;
+static enum { RS41=0, DFM, M10, IMS100, END } _active_decoder;
 static int _decoder_changed;
 static struct option longopts[] = {
 	{ "audio-device", 1, NULL, 'a'},
@@ -69,6 +70,7 @@ main(int argc, char *argv[])
 	RS41Decoder *rs41decoder;
 	DFM09Decoder *dfm09decoder;
 	M10Decoder *m10decoder;
+	IMS100Decoder *ims100decoder;
 
 	memset(&printable, 0, sizeof(PrintableData));
 
@@ -120,6 +122,8 @@ main(int argc, char *argv[])
 					_active_decoder = DFM;
 				} else if (!strcmp(optarg, "m10")) {
 					_active_decoder = M10;
+				} else if (!strcmp(optarg, "ims100")) {
+					_active_decoder = IMS100;
 				} else {
 					fprintf(stderr, "Unsupported type: %s\n", optarg);
 					usage(argv[0]);
@@ -207,6 +211,7 @@ main(int argc, char *argv[])
 	rs41decoder = rs41_decoder_init(samplerate);
 	dfm09decoder = dfm09_decoder_init(samplerate);
 	m10decoder = m10_decoder_init(samplerate);
+	ims100decoder = ims100_decoder_init(samplerate);
 
 	/* Catch SIGINT to exit the loop */
 	_interrupted = 0;
@@ -232,6 +237,9 @@ main(int argc, char *argv[])
 				break;
 			case M10:
 				data = m10_decode(m10decoder, read_wrapper);
+				break;
+			case IMS100:
+				data = ims100_decode(ims100decoder, read_wrapper);
 				break;
 			default:
 				/* Silence, GCC! */
@@ -299,6 +307,7 @@ main(int argc, char *argv[])
 	rs41_decoder_deinit(rs41decoder);
 	dfm09_decoder_deinit(dfm09decoder);
 	m10_decoder_deinit(m10decoder);
+	ims100_decoder_deinit(ims100decoder);
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO
 	if (input_from_audio) {

@@ -1,8 +1,13 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 #include "utils.h"
+
+static float spline_tangent(const float *xs, const float *ys, int k);
+static float hermite_00(float x);
+static float hermite_01(float x);
+static float hermite_10(float x);
+static float hermite_11(float x);
 
 void
 bitcpy(uint8_t *dst, const uint8_t *src, size_t offset, size_t bits)
@@ -27,7 +32,7 @@ bitcpy(uint8_t *dst, const uint8_t *src, size_t offset, size_t bits)
 }
 
 uint64_t
-bitmerge(uint8_t *data, int nbits)
+bitmerge(const uint8_t *data, int nbits)
 {
 	uint64_t ret = 0;
 
@@ -36,6 +41,90 @@ bitmerge(uint8_t *data, int nbits)
 	}
 
 	return (ret << nbits) | (*data >> (7 - nbits));
+}
+
+void
+bitpack(uint8_t *dst, const uint8_t *src, int bit_offset, int nbits)
+{
+	uint8_t tmp;
+
+	dst += bit_offset/8;
+	bit_offset %= 8;
+
+	tmp = *dst >> (8 - bit_offset);
+	for (; nbits > 0; nbits--) {
+		tmp = (tmp << 1) | *src++;
+		bit_offset++;
+
+		if (!(bit_offset % 8)) {
+			*dst++ = tmp;
+			tmp = 0;
+		}
+	}
+
+	if (bit_offset % 8) {
+		*dst &= (1 << (8 - bit_offset%8)) - 1;
+		*dst |= tmp << (8 - bit_offset%8);
+	}
+}
+
+void
+bitclear(uint8_t *dst, int bit_offset, int nbits)
+{
+	dst += bit_offset/8;
+	bit_offset %= 8;
+
+	/* Special case where start and end might be in the same byte */
+	if (bit_offset + nbits < 8) {
+		*dst &= ~((1 << (8 - bit_offset)) - 1)
+		        | ((1 << (8 - bit_offset - nbits)) - 1);
+		return;
+	}
+
+	if (bit_offset) {
+		*dst &= ~((1 << (8 - bit_offset)) - 1);
+		dst++;
+		nbits -= (8 - bit_offset);
+	}
+
+	memset(dst, 0, nbits/8);
+	dst += nbits/8;
+
+	if (nbits % 8) {
+		*dst &= (1 << (8 - nbits % 8)) - 1;
+	}
+}
+
+int
+count_ones(const uint8_t *data, size_t len)
+{
+	uint8_t tmp;
+	int count = 0;
+
+	for (; len>0; len--) {
+		tmp = *data++;
+		for (; tmp; count++) {
+			tmp &= tmp-1;
+		}
+	}
+
+	return count;
+}
+
+float
+ieee754_be(const uint8_t *raw)
+{
+	union {
+		uint32_t raw;
+		float value;
+	} data;
+
+	data.raw = (uint32_t)raw[0] << 24
+	         | (uint32_t)raw[1] << 16
+	         | (uint32_t)raw[2] << 8
+	         | raw[3];
+
+	return data.value;
 }
 
 char
@@ -51,6 +140,27 @@ char
 	}
 
 	return ret;
+}
+
+time_t
+my_timegm(struct tm *tm)
+{
+    time_t ret;
+    char *tz;
+
+    tz = getenv("TZ");
+    if (tz) tz = strdup(tz);
+    setenv("TZ", "", 1);
+    tzset();
+    ret = mktime(tm);
+    if (tz) {
+        setenv("TZ", tz, 1);
+        free(tz);
+    } else {
+        setenv("TZ", "", 1);
+	}
+    tzset();
+    return ret;
 }
 
 float
@@ -117,6 +227,58 @@ sat_mixing_ratio(float temp, float p)
 	}
 }
 
+float
+wv_sat_pressure(float temp)
+{
+	const float coeffs[] = {-0.493158, 1 + 4.6094296e-3, -1.3746454e-5, 1.2743214e-8};
+	float T, p;
+	int i;
+
+	temp += 273.15f;
+
+	T = 0;
+	for (i=LEN(coeffs)-1; i>=0; i--) {
+		T *= temp;
+		T += coeffs[i];
+	}
+
+	p = expf(-5800.2206f / T
+		  + 1.3914993f
+		  + 6.5459673f * logf(T)
+		  - 4.8640239e-2f * T
+		  + 4.1764768e-5f * T * T
+		  - 1.4452093e-8f * T * T * T);
+
+	return p / 100.0f;
+
+}
+
+float
+cspline(const float *xs, const float *ys, float count, float x)
+{
+	int i;
+	float m_i, m_next_i, t, y;
+
+	for (i=1; i<count-1; i++) {
+		if (x < xs[i+1]) {
+			/* Compute tangents at xs[i] and xs[i+1] */
+			m_i = spline_tangent(xs, ys, i) / (xs[i+1] - xs[i]);
+			m_next_i = spline_tangent(xs, ys, i+1) / (xs[i+1] - xs[i]);
+
+			/* Compute spline transform between xs[i] and xs[i+1] */
+			t = (x - xs[i]) / (xs[i+1] - xs[i]);
+
+			y = hermite_00(t) * ys[i]
+			  + hermite_10(t) * (xs[i+1] - x) * m_i
+			  + hermite_01(t) * ys[i+1]
+			  + hermite_11(t) * (xs[i+1] - x) * m_next_i;
+
+			return y;
+		}
+	}
+	return -1;
+}
+
 void
 usage(const char *pname)
 {
@@ -131,7 +293,7 @@ usage(const char *pname)
 			"   -k, --kml <file>        Output KML track to <file>\n"
 			"   -l, --live-kml <file>   Output live KML track to <file>\n"
 			"   -t, --type <type>       Enable decoder for the given sonde type\n"
-			"                           Supported values: rs41, dfm, m10\n"
+			"                           Supported values: rs41, dfm, m10, ims100\n"
 
 	        "\n"
 	        "   -h, --help              Print this help screen\n"
@@ -169,3 +331,14 @@ version()
 #endif
 			"\n");
 }
+
+static float
+spline_tangent(const float *xs, const float *ys, int k)
+{
+	return 0.5 * ((ys[k+1] - ys[k]) / (xs[k+1] - xs[k])
+	            + (ys[k] - ys[k-1]) / (xs[k] - xs[k-1]));
+}
+static float hermite_00(float x) { return (1 + 2*x) * (1-x)*(1-x); }
+static float hermite_10(float x) { return x * (1-x) * (1-x); }
+static float hermite_01(float x) { return x * x * (3 - 2*x); }
+static float hermite_11(float x) { return x * x * (x - 1); }
