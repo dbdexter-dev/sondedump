@@ -2,6 +2,12 @@
 #include <string.h>
 #include <time.h>
 #include "frame.h"
+#include "utils.h"
+
+static float freq_to_temp(float temp_freq, float ref_freq, const float poly_coeffs[4], const float spline_resists[12], const float spline_temps[12]);
+static float freq_to_temp_rh(float temp_rh_freq, float ref_freq, const float poly_coeffs[4], const float r_to_t_coeffs[3]);
+static float freq_to_rh(float rh_freq, float ref_freq, float rh_temp, float air_temp, const float poly_coeffs[4]);
+
 
 void
 ims100_frame_descramble(IMS100ECCFrame *frame)
@@ -136,71 +142,92 @@ IMS100Frame_temp(const IMS100Frame *frame, const IMS100Calibration *calib)
 	float calib_coeffs[4];
 	float calib_temps[12];
 	float calib_temp_resists[12];
-	float rt_freq, rt_resist, rt_temp, x, linear_percent;
 	int i;
 
 	/* Parse coefficients as BE floats */
 	for (i=0; i<4; i++) {
-		calib_coeffs[i] = ieee754_be(calib->calib_coeffs[i][1]);
+		calib_coeffs[i] = ieee754_be(calib->calib_coeffs[4 + i]);
 	}
 	for (i=0; i<12; i++) {
 		calib_temps[i] = ieee754_be(calib->temps[i]);
 		calib_temp_resists[i] = ieee754_be(calib->temp_resists[i]);
 	}
 
-	/* Convert ADC values to resistance frequency */
-	rt_freq = 4.0 * adc_val / adc_ref;
-	x = 1.0 / (rt_freq - 1.0);
-
-	/* Convert resistance frequency to resistance value */
-	rt_resist = calib_coeffs[3]
-	          + calib_coeffs[2] * x
-	          + calib_coeffs[1] * x * x
-	          + calib_coeffs[0] * x * x * x;
-	//rt_resist = logf(rt_resist);
-
-
-	/* Spline our way from resistance to temperature. TODO use an actual spline */
-	rt_temp = NAN;
-	for (i=0; i<12 - 1; i++) {
-		if (rt_resist < calib_temp_resists[i+1]) {
-			linear_percent = (rt_resist - calib_temp_resists[i]) / (calib_temp_resists[i+1] - calib_temp_resists[i]);
-			rt_temp = calib_temps[i] + (calib_temps[i+1] - calib_temps[i]) * linear_percent;
-			rt_temp = MAX(-100, MIN(100, rt_temp));
-			break;
-		}
-	}
-
-	return rt_temp;
+	return freq_to_temp(adc_val, adc_ref, calib_coeffs, calib_temp_resists, calib_temps);
 }
 
 float
 IMS100Frame_rh(const IMS100Frame *frame, const IMS100Calibration *calib)
 {
-#if 0
 	const float adc_val = (uint16_t)frame->adc_rh[0] << 8 | frame->adc_rh[1];
 	const float adc_ref = (uint16_t)frame->adc_ref[0] << 8 | frame->adc_ref[1];
+	const float air_temp = IMS100Frame_temp(frame, calib);
 	float calib_coeffs[4];
-	float rh_freq, rh_humidity;
 	int i;
 
-	if (!IMS100_DATA_VALID(frame->valid, IMS100_EVEN_MASK_PTU)) return NAN;
-
+	/* Parse coefficients as BE floats */
 	for (i=0; i<4; i++) {
-		calib_coeffs[i] = ieee754_be(calib->coeffs[i]);
+		calib_coeffs[i] = ieee754_be(calib->calib_coeffs[i]);
 	}
 
-	rh_freq = 4.0 * adc_val / adc_ref;
-
-	rh_humidity = calib_coeffs[3]
-	            + calib_coeffs[2] * rh_freq
-	            + calib_coeffs[1] * rh_freq * rh_freq
-	            + calib_coeffs[0] * rh_freq * rh_freq * rh_freq;
-
-
-	return MAX(0, MIN(100, rh_humidity * 100.0));
-#else
-	return 0;
-#endif
+	return freq_to_rh(adc_val, adc_ref, 0, air_temp, calib_coeffs);
 }
 
+/* Static functions {{{ */
+static float
+freq_to_temp(float temp_freq, float ref_freq, const float poly_coeffs[4], const float spline_resists[12], const float spline_temps[12])
+{
+	float f_corrected, r_value, x, t_value;
+
+	f_corrected = 4.0 * temp_freq / ref_freq;
+	x = 1.0 / (f_corrected - 1.0);
+
+	r_value = poly_coeffs[0]
+	        + poly_coeffs[1] * x
+	        + poly_coeffs[2] * x * x
+	        + poly_coeffs[3] * x * x * x;
+
+	t_value = cspline(spline_resists, spline_temps, 12, r_value);
+	return MAX(-100, MIN(100, t_value));
+}
+
+static float
+freq_to_temp_rh(float temp_rh_freq, float ref_freq, const float poly_coeffs[4], const float r_to_t_coeffs[3])
+{
+	float f_corrected, r_value, x, t_rh_value;
+
+	f_corrected = 4.0 * temp_rh_freq / ref_freq;
+	x = 1.0 / (f_corrected - 1.0);
+
+	r_value = poly_coeffs[0]
+	        + poly_coeffs[1] * x
+	        + poly_coeffs[2] * x * x
+	        + poly_coeffs[3] * x * x * x;
+
+	x = logf(r_value);
+	t_rh_value = 1.0 / (r_to_t_coeffs[0] * x * x * x
+	                  + r_to_t_coeffs[1] * x
+	                  + r_to_t_coeffs[2])
+	           - 273.15;
+
+	return t_rh_value;
+}
+
+static float
+freq_to_rh(float rh_freq, float ref_freq, float rh_temp, float air_temp, const float poly_coeffs[4])
+{
+	float f_corrected, x, rh_uncal, rh_cal;
+
+	f_corrected = 4.0 * rh_freq / ref_freq;
+
+	x = f_corrected;
+	rh_uncal = poly_coeffs[0]
+	         + poly_coeffs[1] * x
+	         + poly_coeffs[2] * x * x
+	         + poly_coeffs[3] * x * x * x;
+
+	/* TODO temp correction, where the heck are the coefficients? */
+	return rh_uncal;
+	return rh_cal * wv_sat_pressure(rh_temp) / wv_sat_pressure(air_temp);
+}
+/* }}} */

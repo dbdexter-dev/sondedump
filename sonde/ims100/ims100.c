@@ -11,7 +11,9 @@
 #ifndef NDEBUG
 #include <stdio.h>
 static FILE *debug, *debug_odd;
+static float _debugarray[16];
 #endif
+
 
 enum { READ, PARSE_INFO, PARSE_PTU,
 	PARSE_GPS_TIME, PARSE_GPS_POS,
@@ -89,6 +91,37 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			data.data.info.seq = IMS100Frame_seq(&self->frame);
 			data.data.info.sonde_serial = "iMS100Placehold";
 			self->state = PARSE_PTU;
+
+#ifndef NDEBUG
+			switch (data.data.info.seq & 0x3) {
+				case 0x00:
+					_debugarray[0] = self->frame.adc_ref[0] << 8 | self->frame.adc_ref[1];
+					_debugarray[1] = self->frame.adc_temp[0] << 8 | self->frame.adc_temp[1];
+					_debugarray[2] = self->frame.adc_rh[0] << 8 | self->frame.adc_rh[1];
+					break;
+				case 0x01:
+					_debugarray[6] = self->frame.data.gps._pad0[0] << 8 | self->frame.data.gps._pad0[1];
+					break;
+				case 0x02:
+					_debugarray[3] = self->frame.adc_ref[0] << 8 | self->frame.adc_ref[1];
+					break;
+				case 0x03:
+					_debugarray[4] = self->frame.adc_ref[0] << 8 | self->frame.adc_ref[1];
+					_debugarray[5] = self->frame.adc_rh[0] << 8 | self->frame.adc_rh[1];
+
+					/*
+					printf("%f ", _debugarray[LEN(_debugarray)-1]);
+					for (int k=0; k<7; k++) {
+						printf("%f ", _debugarray[k]);
+					}
+					printf("\n");
+					*/
+					break;
+
+			}
+#endif
+
+
 			break;
 
 		case PARSE_PTU:
@@ -97,10 +130,14 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			/* Invalidate data if subframe is marked corrupted */
 			validmask = IMS100_MASK_PTU;
 			if (!IMS100_DATA_VALID(self->frame.valid, validmask)) data.type = EMPTY;
+			if (!IMS100_DATA_VALID(self->calib_bitmask, IMS100_CALIB_PTU_MASK)) data.type = EMPTY;
+			if (IMS100Frame_seq(&self->frame) % 4 != 0) data.type = EMPTY;
 
-			/* Parse PTU data */
-			data.data.ptu.temp = IMS100Frame_temp(&self->frame, &self->calib);
-			data.data.ptu.rh = IMS100Frame_rh(&self->frame, &self->calib);
+			if (data.type != EMPTY) {
+				/* Parse PTU data */
+				data.data.ptu.temp = IMS100Frame_temp(&self->frame, &self->calib);
+				data.data.ptu.rh = IMS100Frame_rh(&self->frame, &self->calib);
+			}
 
 			switch (IMS100Frame_subtype(&self->frame)) {
 				case IMS100_SUBTYPE_GPS:
@@ -142,6 +179,10 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			data.data.pos.speed = IMS100FrameGPS_speed(&self->frame.data.gps);
 			data.data.pos.heading = IMS100FrameGPS_heading(&self->frame.data.gps);
 			self->cur_alt.alt = data.data.pos.alt;
+
+#ifndef NDEBUG
+			_debugarray[LEN(_debugarray)-1] = data.data.pos.alt;
+#endif
 
 			/* Derive climb rate from altitude */
 			if (self->cur_alt.time > self->prev_alt.time) {

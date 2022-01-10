@@ -68,3 +68,4 @@ IMS100FrameGPS_heading(const IMS100FrameGPS *frame) {
 	return raw_heading / 1e2;
 }
 
+

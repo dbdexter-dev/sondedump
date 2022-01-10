@@ -72,6 +72,23 @@ int count_ones(const uint8_t *data, size_t len);
 float ieee754_be(const uint8_t *raw);
 
 /**
+ * strdup, but portable since it's not part of the C standard and has a
+ * different name based on the platform
+ *
+ * @param str string to duplicate
+ * @return duplicated string, allocated on the heap with malloc(0
+ */
+char *my_strdup(char *str);
+
+/**
+ * timegm, but portable since it's not part of the C standard
+ *
+ * @param tm UTC time decomposed as if by gmtime
+ * @return UTC time, such that gmtime(my_timegm(tm)) = tm
+ */
+time_t my_timegm(struct tm *tm);
+
+/**
  * Calculate pressure at a given altitude
  *
  * @param alt altitude
@@ -99,21 +116,23 @@ float dewpt(float temp, float rh);
 float sat_mixing_ratio(float temp, float p);
 
 /**
- * strdup, but portable since it's not part of the C standard and has a
- * different name based on the platform
+ * Calculate the water vapour saturation pressure at a temeprature (Hyland/Wexler)
  *
- * @param str string to duplicate
- * @return duplicated string, allocated on the heap with malloc(0
+ * @param temp temperature ('C)
+ * @return saturation pressure (Pa)
  */
-char *my_strdup(char *str);
-
+float wv_sat_pressure(float temp);
 /**
- * timegm, but portable since it's not part of the C standard
+ * Given a set of ordered coordinate pairs and a point, compute the value
+ * of the cubic Hermite spline joining the given pairs at that point
  *
- * @param tm UTC time decomposed as if by gmtime
- * @return UTC time, such that gmtime(my_timegm(tm)) = tm
+ * @param xs x coordinates of the known points
+ * @param ys y coordinates of the known points
+ * @param count number of coordinates supplied
+ * @param x input to the cubic spline
+ * @return output of the spline
  */
-time_t my_timegm(struct tm *tm);
+float cspline(const float *xs, const float *ys, float count, float x);
 
 /**
  * Write usage info to stdout

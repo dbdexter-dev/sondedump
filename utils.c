@@ -3,6 +3,12 @@
 #include <string.h>
 #include "utils.h"
 
+static float spline_tangent(const float *xs, const float *ys, int k);
+static float hermite_00(float x);
+static float hermite_01(float x);
+static float hermite_10(float x);
+static float hermite_11(float x);
+
 void
 bitcpy(uint8_t *dst, const uint8_t *src, size_t offset, size_t bits)
 {
@@ -221,6 +227,58 @@ sat_mixing_ratio(float temp, float p)
 	}
 }
 
+float
+wv_sat_pressure(float temp)
+{
+	const float coeffs[] = {-0.493158, 1 + 4.6094296e-3, -1.3746454e-5, 1.2743214e-8};
+	float T, p;
+	int i;
+
+	temp += 273.15f;
+
+	T = 0;
+	for (i=LEN(coeffs)-1; i>=0; i--) {
+		T *= temp;
+		T += coeffs[i];
+	}
+
+	p = expf(-5800.2206f / T
+		  + 1.3914993f
+		  + 6.5459673f * logf(T)
+		  - 4.8640239e-2f * T
+		  + 4.1764768e-5f * T * T
+		  - 1.4452093e-8f * T * T * T);
+
+	return p / 100.0f;
+
+}
+
+float
+cspline(const float *xs, const float *ys, float count, float x)
+{
+	int i;
+	float m_i, m_next_i, t, y;
+
+	for (i=1; i<count-1; i++) {
+		if (x < xs[i+1]) {
+			/* Compute tangents at xs[i] and xs[i+1] */
+			m_i = spline_tangent(xs, ys, i) / (xs[i+1] - xs[i]);
+			m_next_i = spline_tangent(xs, ys, i+1) / (xs[i+1] - xs[i]);
+
+			/* Compute spline transform between xs[i] and xs[i+1] */
+			t = (x - xs[i]) / (xs[i+1] - xs[i]);
+
+			y = hermite_00(t) * ys[i]
+			  + hermite_10(t) * (xs[i+1] - x) * m_i
+			  + hermite_01(t) * ys[i+1]
+			  + hermite_11(t) * (xs[i+1] - x) * m_next_i;
+
+			return y;
+		}
+	}
+	return -1;
+}
+
 void
 usage(const char *pname)
 {
@@ -273,3 +331,14 @@ version()
 #endif
 			"\n");
 }
+
+static float
+spline_tangent(const float *xs, const float *ys, int k)
+{
+	return 0.5 * ((ys[k+1] - ys[k]) / (xs[k+1] - xs[k])
+	            + (ys[k] - ys[k-1]) / (xs[k] - xs[k-1]));
+}
+static float hermite_00(float x) { return (1 + 2*x) * (1-x)*(1-x); }
+static float hermite_10(float x) { return x * (1-x) * (1-x); }
+static float hermite_01(float x) { return x * x * (3 - 2*x); }
+static float hermite_11(float x) { return x * x * (x - 1); }
