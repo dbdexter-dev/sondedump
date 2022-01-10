@@ -13,10 +13,15 @@ Features:
 - Live KML output (realtime position in Google Earth)
 - Read FM-demodulated data directly from audio (requires `portaudio`)
 
-Supported models:
-- Vaisala RS41-SG(P)
-- Graw DFM-06/09
-- MeteoModem M10
+Compatibility matrix:
+
+| Manufacturer | Model   | GPS                | Temperature          | Humidity             |
+|--------------|---------|--------------------|----------------------|----------------------|
+| Vaisala      | RS41-SG | :white_check_mark: | :white_check_mark:   | :white_check_mark:   |
+| Meteomodem   | M10     | :white_check_mark: |                      |                      |
+| GRAW         | DFM06/09| :white_check_mark: |                      |                      |
+| Meisei       | iMS-100 | :white_check_mark: | :white_check_mark:   | :white_check_mark:   |
+
 
 Build/install instructions
 --------------------------
@@ -44,6 +49,8 @@ compilation, samples will be read from an audio device instead.
    -g, --gpx <file>        Output GPX track to <file>
    -k, --kml <file>        Output KML track to <file>
    -l, --live-kml <file>   Output live KML track to <file>
+   -t, --type <type>       Enable decoder for the given sonde type
+                           Supported values: rs41, dfm, m10, ims100
 
    -h, --help              Print this help screen
    -v, --version           Print version info

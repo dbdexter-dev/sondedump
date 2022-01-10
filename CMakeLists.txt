@@ -4,7 +4,7 @@ option(ENABLE_TUI "Enable Ncurses TUI (requires ncurses)" ON)
 option(ENABLE_AUDIO "Enable audio input (requires portaudio)" ON)
 
 project(sondedump
-	VERSION 0.4
+	VERSION 0.5
 	DESCRIPTION "Radiosonde decoder"
 	LANGUAGES C)
 add_definitions(-DVERSION="${CMAKE_PROJECT_VERSION}")
