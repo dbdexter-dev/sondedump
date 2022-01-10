@@ -6,6 +6,7 @@
 #include "decode/ecc/rs.h"
 #include "demod/gfsk.h"
 #include "protocol.h"
+#include "frame.h"
 
 typedef struct {
 	GFSKDemod gfsk;
@@ -21,6 +22,7 @@ typedef struct {
 		float alt;
 		time_t time;
 	} prev_alt, cur_alt;
+	IMS100FrameADC adc;
 } IMS100Decoder;
 
 /**

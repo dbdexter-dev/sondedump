@@ -78,7 +78,7 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 		case PARSE_INFO:
 			/* Copy calibration data */
 			if (IMS100_DATA_VALID(self->frame.valid, IMS100_MASK_SEQ | IMS100_MASK_CALIB)) {
-				seq = IMS100Frame_seq(&self->frame);
+				seq = ims100_frame_seq(&self->frame);
 				update_calibration(self, seq, self->frame.calib);
 			}
 
@@ -88,37 +88,13 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			validmask = IMS100_MASK_SEQ;
 			if (!IMS100_DATA_VALID(self->frame.valid, validmask)) data.type = EMPTY;
 
-			data.data.info.seq = IMS100Frame_seq(&self->frame);
+			data.data.info.seq = ims100_frame_seq(&self->frame);
 			data.data.info.sonde_serial = "iMS100Placehold";
 			self->state = PARSE_PTU;
 
 #ifndef NDEBUG
-			switch (data.data.info.seq & 0x3) {
-				case 0x00:
-					_debugarray[0] = self->frame.adc_ref[0] << 8 | self->frame.adc_ref[1];
-					_debugarray[1] = self->frame.adc_temp[0] << 8 | self->frame.adc_temp[1];
-					_debugarray[2] = self->frame.adc_rh[0] << 8 | self->frame.adc_rh[1];
-					break;
-				case 0x01:
-					_debugarray[6] = self->frame.data.gps._pad0[0] << 8 | self->frame.data.gps._pad0[1];
-					break;
-				case 0x02:
-					_debugarray[3] = self->frame.adc_ref[0] << 8 | self->frame.adc_ref[1];
-					break;
-				case 0x03:
-					_debugarray[4] = self->frame.adc_ref[0] << 8 | self->frame.adc_ref[1];
-					_debugarray[5] = self->frame.adc_rh[0] << 8 | self->frame.adc_rh[1];
-
-					/*
-					printf("%f ", _debugarray[LEN(_debugarray)-1]);
-					for (int k=0; k<7; k++) {
-						printf("%f ", _debugarray[k]);
-					}
-					printf("\n");
-					*/
-					break;
-
-			}
+			fwrite(&self->calib, sizeof(self->calib), 1, debug);
+			fflush(debug);
 #endif
 
 
@@ -131,15 +107,34 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			validmask = IMS100_MASK_PTU;
 			if (!IMS100_DATA_VALID(self->frame.valid, validmask)) data.type = EMPTY;
 			if (!IMS100_DATA_VALID(self->calib_bitmask, IMS100_CALIB_PTU_MASK)) data.type = EMPTY;
-			if (IMS100Frame_seq(&self->frame) % 4 != 0) data.type = EMPTY;
 
 			if (data.type != EMPTY) {
+				/* Fetch the ADC data carried by this frame based on its seq nr */
+				switch (ims100_frame_seq(&self->frame) & 0x3) {
+					case 0x00:
+						self->adc.ref = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
+						self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
+						self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
+						break;
+					case 0x01:
+					case 0x02:
+						self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
+						self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
+						break;
+					case 0x03:
+						self->adc.rh_temp = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
+						self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
+						self->adc.ref = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
+						break;
+
+				}
+
 				/* Parse PTU data */
-				data.data.ptu.temp = IMS100Frame_temp(&self->frame, &self->calib);
-				data.data.ptu.rh = IMS100Frame_rh(&self->frame, &self->calib);
+				data.data.ptu.temp = ims100_frame_temp(&self->adc, &self->calib);
+				data.data.ptu.rh = ims100_frame_rh(&self->adc, &self->calib);
 			}
 
-			switch (IMS100Frame_subtype(&self->frame)) {
+			switch (ims100_frame_subtype(&self->frame)) {
 				case IMS100_SUBTYPE_GPS:
 					self->state = PARSE_GPS_TIME;
 					break;
@@ -160,8 +155,10 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			validmask = IMS100_GPS_MASK_TIME | IMS100_GPS_MASK_DATE;
 			if (!IMS100_DATA_VALID(self->frame.valid, validmask)) data.type = EMPTY;
 
-			data.data.datetime.datetime = IMS100FrameGPS_time(&self->frame.data.gps);
-			self->cur_alt.time = data.data.datetime.datetime;
+			if (data.type != EMPTY) {
+				data.data.datetime.datetime = ims100_subframe_time(&self->frame.data.gps);
+				self->cur_alt.time = data.data.datetime.datetime;
+			}
 
 			self->state = PARSE_GPS_POS;
 			break;
@@ -173,11 +170,11 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			          | IMS100_GPS_MASK_SPEED | IMS100_GPS_MASK_HEADING;
 			if (!IMS100_DATA_VALID(self->frame.valid, validmask)) data.type = EMPTY;
 
-			data.data.pos.lat = IMS100FrameGPS_lat(&self->frame.data.gps);
-			data.data.pos.lon = IMS100FrameGPS_lon(&self->frame.data.gps);
-			data.data.pos.alt = IMS100FrameGPS_alt(&self->frame.data.gps);
-			data.data.pos.speed = IMS100FrameGPS_speed(&self->frame.data.gps);
-			data.data.pos.heading = IMS100FrameGPS_heading(&self->frame.data.gps);
+			data.data.pos.lat = ims100_subframe_lat(&self->frame.data.gps);
+			data.data.pos.lon = ims100_subframe_lon(&self->frame.data.gps);
+			data.data.pos.alt = ims100_subframe_alt(&self->frame.data.gps);
+			data.data.pos.speed = ims100_subframe_speed(&self->frame.data.gps);
+			data.data.pos.heading = ims100_subframe_heading(&self->frame.data.gps);
 			self->cur_alt.alt = data.data.pos.alt;
 
 #ifndef NDEBUG

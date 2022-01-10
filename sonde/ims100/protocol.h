@@ -79,15 +79,15 @@ typedef struct {
 typedef struct {
 	/* Offset 0 */
 	uint8_t seq[2];
-	uint8_t adc_ref[2];     /* Actual content depends on seq, has period = 4 frames */
-	                        /* Seq = 0b..00: ADC reference */
-	                        /* Seq = 0b..01: Always zero */
-	                        /* Seq = 0b..10: TBD */
-	                        /* Seq = 0b..11: RH temperature sensor ADC value */
+	uint8_t adc_val0[2];     /* Actual content depends on seq, has period = 4 frames */
+	                         /* Seq = 0b..00: ADC reference */
+	                         /* Seq = 0b..01: Always zero */
+	                         /* Seq = 0b..10: TBD */
+	                         /* Seq = 0b..11: RH temperature sensor ADC value */
 	uint8_t calib[IMS100_CALIB_FRAGSIZE];
 	uint8_t _pad1[2];
-	uint8_t adc_temp[2];
-	uint8_t adc_rh[2];      /* Actual content depends on seq, has period = 4 frames */
+	uint8_t adc_val1[2];
+	uint8_t adc_val2[2];    /* Actual content depends on seq, has period = 4 frames */
 	                        /* Seq = 0b..00, 01, 10: RH sensor ADC value */
 	                        /* Seq = 0b..11:         ADC reference */
 	uint8_t subtype[2];
@@ -109,11 +109,13 @@ typedef struct {
 
 typedef struct {
 	uint8_t _unk0[70];
-	uint8_t temps[12][4];         /* Calibration temperatures, +60..-85'C. IEEE754, big endian */
+	uint8_t temps[12][4];               /* Calibration temperatures, +60..-85'C. IEEE754, big endian */
 	uint8_t _unk2[16];
-	uint8_t temp_resists[12][4];  /* Thermistor kOhm @ temp. IEEE754, big endian */
+	uint8_t temp_resists[12][4];        /* Thermistor kOhm @ temp. IEEE754, big endian */
 	uint8_t _unk3[16];
-	uint8_t calib_coeffs[12][4];
+	uint8_t rh_calib_coeffs[4][4];      /* RH 3rd degree polynomial coefficients. IEEE754, big endian */
+	uint8_t temp_calib_coeffs[4][4];    /* Temp 3rd degree polynomial coefficients. IEEE754, big endian*/
+	uint8_t rh_temp_calib_coeffs[4][4];
 	uint8_t _unk_end[10];
 } __attribute__((packed)) IMS100Calibration;
 
