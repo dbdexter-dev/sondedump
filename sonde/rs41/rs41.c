@@ -1,3 +1,4 @@
+#include <include/rs41.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,8 +8,27 @@
 #include "frame.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
-#include "rs41.h"
 #include "subframe.h"
+
+typedef struct {
+	int initialized;
+	RS41Calibration data;
+	uint8_t missing[sizeof(RS41Calibration)/8/RS41_CALIB_FRAGSIZE+1];
+} RS41Metadata;
+
+
+struct rs41decoder {
+	GFSKDemod gfsk;
+	Correlator correlator;
+	RSDecoder rs;
+	RS41Frame frame[2];
+	int state;
+	int offset, frame_offset;
+	int calibrated;
+	RS41Metadata metadata;
+	float pressure;
+	char serial[9];
+};
 
 static int rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s);
 
@@ -74,9 +94,10 @@ static const uint8_t _default_calib_data[sizeof(RS41Calibration)] = {
 
 enum { READ, PARSE_SUBFRAME };
 
-void
-rs41_decoder_init(RS41Decoder *d, int samplerate)
+RS41Decoder*
+rs41_decoder_init(int samplerate)
 {
+	RS41Decoder *d = malloc(sizeof(*d));
 	correlator_init(&d->correlator, RS41_SYNCWORD, RS41_SYNC_LEN);
 	gfsk_init(&d->gfsk, samplerate, RS41_BAUDRATE);
 	rs_init(&d->rs, RS41_REEDSOLOMON_N, RS41_REEDSOLOMON_K, RS41_REEDSOLOMON_POLY,
@@ -92,6 +113,8 @@ rs41_decoder_init(RS41Decoder *d, int samplerate)
 #ifndef NDEBUG
 	debug = fopen("/tmp/rs41frames.data", "wb");
 #endif
+
+	return d;
 }
 
 void
@@ -99,6 +122,7 @@ rs41_decoder_deinit(RS41Decoder *d)
 {
 	gfsk_deinit(&d->gfsk);
 	rs_deinit(&d->rs);
+	free(d);
 #ifndef NDEBUG
 	fclose(debug);
 #endif

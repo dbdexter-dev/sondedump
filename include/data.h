@@ -1,5 +1,5 @@
-#ifndef common_h
-#define common_h
+#ifndef sondedump_data_h
+#define sondedump_data_h
 
 #include <time.h>
 #include <stdint.h>

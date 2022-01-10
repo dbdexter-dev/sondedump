@@ -1,33 +1,17 @@
 #ifndef dfm09_h
 #define dfm09_h
 
-#include "decode/common.h"
-#include "decode/correlator/correlator.h"
-#include "demod/gfsk.h"
-#include "protocol.h"
+#include "data.h"
 
-typedef struct {
-	GFSKDemod gfsk;
-	Correlator correlator;
-	DFM09Frame frame[4];
-	DFM09ParsedFrame parsed_frame;
-	DFM09Calib calib;
-	struct tm gps_time;
-	int gps_idx, ptu_type_serial;
-	SondeData gps_data, ptu_data;
-	int state;
-
-	char serial[10];
-	uint64_t raw_serial;
-} DFM09Decoder;
+typedef struct dfm09decoder DFM09Decoder;
 
 /**
  * Initialize a Graw dfm09 frame decoder
  *
- * @param d decoder to init
  * @param samplerate samplerate of the raw FM-demodulated stream
+ * @return an initialized decoder object
  */
-void dfm09_decoder_init(DFM09Decoder *d, int samplerate);
+DFM09Decoder* dfm09_decoder_init(int samplerate);
 
 /**
  * Deinitialize the given decoder

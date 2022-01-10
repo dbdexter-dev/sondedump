@@ -1,10 +1,20 @@
+#include <include/m10.h>
 #include <math.h>
 #include <stdio.h>
+#include "demod/gfsk.h"
 #include "decode/framer.h"
 #include "decode/manchester.h"
 #include "frame.h"
 #include "gps/time.h"
-#include "m10.h"
+
+struct m10decoder {
+	GFSKDemod gfsk;
+	Correlator correlator;
+	M10Frame frame[4];
+	int offset;
+	int state;
+	char serial[16];
+};
 
 #ifndef NDEBUG
 static FILE *debug;
@@ -14,9 +24,11 @@ enum state { READ,
              PARSE_M10_INFO, PARSE_M10_GPS_POS, PARSE_M10_GPS_TIME, PARSE_M10_PTU,
              PARSE_M20_INFO, PARSE_M20_GPS_POS, PARSE_M20_GPS_TIME, PARSE_M20_PTU };
 
-void
-m10_decoder_init(M10Decoder *d, int samplerate)
+M10Decoder*
+m10_decoder_init(int samplerate)
 {
+	M10Decoder *d = malloc(sizeof(*d));
+
 	gfsk_init(&d->gfsk, samplerate, M10_BAUDRATE);
 	correlator_init(&d->correlator, M10_SYNCWORD, M10_SYNCLEN);
 	d->state = READ;
@@ -25,13 +37,15 @@ m10_decoder_init(M10Decoder *d, int samplerate)
 #ifndef NDEBUG
 	debug = fopen("/tmp/m10frames.data", "wb");
 #endif
+
+	return d;
 }
 
 void
 m10_decoder_deinit(M10Decoder *d)
 {
 	gfsk_deinit(&d->gfsk);
-
+	free(d);
 #ifndef NDEBUG
 	fclose(debug);
 #endif

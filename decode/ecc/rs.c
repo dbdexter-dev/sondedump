@@ -7,6 +7,7 @@
 static uint8_t gfmul(uint8_t x, uint8_t y, const uint8_t *alpha, const uint8_t *logtable, int n);
 static uint8_t gfdiv(uint8_t x, uint8_t y, const uint8_t *alpha, const uint8_t *logtable, int n);
 static uint8_t gfpow(uint8_t x, int exp, const uint8_t *alpha, const uint8_t *logtable, int n);
+static int rs_init_internal(RSDecoder *d, int n, int k, unsigned gen_poly);
 static void poly_deriv(uint8_t *dst, const uint8_t *poly, int len);
 static uint8_t poly_eval(const uint8_t *poly, uint8_t x, int len, const uint8_t *alpha, const uint8_t *logtable, int n);
 static void poly_mul(uint8_t *dst, const uint8_t *poly1, const uint8_t *poly2, int len_1, int len_2, const uint8_t *alpha, const uint8_t *logtable, int n);
@@ -16,39 +17,71 @@ rs_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t first_root, int r
 {
 	const int t = n - k;
 	int i, exp;
-	unsigned tmp;
+	int ret;
 
-	if (!(d->alpha = malloc(0x100))) return 1;
-	if (!(d->logtable = malloc(0x100))) return 1;
-	if (!(d->zeroes = malloc(0x100))) return 1;
-	if (!(d->gaproots = malloc(0x100))) return 1;
+	ret = rs_init_internal(d, n, k, gen_poly);
 
-	d->n = n;
-	d->k = k;
 	d->first_root = first_root;
-
-	/* Initialize alpha and logtable */
-	d->alpha[0] = 1;
-	d->logtable[1] = 0;
-
-	for (i=1; i<n; i++) {
-		tmp = (int)d->alpha[i-1] << 1;
-		tmp = (tmp >= (unsigned)n ? tmp ^ gen_poly : tmp);
-		d->alpha[i] = tmp;
-		d->logtable[tmp] = i;
-	}
-
-
-	/* Initialize the gap'th log table */
-	for (i=0; i<n; i++) {
-		d->gaproots[gfpow(i, root_skip, d->alpha, d->logtable, n)] = i;
-	}
+	d->t = t;
 
 	/* Compute polynomial roots */
 	for (i=0; i<t; i++) {
 		exp = ((i + first_root) * root_skip) % n;
 		d->zeroes[i] = d->alpha[exp];
 	}
+
+	/* Initialize the gap'th log table */
+	for (i=0; i<n+1; i++) {
+		d->gaproots[gfpow(i, root_skip, d->alpha, d->logtable, n)] = i;
+	}
+
+	return ret;
+}
+
+int
+bch_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t *roots, int root_count)
+{
+	int i;
+	int ret;
+
+	ret = rs_init_internal(d, n, k, gen_poly);
+	memcpy(d->zeroes, roots, root_count * sizeof(roots[0]));
+	d->first_root = -1;
+	d->t = root_count;
+
+	/* Initialize the gap'th log table */
+	for (i=0; i<n+1; i++) {
+		d->gaproots[i] = i;
+	}
+
+	return ret;
+}
+
+int
+rs_init_internal(RSDecoder *d, int n, int k, unsigned gen_poly)
+{
+	int i;
+	unsigned tmp;
+
+	if (!(d->alpha = malloc(n+1))) return 1;
+	if (!(d->logtable = malloc(n+1))) return 1;
+	if (!(d->zeroes = malloc(n+1))) return 1;
+	if (!(d->gaproots = malloc(n+1))) return 1;
+
+	d->n = n;
+	d->k = k;
+
+	/* Initialize alpha and logtable */
+	d->alpha[0] = 1;
+	d->logtable[1] = 0;
+
+	for (i=1; i<n+1; i++) {
+		tmp = (int)d->alpha[i-1] << 1;
+		tmp = (tmp >= (unsigned)n+1 ? tmp ^ gen_poly : tmp);
+		d->alpha[i] = tmp;
+		d->logtable[tmp] = i;
+	}
+
 
 	return 0;
 }
@@ -66,8 +99,7 @@ int
 rs_fix_block(const RSDecoder *self, uint8_t *data)
 {
 	const int rs_n = self->n;
-	const int rs_k = self->k;
-	const int rs_t = rs_n - rs_k;
+	const int rs_t = self->t;
 	const int rs_t2 = rs_t / 2;
 	const uint8_t *alpha = self->alpha;
 	const uint8_t *logtable = self->logtable;
@@ -94,7 +126,6 @@ rs_fix_block(const RSDecoder *self, uint8_t *data)
 	if (!has_errors) {
 		return 0;
 	}
-
 
 	/* Berlekamp-Massey algorithm */
 	memset(lambda, 0, sizeof(lambda));
@@ -143,7 +174,7 @@ rs_fix_block(const RSDecoder *self, uint8_t *data)
 
 	/* Roots bruteforcing */
 	error_count = 0;
-	for (i=1; i<=self->n && error_count < lambda_deg; i++) {
+	for (i=1; i<=rs_n && error_count < lambda_deg; i++) {
 		if (poly_eval(lambda, i, rs_t2+1, alpha, logtable, rs_n) == 0) {
 			lambda_root[error_count] = i;
 			error_pos[error_count] = logtable[gaproots[gfdiv(1, i, alpha, logtable, rs_n)]];
@@ -160,16 +191,21 @@ rs_fix_block(const RSDecoder *self, uint8_t *data)
 
 	/* Fix errors in the block */
 	for (i=0; i<error_count; i++) {
-		/* lambda_root[i] = 1/Xi, Xi being the i-th error locator */
-		fcr = gfpow(lambda_root[i], (self->first_root - 1 + rs_n) % rs_n, alpha, logtable, rs_n);
-		num = poly_eval(omega, lambda_root[i], rs_t, alpha, logtable, rs_n);
-		den = poly_eval(lambda_prime, lambda_root[i], rs_t2, alpha, logtable, rs_n);
+		if (self->first_root >= 0) {
+			/* lambda_root[i] = 1/Xi, Xi being the i-th error locator */
+			fcr = gfpow(lambda_root[i], (self->first_root - 1 + rs_n) % rs_n, alpha, logtable, rs_n);
+			num = poly_eval(omega, lambda_root[i], rs_t, alpha, logtable, rs_n);
+			den = poly_eval(lambda_prime, lambda_root[i], rs_t2, alpha, logtable, rs_n);
 
-		data[error_pos[i]] ^= gfdiv(
-				gfmul(num, fcr, alpha, logtable, rs_n),
-				den,
-				alpha, logtable, rs_n
-				);
+			data[error_pos[i]] ^= gfdiv(
+					gfmul(num, fcr, alpha, logtable, rs_n),
+					den,
+					alpha, logtable, rs_n
+					);
+		} else {
+			/* BCH code */
+			data[error_pos[i]] ^= 0x1;
+		}
 	}
 
 	return error_count;

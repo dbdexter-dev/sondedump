@@ -1,8 +1,9 @@
 #ifndef utils_h
 #define utils_h
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <time.h>
 
 #ifndef VERSION
 #define VERSION "(unknown version)"
@@ -47,7 +48,45 @@ void bitcpy(uint8_t *dst, const uint8_t *src, size_t src_offset, size_t num_bits
  * @param nbits number of bits to merge
  * @return merged bits
  */
-uint64_t bitmerge(uint8_t *data, int nbits);
+uint64_t bitmerge(const uint8_t *data, int nbits);
+
+/**
+ * Pack loose bits together, with an optional offset
+ */
+void bitpack(uint8_t *dst, const uint8_t *src, int bit_offset, int nbits);
+
+void bitclear(uint8_t *dst, int bit_offset, int nbits);
+
+/**
+ * Count the number of bits set within a byte array
+ *
+ * @param data input array
+ * @param len length of the input arary, in bytes
+ * @return number of bits set in the array
+ */
+int count_ones(const uint8_t *data, size_t len);
+
+/**
+ * Convert 4 bytes into a IEEE754 float
+ */
+float ieee754_be(const uint8_t *raw);
+
+/**
+ * strdup, but portable since it's not part of the C standard and has a
+ * different name based on the platform
+ *
+ * @param str string to duplicate
+ * @return duplicated string, allocated on the heap with malloc(0
+ */
+char *my_strdup(char *str);
+
+/**
+ * timegm, but portable since it's not part of the C standard
+ *
+ * @param tm UTC time decomposed as if by gmtime
+ * @return UTC time, such that gmtime(my_timegm(tm)) = tm
+ */
+time_t my_timegm(struct tm *tm);
 
 /**
  * Calculate pressure at a given altitude
@@ -77,13 +116,23 @@ float dewpt(float temp, float rh);
 float sat_mixing_ratio(float temp, float p);
 
 /**
- * strdup, but portable since it's not part of the C standard and has a
- * different name based on the platform
+ * Calculate the water vapour saturation pressure at a temeprature (Hyland/Wexler)
  *
- * @param str string to duplicate
- * @return duplicated string, allocated on the heap with malloc(0
+ * @param temp temperature ('C)
+ * @return saturation pressure (Pa)
  */
-char *my_strdup(char *str);
+float wv_sat_pressure(float temp);
+/**
+ * Given a set of ordered coordinate pairs and a point, compute the value
+ * of the cubic Hermite spline joining the given pairs at that point
+ *
+ * @param xs x coordinates of the known points
+ * @param ys y coordinates of the known points
+ * @param count number of coordinates supplied
+ * @param x input to the cubic spline
+ * @return output of the spline
+ */
+float cspline(const float *xs, const float *ys, float count, float x);
 
 /**
  * Write usage info to stdout
@@ -96,6 +145,7 @@ void  usage(const char *progname);
  * Write version info to stdout
  */
 void  version();
+
 #endif
 
 

@@ -1,0 +1,3 @@
+#include "protocol.h"
+
+uint8_t ims100_bch_roots[] = {0x02, 0x04, 0x08, 0x10};
