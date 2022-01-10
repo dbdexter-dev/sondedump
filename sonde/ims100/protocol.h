@@ -41,6 +41,7 @@
 #define IMS100_SUBTYPE_META 0x31c1
 
 #define IMS100_CALIB_PTU_MASK   0x0000FFFFFFFFFFFF
+#define IMS100_CALIB_SERIAL_MASK   0x8000000000000000
 
 #define IMS100_CALIB_FRAGSIZE 4
 #define IMS100_CALIB_FRAGCOUNT 64
@@ -108,7 +109,9 @@ typedef struct {
 } __attribute__((packed)) IMS100ECCFrame;
 
 typedef struct {
-	uint8_t _unk0[70];
+	uint8_t _pad[2];
+	uint8_t serial[4];                  /* Sonde serial number. IEEE754, big endian */
+	uint8_t _unk0[64];
 	uint8_t temps[12][4];               /* Calibration temperatures, +60..-85'C. IEEE754, big endian */
 	uint8_t _unk2[16];
 	uint8_t temp_resists[12][4];        /* Thermistor kOhm @ temp. IEEE754, big endian */

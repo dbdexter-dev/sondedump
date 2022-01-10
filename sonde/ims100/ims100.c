@@ -11,9 +11,7 @@
 #ifndef NDEBUG
 #include <stdio.h>
 static FILE *debug, *debug_odd;
-static float _debugarray[16];
 #endif
-
 
 struct ims100decoder {
 	GFSKDemod gfsk;
@@ -24,6 +22,7 @@ struct ims100decoder {
 	IMS100Calibration calib;
 	uint64_t calib_bitmask;
 	int state;
+	char serial[16];
 
 	struct {
 		float alt;
@@ -53,6 +52,7 @@ ims100_decoder_init(int samplerate)
 	d->calib_bitmask = 0;
 	d->prev_alt.alt = 0;
 	d->prev_alt.time = 0;
+	strcpy(d->serial, "iMS(xxxxxxxx)");
 #ifndef NDEBUG
 	debug = fopen("/tmp/ims100frames.data", "wb");
 	debug_odd = fopen("/tmp/ims100frames_odd.data", "wb");
@@ -109,9 +109,15 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			/* Invalidate data if subframe is marked corrupted */
 			validmask = IMS100_MASK_SEQ;
 			if (!IMS100_DATA_VALID(self->frame.valid, validmask)) data.type = EMPTY;
+			if (IMS100_DATA_VALID(self->calib_bitmask, IMS100_CALIB_SERIAL_MASK)) {
+				sprintf(self->serial, "iMS%d", (int)ieee754_be(self->calib.serial));
+			}
 
-			data.data.info.seq = ims100_frame_seq(&self->frame);
-			data.data.info.sonde_serial = "iMS100Placehold";
+			if (data.type != EMPTY) {
+				data.data.info.seq = ims100_frame_seq(&self->frame);
+				data.data.info.sonde_serial = self->serial;
+			}
+
 			self->state = PARSE_PTU;
 
 #ifndef NDEBUG
@@ -192,24 +198,21 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			          | IMS100_GPS_MASK_SPEED | IMS100_GPS_MASK_HEADING;
 			if (!IMS100_DATA_VALID(self->frame.valid, validmask)) data.type = EMPTY;
 
-			data.data.pos.lat = ims100_subframe_lat(&self->frame.data.gps);
-			data.data.pos.lon = ims100_subframe_lon(&self->frame.data.gps);
-			data.data.pos.alt = ims100_subframe_alt(&self->frame.data.gps);
-			data.data.pos.speed = ims100_subframe_speed(&self->frame.data.gps);
-			data.data.pos.heading = ims100_subframe_heading(&self->frame.data.gps);
-			self->cur_alt.alt = data.data.pos.alt;
+			if (data.type != EMPTY) {
+				data.data.pos.lat = ims100_subframe_lat(&self->frame.data.gps);
+				data.data.pos.lon = ims100_subframe_lon(&self->frame.data.gps);
+				data.data.pos.alt = ims100_subframe_alt(&self->frame.data.gps);
+				data.data.pos.speed = ims100_subframe_speed(&self->frame.data.gps);
+				data.data.pos.heading = ims100_subframe_heading(&self->frame.data.gps);
+				self->cur_alt.alt = data.data.pos.alt;
 
-#ifndef NDEBUG
-			_debugarray[LEN(_debugarray)-1] = data.data.pos.alt;
-#endif
-
-			/* Derive climb rate from altitude */
-			if (self->cur_alt.time > self->prev_alt.time) {
-				data.data.pos.climb = (self->cur_alt.alt - self->prev_alt.alt)
-									/ (self->cur_alt.time - self->prev_alt.time);
+				/* Derive climb rate from altitude */
+				if (self->cur_alt.time > self->prev_alt.time) {
+					data.data.pos.climb = (self->cur_alt.alt - self->prev_alt.alt)
+										/ (self->cur_alt.time - self->prev_alt.time);
+				}
+				self->prev_alt = self->cur_alt;
 			}
-			self->prev_alt = self->cur_alt;
-
 
 			self->state = PARSE_END;
 			break;
