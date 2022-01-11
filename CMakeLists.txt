@@ -129,7 +129,7 @@ set_target_properties(sonde PROPERTIES EXCLUDE_FROM_ALL 1)
 add_executable(sondedump ${EXEC_SOURCES})
 target_include_directories(sondedump PRIVATE ${COMMON_INC_DIRS})
 target_link_libraries(sondedump PRIVATE m pthread sondedump_static
-	${PORTAUDIO_LIBRARY} ${CAIRO_LIBRARY} ${NCURSES_LIBRARY})
+	${PORTAUDIO_LIBRARY} ${NCURSES_LIBRARY})
 
 # Install targets
 install(TARGETS sondedump DESTINATION bin)

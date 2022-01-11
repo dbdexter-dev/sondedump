@@ -15,25 +15,33 @@ Features:
 
 Compatibility matrix:
 
-| Manufacturer | Model   | GPS                | Temperature        | Humidity           |
-|--------------|---------|--------------------|--------------------|--------------------|
-| Vaisala      | RS41-SG | :white_check_mark: | :white_check_mark: | :white_check_mark: |
-| Meteomodem   | M10     | :white_check_mark: |                    |                    |
-| GRAW         | DFM06/09| :white_check_mark: | :white_check_mark: |                    |
-| Meisei       | iMS-100 | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Manufacturer | Model    | GPS                | Temperature        | Humidity           |
+|--------------|----------|--------------------|--------------------|--------------------|
+| Vaisala      | RS41-SG  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Meteomodem   | M10      | :heavy_check_mark: |                    |                    |
+| GRAW         | DFM06/09 | :heavy_check_mark: | :heavy_check_mark: |                    |
+| Meisei       | iMS-100  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 
 
 Build/install instructions
 --------------------------
-Optional libraries:
-- `ncurses`: Simple TUI with data summary
-- `portaudio`: Live streaming of samples from audio device
+No external libraries are required to compile the project. Depending on which
+additional libraries are found however, extra features will be enabled at
+compile-time. If you do not want/need these features, you can disable them by
+passing the corresponding flag to `cmake` (or by toggling them with `ccmake`):
 
-Compilation:
+| Library   | Feature                                                   | Disable with         |
+|-----------|-----------------------------------------------------------|----------------------|
+| ncurses   | Simple TUI displaying a live summary of the decoded data  | `-DENABLE_TUI=OFF`   |
+| portaudio | Support for reading samples live from an audio device     | `-DENABLE_AUDIO=OFF` |
+
+
+To compile and install:
 ```
 mkdir build && cd build
 cmake ..
 make
+sudo make install
 ```
 
 Usage

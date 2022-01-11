@@ -114,8 +114,13 @@ count_ones(const uint8_t *data, size_t len)
 float
 ieee754_be(const uint8_t *raw)
 {
-	const uint32_t repr = raw[0] << 24 | raw[1] << 16 | raw[2] << 8 | raw[3];
-	return *(float*)&repr;
+	union {
+		uint32_t raw;
+		float value;
+	} data;
+
+	data.raw = raw[0] << 24 | raw[1] << 16 | raw[2] << 8 | raw[3];
+	return data.value;
 }
 
 char
@@ -190,12 +195,6 @@ altitude_to_pressure(float alt)
 		return 1e-2 * Pb * powf((Tb + Lb * (alt - hb)) / Tb, - (g0 * M) / (R_star * Lb));
 	}
 	return 1e-2 * Pb * expf(-g0 * M * (alt - hb) / (R_star * Tb));
-}
-
-float
-pressure_to_altitude(float pressure)
-{
-	return 44330 * (1 - powf((pressure / 1013.25f), 1/5.25588f));
 }
 
 float

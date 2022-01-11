@@ -1,6 +1,7 @@
 #include <include/ims100.h>
 #include <math.h>
 #include <string.h>
+#include <stdio.h>
 #include "decode/framer.h"
 #include "decode/manchester.h"
 #include "frame.h"
@@ -9,7 +10,6 @@
 #include "utils.h"
 
 #ifndef NDEBUG
-#include <stdio.h>
 static FILE *debug, *debug_odd;
 #endif
 
