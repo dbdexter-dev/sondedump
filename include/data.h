@@ -36,6 +36,7 @@ typedef struct {
 
 typedef struct {
 	int calibrated;         /* 0 if uncalibrated, nonzero otherwise */
+	float calib_percent;    /* Calibration percentage, 0-100 */
 	float temp;             /* Temperature, degrees Celsius */
 	float rh;               /* Relative humidity % */
 	float pressure;         /* Pressure, mbar */
@@ -65,5 +66,7 @@ typedef struct {
 	int shutdown_timer;
 	char serial[32];
 	char xdata[128];
+	int calibrated;
+	float calib_percent;
 } PrintableData;
 #endif

@@ -10,7 +10,7 @@
 
 #define DEFAULT_UPD_INTERVAL 100
 
-#define PTU_INFO_COUNT 4    /* Temp, RH, pressure, dewpt */
+#define PTU_INFO_COUNT 5    /* Calib percent, Temp, RH, pressure, dewpt */
 #define GPS_INFO_COUNT 6    /* lat, lot, alt, speed, heading, climb */
 #define SONDE_INFO_COUNT 4  /* Serial, burstkill, frame seq, date/time */
 #define XDATA_INFO_COUNT 1  /* xdata */
@@ -198,6 +198,8 @@ redraw()
 			"Climb: %+.1fm/s", tui.data.climb);
 	start_row++;
 
+	mvwprintw(tui.win, start_row++, start_col - sizeof("Calibration:"),
+			"Calibration: %.0f%%", floorf(tui.data.calib_percent));
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Temperature:"),
 			"Temperature: %.1f'C", tui.data.temp);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Rel. humidity:"),
@@ -206,6 +208,7 @@ redraw()
 			"Dew point: %.1f'C", dewpt(tui.data.temp, tui.data.rh));
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Pressure:"),
 			"Pressure: %.1fhPa", synthetic_pressure);
+
 	start_row++;
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Aux. data:"),
 			"Aux. data: %s", tui.data.xdata);

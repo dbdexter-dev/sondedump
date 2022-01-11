@@ -41,6 +41,7 @@
 #define RS41_SFTYPE_XDATA 0x7E
 
 #define RS41_CALIB_FRAGSIZE 16
+#define RS41_CALIB_FRAGCOUNT 51
 
 #define RS41_SERIAL_LEN 8
 
@@ -170,11 +171,9 @@ typedef struct {
 	float matrix_bt[12];
 	uint8_t _pad5[54];
 	uint16_t burstkill_timer;   /* Time to shutdown after balloon burst (or maybe just time to shutdown in general) */
-	uint8_t _pad6[6];
+	uint8_t _pad6[8];
 	uint8_t _unk_dynamic0[4];   /* Unknown, counter-like */
 	uint8_t _unk_dynamic1[2];   /* Unknown, last byte probably flags */
-
-
 } __attribute__((packed)) RS41Calibration;
 
 #endif

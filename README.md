@@ -15,12 +15,12 @@ Features:
 
 Compatibility matrix:
 
-| Manufacturer | Model   | GPS                | Temperature          | Humidity             |
-|--------------|---------|--------------------|----------------------|----------------------|
-| Vaisala      | RS41-SG | :white_check_mark: | :white_check_mark:   | :white_check_mark:   |
-| Meteomodem   | M10     | :white_check_mark: |                      |                      |
-| GRAW         | DFM06/09| :white_check_mark: |                      |                      |
-| Meisei       | iMS-100 | :white_check_mark: | :white_check_mark:   | :white_check_mark:   |
+| Manufacturer | Model   | GPS                | Temperature        | Humidity           |
+|--------------|---------|--------------------|--------------------|--------------------|
+| Vaisala      | RS41-SG | :white_check_mark: | :white_check_mark: | :white_check_mark: |
+| Meteomodem   | M10     | :white_check_mark: |                    |                    |
+| GRAW         | DFM06/09| :white_check_mark: | :white_check_mark: |                    |
+| Meisei       | iMS-100 | :white_check_mark: | :white_check_mark: | :white_check_mark: |
 
 
 Build/install instructions

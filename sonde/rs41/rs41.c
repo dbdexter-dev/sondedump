@@ -13,7 +13,7 @@
 typedef struct {
 	int initialized;
 	RS41Calibration data;
-	uint8_t missing[sizeof(RS41Calibration)/8/RS41_CALIB_FRAGSIZE+1];
+	uint8_t bitmask[sizeof(RS41Calibration)/8/RS41_CALIB_FRAGSIZE+1];
 } RS41Metadata;
 
 
@@ -25,12 +25,13 @@ struct rs41decoder {
 	int state;
 	int offset, frame_offset;
 	int calibrated;
+	float calib_percent;
 	RS41Metadata metadata;
 	float pressure;
 	char serial[9];
 };
 
-static int rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s);
+static float rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s);
 
 #ifndef NDEBUG
 static FILE *debug;
@@ -107,7 +108,11 @@ rs41_decoder_init(int samplerate)
 	d->metadata.initialized = 0;
 	d->pressure = 0;
 	d->offset = 0;
+
+	/* Initialize calibration data struct and metadata */
 	memcpy(&d->metadata.data, _default_calib_data, sizeof(d->metadata.data));
+	memset(&d->metadata.bitmask, 0x00, sizeof(d->metadata.bitmask));
+	d->metadata.bitmask[sizeof(d->metadata.bitmask)-1] |= ((1 << (8 - RS41_CALIB_FRAGCOUNT%8)) - 1);
 	d->metadata.data.burstkill_timer = 0xFFFF;
 
 #ifndef NDEBUG
@@ -204,7 +209,8 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 				case RS41_SFTYPE_INFO:
 					/* Frame sequence number, serial no., board info, calibration data */
 					status = (RS41Subframe_Info*)subframe;
-					self->calibrated = rs41_update_metadata(&self->metadata, (RS41Subframe_Info*)subframe);
+					self->calib_percent = rs41_update_metadata(&self->metadata, (RS41Subframe_Info*)subframe);
+					self->calibrated = (self->calib_percent >= 100);
 
 					data.type = INFO;
 
@@ -225,6 +231,7 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					data.data.ptu.rh = rs41_subframe_humidity(ptu, &self->metadata.data);
 					data.data.ptu.pressure = rs41_subframe_pressure(ptu, &self->metadata.data);
 					data.data.ptu.calibrated = self->calibrated;
+					data.data.ptu.calib_percent = self->calib_percent;
 					self->pressure = data.data.ptu.pressure;
 					break;
 				case RS41_SFTYPE_GPSPOS:
@@ -278,31 +285,20 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 }
 
 /* Static functions {{{ */
-static int
+static float
 rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s)
 {
 	size_t frag_offset;
-	int num_segments;
-	size_t i;
-
-	/* Allocate enough space to contain the misc metadata */
-	if (!m->initialized) {
-		num_segments = s->frag_count + 1;
-		memset(&m->missing, 0xFF, sizeof(m->missing));
-		m->missing[sizeof(m->missing)-1] &= ~((1 << (7 - num_segments%8)) - 1);
-		m->initialized = 1;
-	}
+	int num_received;
 
 	/* Copy the fragment and update the bitmap of the fragments left */
 	frag_offset = s->frag_seq * LEN(s->frag_data);
 	memcpy((uint8_t*)&m->data + frag_offset, s->frag_data, LEN(s->frag_data));
-	m->missing[s->frag_seq/8] &= ~(1 << (7 - s->frag_seq%8));
+	m->bitmask[s->frag_seq/8] |= (1 << (7 - s->frag_seq%8));
 
 	/* Check if we have all the sub-segments populated */
-	for (i=0; i<sizeof(m->missing); i++) {
-		if (m->missing[i]) return 0;
-	}
+	num_received = count_ones(m->bitmask, sizeof(m->bitmask));
 
-	return 1;
+	return (num_received * 100.0) / (8 * sizeof(m->bitmask));
 }
 /* }}} */

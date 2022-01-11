@@ -362,6 +362,8 @@ fill_printable_data(PrintableData *to_print, SondeData *data)
 			to_print->temp = data->data.ptu.temp;
 			to_print->rh = data->data.ptu.rh;
 			to_print->pressure  = data->data.ptu.pressure;
+			to_print->calibrated = data->data.ptu.calibrated;
+			to_print->calib_percent = data->data.ptu.calib_percent;
 			break;
 		case POSITION:
 			to_print->lat = data->data.pos.lat;

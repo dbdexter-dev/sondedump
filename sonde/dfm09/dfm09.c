@@ -67,7 +67,7 @@ SondeData
 dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 {
 	DFM09Subframe_GPS *gpsSubframe;
-	DFM09Subframe_PTU *ptuSubframe;
+	DFM09Subframe_PTU *ptu_subframe;
 	SondeData data = {.type = EMPTY};
 	int errcount;
 	int i;
@@ -114,21 +114,23 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 
 		case PARSE_PTU:
 			/* PTU subframe parsing {{{ */
-			ptuSubframe = &self->parsed_frame.ptu;
-			self->calib.raw[ptuSubframe->type] = bitmerge(ptuSubframe->data, 24);
+			ptu_subframe = &self->parsed_frame.ptu;
+			self->calib.raw[ptu_subframe->type] = bitmerge(ptu_subframe->data, 24);
 
-			if ((bitmerge(ptuSubframe->data, 24) & 0xFFFF) == 0) {
-				self->ptu_type_serial = ptuSubframe->type + 1;
+			if ((bitmerge(ptu_subframe->data, 24) & 0xFFFF) == 0) {
+				self->ptu_type_serial = ptu_subframe->type + 1;
 			}
 
-			switch (ptuSubframe->type) {
+			switch (ptu_subframe->type) {
 				case 0x00:
 					/* Return previous completed PTU */
 					data = self->ptu_data;
 					data.type = PTU;
+					data.data.ptu.calibrated = 1;
+					data.data.ptu.calib_percent = 100.0f;
 
 					/* Temperature */
-					self->ptu_data.data.ptu.temp = dfm09_subframe_temp(ptuSubframe, &self->calib);
+					self->ptu_data.data.ptu.temp = dfm09_subframe_temp(ptu_subframe, &self->calib);
 					break;
 				case 0x01:
 					/* RH? */
@@ -139,22 +141,22 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 					self->ptu_data.data.ptu.pressure = 0;
 					break;
 				default:
-					if (ptuSubframe->type == self->ptu_type_serial) {
+					if (ptu_subframe->type == self->ptu_type_serial) {
 						/* Serial number */
-						if (ptuSubframe->type == DFM06_SERIAL_TYPE) {
+						if (ptu_subframe->type == DFM06_SERIAL_TYPE) {
 							/* DFM06: direct serial number */
-							sprintf(self->serial, "D%06lX", bitmerge(ptuSubframe->data, 24));
+							sprintf(self->serial, "D%06lX", bitmerge(ptu_subframe->data, 24));
 						} else {
 							/* DFM09: serial number spans multiple subframes */
-							serial_idx = 3 - (bitmerge(ptuSubframe->data, 24) & 0xF);
-							serial_shard = (bitmerge(ptuSubframe->data, 24) >> 4) & 0xFFFF;
+							serial_idx = 3 - (bitmerge(ptu_subframe->data, 24) & 0xF);
+							serial_shard = (bitmerge(ptu_subframe->data, 24) >> 4) & 0xFFFF;
 
 							/* Write 16 bit shard into the overall serial number */
 							self->raw_serial &= ~((uint64_t)((1 << 16) - 1) << (16*serial_idx));
 							self->raw_serial |= (uint64_t)serial_shard << (16*serial_idx);
 
 							/* If potentially complete, convert raw serial to string */
-							if ((bitmerge(ptuSubframe->data, 24) & 0xF) == 0) {
+							if ((bitmerge(ptu_subframe->data, 24) & 0xF) == 0) {
 								local_serial = self->raw_serial;
 								while (!(local_serial & 0xFFFF)) local_serial >>= 16;
 								sprintf(self->serial, "D%08ld", local_serial);
@@ -218,7 +220,7 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 					dfm09_subframe_date(&self->gps_time, gpsSubframe);
 
 					data.type = DATETIME;
-					data.data.datetime.datetime = timegm(&self->gps_time);
+					data.data.datetime.datetime = my_timegm(&self->gps_time);
 					break;
 
 				default:

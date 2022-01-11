@@ -114,17 +114,8 @@ count_ones(const uint8_t *data, size_t len)
 float
 ieee754_be(const uint8_t *raw)
 {
-	union {
-		uint32_t raw;
-		float value;
-	} data;
-
-	data.raw = (uint32_t)raw[0] << 24
-	         | (uint32_t)raw[1] << 16
-	         | (uint32_t)raw[2] << 8
-	         | raw[3];
-
-	return data.value;
+	const uint32_t repr = raw[0] << 24 | raw[1] << 16 | raw[2] << 8 | raw[3];
+	return *(float*)&repr;
 }
 
 char

@@ -134,7 +134,6 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			/* Invalidate data if subframe is marked corrupted */
 			validmask = IMS100_MASK_PTU;
 			if (!IMS100_DATA_VALID(self->frame.valid, validmask)) data.type = EMPTY;
-			if (!IMS100_DATA_VALID(self->calib_bitmask, IMS100_CALIB_PTU_MASK)) data.type = EMPTY;
 
 			if (data.type != EMPTY) {
 				/* Fetch the ADC data carried by this frame based on its seq nr */
@@ -158,6 +157,8 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 				}
 
 				/* Parse PTU data */
+				data.data.ptu.calib_percent = 100.0 * count_ones((uint8_t*)&self->calib_bitmask, sizeof(self->calib_bitmask)) / IMS100_CALIB_FRAGCOUNT;
+				data.data.ptu.calibrated = IMS100_DATA_VALID(self->calib_bitmask, IMS100_CALIB_PTU_MASK);
 				data.data.ptu.temp = ims100_frame_temp(&self->adc, &self->calib);
 				data.data.ptu.rh = ims100_frame_rh(&self->adc, &self->calib);
 			}
