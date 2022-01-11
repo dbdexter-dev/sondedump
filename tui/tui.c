@@ -36,7 +36,7 @@ static struct {
 
 
 void
-tui_init(int update_interval, void (*decoder_changer)(int delta), int active_decoder)
+tui_init(int update_interval, void (*decoder_changer)(int index), int active_decoder)
 {
 	int rows, cols;
 	setlocale(LC_ALL, "");
@@ -87,7 +87,7 @@ static void*
 main_loop(void *args)
 {
 	int ch;
-	void (*decoder_changer)(int delta) = args;
+	void (*decoder_changer)(int index) = args;
 	while (_running) {
 		switch (ch = wgetch(tui.win)) {
 			case KEY_RESIZE:

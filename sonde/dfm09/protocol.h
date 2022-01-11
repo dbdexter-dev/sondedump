@@ -19,7 +19,7 @@ typedef struct {
 	uint8_t sync[2];
 	uint8_t ptu[7];
 	uint8_t gps[26];
-} __attribute__((packed)) DFM09Frame;
+} __attribute__((packed)) DFM09ECCFrame;
 
 typedef struct {
 	uint8_t type;
@@ -34,16 +34,9 @@ typedef struct {
 typedef struct {
 	DFM09Subframe_PTU ptu;
 	DFM09Subframe_GPS gps[2];
-} DFM09ParsedFrame;
+} DFM09Frame;
 
 typedef struct {
 	uint32_t raw[0x10];
 } __attribute__((packed)) DFM09Calib;
-
-void dfm09_manchester_decode(DFM09Frame *dst, const uint8_t *src);
-void dfm09_deinterleave(DFM09Frame *frame);
-int  dfm09_correct(DFM09Frame *frame);
-void dfm09_unpack(DFM09ParsedFrame *dst, DFM09Frame *src);
-
-float dfm09_temp(uint32_t raw_temp, uint32_t raw_ref1, uint32_t raw_ref2);
 #endif

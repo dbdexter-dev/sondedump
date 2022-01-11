@@ -12,8 +12,8 @@
 struct dfm09decoder {
 	GFSKDemod gfsk;
 	Correlator correlator;
-	DFM09Frame frame[4];
-	DFM09ParsedFrame parsed_frame;
+	DFM09ECCFrame frame[4];
+	DFM09Frame parsed_frame;
 	DFM09Calib calib;
 	struct tm gps_time;
 	int gps_idx, ptu_type_serial;
@@ -86,7 +86,7 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 
 			/* Rebuild frame from received bits */
 			manchester_decode(raw_frame, raw_frame, DFM09_FRAME_LEN);
-			dfm09_deinterleave(self->frame);
+			dfm09_frame_deinterleave(self->frame);
 
 #ifndef NDEBUG
 			fwrite((uint8_t*)self->frame, DFM09_FRAME_LEN/8/2, 1, debug);
@@ -94,14 +94,14 @@ dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
 #endif
 
 			/* Error correct, and exit prematurely if too many errors are found */
-			errcount = dfm09_correct(self->frame);
+			errcount = dfm09_frame_correct(self->frame);
 			if (errcount < 0 || errcount > 8) {
 				data.type = EMPTY;
 				return data;
 			}
 
 			/* Remove parity bits */
-			dfm09_unpack(&self->parsed_frame, self->frame);
+			dfm09_frame_unpack(&self->parsed_frame, self->frame);
 
 			/* If all zeroes, discard */
 			for (i=0; i<(int)sizeof(self->parsed_frame); i++) {

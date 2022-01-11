@@ -4,7 +4,7 @@ option(ENABLE_TUI "Enable Ncurses TUI (requires ncurses)" ON)
 option(ENABLE_AUDIO "Enable audio input (requires portaudio)" ON)
 
 project(sondedump
-	VERSION 0.5
+	VERSION 0.5.1
 	DESCRIPTION "Radiosonde decoder"
 	LANGUAGES C)
 add_definitions(-DVERSION="${CMAKE_PROJECT_VERSION}")
@@ -42,7 +42,7 @@ set(LIBRARY_SOURCES
 	decode/ecc/crc.c decode/ecc/crc.h
 	decode/ecc/rs.c decode/ecc/rs.h
 
-	sonde/rs41/rs41.c 
+	sonde/rs41/rs41.c
 	sonde/rs41/frame.c sonde/rs41/frame.h
 	sonde/rs41/subframe.c sonde/rs41/subframe.h
 	sonde/rs41/protocol.h

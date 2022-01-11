@@ -52,9 +52,21 @@ uint64_t bitmerge(const uint8_t *data, int nbits);
 
 /**
  * Pack loose bits together, with an optional offset
+ *
+ * @param dst buffer to write bits to
+ * @param src buffer to read bits from
+ * @param bit_offset dst offset to start writing bits from
+ * @param nbits number of bits to write
  */
 void bitpack(uint8_t *dst, const uint8_t *src, int bit_offset, int nbits);
 
+/**
+ * Clear bits within a buffer
+ *
+ * @param dst buffer to clear bits from
+ * @param bit_offset offset from the start of dst to write zeros from, in bits
+ * @param nbits number of bits to clear
+ */
 void bitclear(uint8_t *dst, int bit_offset, int nbits);
 
 /**
@@ -95,7 +107,6 @@ time_t my_timegm(struct tm *tm);
  * @return pressure at that altitude (hPa)
  */
 float altitude_to_pressure(float alt);
-float pressure_to_altitude(float p);
 
 /**
  * Calculate dew point
@@ -122,6 +133,7 @@ float sat_mixing_ratio(float temp, float p);
  * @return saturation pressure (Pa)
  */
 float wv_sat_pressure(float temp);
+
 /**
  * Given a set of ordered coordinate pairs and a point, compute the value
  * of the cubic Hermite spline joining the given pairs at that point

@@ -4,20 +4,20 @@
 #include <time.h>
 #include "protocol.h"
 
-/* PTU subframe */
-float dfm09_subframe_temp(DFM09Subframe_PTU *ptu, DFM09Calib *calib);
-float dfm09_subframe_humidity(DFM09Subframe_PTU *ptu, DFM09Calib *calib);
-float dfm09_subframe_pressure(DFM09Subframe_PTU *ptu, DFM09Calib *calib);
+/* PTU subframe field accessors */
+float dfm09_subframe_temp(const DFM09Subframe_PTU *ptu, const DFM09Calib *calib);
+float dfm09_subframe_humidity(const DFM09Subframe_PTU *ptu, const DFM09Calib *calib);
+float dfm09_subframe_pressure(const DFM09Subframe_PTU *ptu, const DFM09Calib *calib);
 
-/* GPS subframe */
-uint32_t dfm09_subframe_seq(DFM09Subframe_GPS *gps);
-int dfm09_subframe_time(DFM09Subframe_GPS *gps);
-void dfm09_subframe_date(struct tm *dst, DFM09Subframe_GPS *gps);
-float dfm09_subframe_lat(DFM09Subframe_GPS *gps);
-float dfm09_subframe_lon(DFM09Subframe_GPS *gps);
-float dfm09_subframe_alt(DFM09Subframe_GPS *gps);
-float dfm09_subframe_spd(DFM09Subframe_GPS *gps);
-float dfm09_subframe_hdg(DFM09Subframe_GPS *gps);
-float dfm09_subframe_climb(DFM09Subframe_GPS *gps);
+/* GPS subframe field accessors */
+uint32_t dfm09_subframe_seq(const DFM09Subframe_GPS *gps);
+int dfm09_subframe_time(const DFM09Subframe_GPS *gps);
+void dfm09_subframe_date(struct tm *dst, const DFM09Subframe_GPS *gps);
+float dfm09_subframe_lat(const DFM09Subframe_GPS *gps);
+float dfm09_subframe_lon(const DFM09Subframe_GPS *gps);
+float dfm09_subframe_alt(const DFM09Subframe_GPS *gps);
+float dfm09_subframe_spd(const DFM09Subframe_GPS *gps);
+float dfm09_subframe_hdg(const DFM09Subframe_GPS *gps);
+float dfm09_subframe_climb(const DFM09Subframe_GPS *gps);
 
 #endif

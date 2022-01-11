@@ -7,32 +7,9 @@ static int parity(uint8_t x);
 static int hamming(uint8_t *data, int len);
 
 void
-dfm09_manchester_decode(DFM09Frame *dst, const uint8_t *src)
+dfm09_frame_deinterleave(DFM09ECCFrame *frame)
 {
-	uint8_t *raw_dst = (uint8_t*)dst;
-	uint8_t out;
-	uint8_t inBits;
-	int i, out_count;
-
-	out = 0;
-	out_count = 0;
-	for (i=0; i<DFM09_FRAME_LEN; i+=2) {
-		bitcpy(&inBits, src, i, 2);
-		out = (out << 1) | (inBits & 0x40 ? 1 : 0);
-		out_count++;
-
-		if (!(out_count % 8)) {
-			*raw_dst++ = out;
-			out = 0;
-		}
-	}
-	*raw_dst = out;
-}
-
-void
-dfm09_deinterleave(DFM09Frame *frame)
-{
-	DFM09Frame deinterleaved;
+	DFM09ECCFrame deinterleaved;
 	uint8_t *src;
 	int i, j, idx;
 
@@ -61,7 +38,7 @@ dfm09_deinterleave(DFM09Frame *frame)
 }
 
 int
-dfm09_correct(DFM09Frame *frame)
+dfm09_frame_correct(DFM09ECCFrame *frame)
 {
 	int ptuErrcount, gpsErrcount;
 
@@ -74,7 +51,7 @@ dfm09_correct(DFM09Frame *frame)
 }
 
 void
-dfm09_unpack(DFM09ParsedFrame *dst, DFM09Frame *src)
+dfm09_frame_unpack(DFM09Frame *dst, const DFM09ECCFrame *src)
 {
 	int i;
 
@@ -129,23 +106,5 @@ hamming(uint8_t *data, int len)
 	}
 
 	return errcount;
-}
-
-float
-dfm09_temp(uint32_t raw_temp, uint32_t raw_ref1, uint32_t raw_ref2)
-{
-	const float bb0 = 3260.0;
-	const float t0 = 25 + 273.15;
-	const float r0 = 5.0e3;
-	const float rf = 220e3;
-
-	float g = raw_ref2 / rf;
-	float r = (raw_temp - raw_ref1) / g;
-	float temp = 0;
-
-	if (!raw_temp || !raw_ref1 || !raw_ref2) r = 0;
-	if (r > 0) temp = 1.0 / (1/t0 + 1/bb0 * logf(r/r0)) - 273.15;
-
-	return temp;
 }
 /* }}} */

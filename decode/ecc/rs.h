@@ -11,9 +11,33 @@ typedef struct {
 
 /**
  * Initialize the given Reed-Solomon decoder
+ *
+ * @param d decoder to initialize
+ * @param n message length, in symbols
+ * @param k payload length, in symbols
+ * @param gen_poly generator polynomial
+ * @param first_root first root of the generator to use
+ * @param root_skip distance between consecutive roots
  */
 int rs_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t first_root, int root_skip);
+
+/**
+ * Initialize the given Reed-Solomon decoder, in BCH mode
+ *
+ * @param d decoder to initialize
+ * @param n message length, in symbols
+ * @param k payload length, in symbols
+ * @param gen_poly generator polynomial
+ * @param roots roots of the generator to use
+ * @param root_count number of roots in *roots
+ */
 int bch_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t *roots, int root_count);
+
+/**
+ * Deinitialize the Reed-Solomon decoder
+ *
+ * @param d decoder to deinitialize
+ */
 void rs_deinit(RSDecoder *d);
 
 /**
@@ -28,4 +52,4 @@ void rs_deinit(RSDecoder *d);
  */
 int rs_fix_block(const RSDecoder *d, uint8_t *c);
 
-#endif /* rs_h */
+#endif

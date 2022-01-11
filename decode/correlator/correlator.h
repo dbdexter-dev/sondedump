@@ -27,4 +27,4 @@ void correlator_init(Correlator *c, uint64_t syncword, int sync_len);
  */
 int  correlate(Correlator *c, int *inverted, const uint8_t *hard, int len);
 
-#endif /* correlator_h */
+#endif

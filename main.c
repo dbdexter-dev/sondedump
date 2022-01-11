@@ -218,7 +218,6 @@ main(int argc, char *argv[])
 	has_data = 0;
 	signal(SIGINT, sigint_handler);
 
-
 	/* Process decoded frames */
 	while (!_interrupted) {
 		/* If decoder changed, reset printable data store */

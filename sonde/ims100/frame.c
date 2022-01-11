@@ -26,7 +26,7 @@ ims100_frame_descramble(IMS100ECCFrame *frame)
 }
 
 int
-ims100_frame_error_correct(IMS100ECCFrame *frame, RSDecoder *rs)
+ims100_frame_error_correct(IMS100ECCFrame *frame, const RSDecoder *rs)
 {
 	const int start_idx = IMS100_REEDSOLOMON_N - IMS100_MESSAGE_LEN;
 	int i, j, k;
@@ -244,7 +244,9 @@ freq_to_rh(float rh_freq, float ref_freq, float rh_temp, float air_temp, const f
 	rh_cal = rh_uncal - temp_correction * 100;
 
 	/* If air temp makes sense, use it to correct for different wv sat pressures */
-	if (air_temp < 100) return rh_cal * wv_sat_pressure(rh_temp) / wv_sat_pressure(air_temp);
+	if (air_temp < 100 && air_temp < -100)  {
+		return rh_cal * wv_sat_pressure(rh_temp) / wv_sat_pressure(air_temp);
+	}
 
 	/* Otherwise, return as-is */
 	return rh_cal;

@@ -4,7 +4,7 @@
 #include "utils.h"
 
 float
-dfm09_subframe_temp(DFM09Subframe_PTU *ptu, DFM09Calib *calib)
+dfm09_subframe_temp(const DFM09Subframe_PTU *ptu, const DFM09Calib *calib)
 {
 	const uint32_t raw_temp = bitmerge(ptu->data, 24);
 	const uint32_t raw_ref1 = calib->raw[3];
@@ -30,19 +30,19 @@ dfm09_subframe_temp(DFM09Subframe_PTU *ptu, DFM09Calib *calib)
 }
 
 uint32_t
-dfm09_subframe_seq(DFM09Subframe_GPS *gps)
+dfm09_subframe_seq(const DFM09Subframe_GPS *gps)
 {
 	return bitmerge(gps->data + 3, 8);
 }
 
 int
-dfm09_subframe_time(DFM09Subframe_GPS *gps)
+dfm09_subframe_time(const DFM09Subframe_GPS *gps)
 {
 	return bitmerge(gps->data + 4, 16) / 1000;
 }
 
 void
-dfm09_subframe_date(struct tm *dst, DFM09Subframe_GPS *gps)
+dfm09_subframe_date(struct tm *dst, const DFM09Subframe_GPS *gps)
 {
 	const uint32_t raw = bitmerge(gps->data, 32);
 
@@ -54,36 +54,36 @@ dfm09_subframe_date(struct tm *dst, DFM09Subframe_GPS *gps)
 }
 
 float
-dfm09_subframe_lat(DFM09Subframe_GPS *gps)
+dfm09_subframe_lat(const DFM09Subframe_GPS *gps)
 {
 	return (int32_t)bitmerge(gps->data, 32) / 1e7;
 }
 
 float
-dfm09_subframe_lon(DFM09Subframe_GPS *gps)
+dfm09_subframe_lon(const DFM09Subframe_GPS *gps)
 {
 	return (int32_t)bitmerge(gps->data, 32) / 1e7;
 }
 float
-dfm09_subframe_alt(DFM09Subframe_GPS *gps)
+dfm09_subframe_alt(const DFM09Subframe_GPS *gps)
 {
 	return (int32_t)bitmerge(gps->data, 32) / 1e2;
 }
 
 float
-dfm09_subframe_spd(DFM09Subframe_GPS *gps)
+dfm09_subframe_spd(const DFM09Subframe_GPS *gps)
 {
 	return bitmerge(gps->data + 4, 16) / 1e2;
 }
 
 float
-dfm09_subframe_hdg(DFM09Subframe_GPS *gps)
+dfm09_subframe_hdg(const DFM09Subframe_GPS *gps)
 {
 	return bitmerge(gps->data + 4, 16) / 1e2;
 }
 
 float
-dfm09_subframe_climb(DFM09Subframe_GPS *gps)
+dfm09_subframe_climb(const DFM09Subframe_GPS *gps)
 {
 	return (int16_t)bitmerge(gps->data + 4, 16) / 1e2;
 }

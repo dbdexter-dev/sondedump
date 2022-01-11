@@ -10,6 +10,8 @@ typedef struct {
 
 /**
  * Initialize AGC
+ *
+ * @param agc AGC to initialize
  */
 void agc_init(Agc *agc);
 

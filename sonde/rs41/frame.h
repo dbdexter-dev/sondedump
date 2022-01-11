@@ -22,6 +22,13 @@ void rs41_frame_descramble(RS41Frame *frame);
  */
 int rs41_frame_correct(RS41Frame *frame, RSDecoder *rs);
 
+
+/**
+ * Check if the frame contains an XDATA field
+ *
+ * @param f frame to analyze
+ * @return 1 if extended, 0 otherwise
+ */
 int rs41_frame_is_extended(RS41Frame *f);
 
 #endif

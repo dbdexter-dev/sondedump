@@ -5,7 +5,7 @@
 
 void rs41_parse_subframe(RS41Subframe *sub);
 
-/* PTU subframe. Credits to @zilog80 for the calibration data interpretation */
+/* PTU subframe. Credits to @einergehtnochrein for the calibration data interpretation */
 float rs41_subframe_temp(RS41Subframe_PTU *ptu, RS41Calibration *calib);
 float rs41_subframe_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib);
 float rs41_subframe_temp_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib);
