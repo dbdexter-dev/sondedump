@@ -2,6 +2,7 @@
 #define dfm09_protocol_h
 
 #include <stdint.h>
+#include "utils.h"
 
 #define DFM09_BAUDRATE 2500
 
@@ -15,11 +16,11 @@
 
 #define DFM06_SERIAL_TYPE 6
 
-typedef struct {
+PACK(typedef struct {
 	uint8_t sync[2];
 	uint8_t ptu[7];
 	uint8_t gps[26];
-} __attribute__((packed)) DFM09ECCFrame;
+}) DFM09ECCFrame;
 
 typedef struct {
 	uint8_t type;
@@ -36,7 +37,7 @@ typedef struct {
 	DFM09Subframe_GPS gps[2];
 } DFM09Frame;
 
-typedef struct {
+PACK(typedef struct {
 	uint32_t raw[0x10];
-} __attribute__((packed)) DFM09Calib;
+}) DFM09Calib;
 #endif

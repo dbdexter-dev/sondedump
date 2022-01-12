@@ -2,6 +2,7 @@
 #define rs41_protocol_h
 
 #include <stdint.h>
+#include "utils.h"
 
 /* Physical parameters */
 #define RS41_BAUDRATE 4800
@@ -49,21 +50,21 @@
 #define RS41_FLIGHT_STATUS_DESCEND_MSK 0x2      /* 0 = ascending, 1 = descending */
 #define RS41_FLIGHT_STATUS_VBAT_LOW (1 << 12)   /* 0 = battery ok, 1 = battery low */
 
-typedef struct {
+PACK(typedef struct {
 	uint8_t syncword[RS41_SYNC_LEN];
 	uint8_t rs_checksum[RS41_RS_LEN];
 	uint8_t extended_flag;
 	uint8_t data[RS41_DATA_LEN + RS41_XDATA_LEN];
-} __attribute__((packed)) RS41Frame;
+}) RS41Frame;
 
-typedef struct {
+PACK(typedef struct {
 	uint8_t type;
 	uint8_t len;
 	uint8_t data[RS41_SUBFRAME_MAX_LEN];
-} __attribute__((packed)) RS41Subframe;
+}) RS41Subframe;
 
 /* Specific subframe types {{{ */
-typedef struct {
+PACK(typedef struct {
 	uint8_t type;
 	uint8_t len;
 
@@ -82,9 +83,9 @@ typedef struct {
 	uint8_t frag_count;
 	uint8_t frag_seq;
 	uint8_t frag_data[16];
-} __attribute__((packed)) RS41Subframe_Info;
+}) RS41Subframe_Info;
 
-typedef struct {
+PACK(typedef struct {
 	uint8_t type;
 	uint8_t len;
 
@@ -110,9 +111,9 @@ typedef struct {
 	int16_t pressure_temp;
 
 	uint8_t _zero2[3];
-} __attribute__((packed)) RS41Subframe_PTU;
+}) RS41Subframe_PTU;
 
-typedef struct {
+PACK(typedef struct {
 	uint8_t type;
 	uint8_t len;
 
@@ -126,9 +127,9 @@ typedef struct {
 	uint8_t sv_count;
 	uint8_t speed_acc_estimate;
 	uint8_t pdop;
-} __attribute__((packed)) RS41Subframe_GPSPos;
+}) RS41Subframe_GPSPos;
 
-typedef struct {
+PACK(typedef struct {
 	uint8_t type;
 	uint8_t len;
 
@@ -136,20 +137,20 @@ typedef struct {
 	uint16_t week;
 	uint32_t ms;
 	uint16_t satellite[12];
-} __attribute__((packed)) RS41Subframe_GPSInfo;
+}) RS41Subframe_GPSInfo;
 
-typedef struct {
+PACK(typedef struct {
 	uint8_t type;
 	uint8_t len;
 	uint8_t unknown;
 	char ascii_data[RS41_XDATA_LEN];
-}__attribute__((packed)) RS41Subframe_XDATA;
+}) RS41Subframe_XDATA;
 
 /* }}} */
 
 /* Credits to @einergehtnochrein (https://github.com/einergehtnochrein/ra-firmware)
  * for figuring out what each calibration field does */
-typedef struct {
+PACK(typedef struct {
 	uint8_t _pad0[13];
 	char sonde_serial[8];       /* Sonde serial number, ASCII */
 	uint8_t _pad1[40];
@@ -174,6 +175,6 @@ typedef struct {
 	uint8_t _pad6[8];
 	uint8_t _unk_dynamic0[4];   /* Unknown, counter-like */
 	uint8_t _unk_dynamic1[2];   /* Unknown, last byte probably flags */
-} __attribute__((packed)) RS41Calibration;
+}) RS41Calibration;
 
 #endif

@@ -5,6 +5,7 @@
 #include "decode/framer.h"
 #include "decode/manchester.h"
 #include "frame.h"
+#include "subframe.h"
 #include "gps/time.h"
 
 struct m10decoder {

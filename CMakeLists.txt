@@ -60,7 +60,8 @@ set(LIBRARY_SOURCES
 
 	sonde/m10/m10.c
 	sonde/m10/frame.c sonde/m10/frame.h
-	sonde/m10/protocol.c sonde/m10/protocol.h
+	sonde/m10/subframe.c sonde/m10/subframe.h
+	sonde/m10/protocol.h
 
 	include/dfm09.h
 	include/m10.h

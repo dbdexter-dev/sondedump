@@ -49,7 +49,7 @@
 extern uint8_t ims100_bch_roots[];
 
 /* Even & odd seq frame types {{{ */
-typedef struct {
+PACK(typedef struct {
 	uint8_t _pad0[4];
 	uint8_t ms[2];
 	uint8_t hour;
@@ -64,9 +64,9 @@ typedef struct {
 	uint8_t heading[2];
 	uint8_t speed[2];
 	uint8_t _pad4[2];
-} __attribute__((packed)) IMS100FrameGPS;
+}) IMS100FrameGPS;
 
-typedef struct {
+PACK(typedef struct {
 	uint8_t _pad3[10];
 
 	/* Offset 26 */
@@ -74,10 +74,10 @@ typedef struct {
 	uint8_t fragment_seq;
 	uint8_t fragment_data[16];
 	uint8_t _pad4[2];
-} __attribute__((packed)) IMS100FrameMeta;
+}) IMS100FrameMeta;
 /* }}} */
 
-typedef struct {
+PACK(typedef struct {
 	/* Offset 0 */
 	uint8_t seq[2];
 	uint8_t adc_val0[2];     /* Actual content depends on seq, has period = 4 frames */
@@ -100,15 +100,15 @@ typedef struct {
 	} data;
 
 	uint32_t valid;
-} __attribute__((packed)) IMS100Frame;
+}) IMS100Frame;
 
 /* Frame as received, including all the ECC blocks and parity bits */
-typedef struct {
+PACK(typedef struct {
 	uint8_t syncword[3];
 	uint8_t data[72];
-} __attribute__((packed)) IMS100ECCFrame;
+}) IMS100ECCFrame;
 
-typedef struct {
+PACK(typedef struct {
 	uint8_t _pad[2];
 	uint8_t serial[4];                  /* Sonde serial number. IEEE754, big endian */
 	uint8_t _unk0[64];
@@ -120,6 +120,6 @@ typedef struct {
 	uint8_t temp_calib_coeffs[4][4];    /* Temp 3rd degree polynomial coefficients. IEEE754, big endian*/
 	uint8_t rh_temp_calib_coeffs[4][4];
 	uint8_t _unk_end[10];
-} __attribute__((packed)) IMS100Calibration;
+}) IMS100Calibration;
 
 #endif

@@ -9,17 +9,28 @@
 #define VERSION "(unknown version)"
 #endif
 
-
-#define DO_PRAGMA(x) _Pragma(#x)
+/* setenv() and unsetenv() for Windows */
+#ifdef _WIN32
+#define setenv(env, val, overwrite)  _putenv_s(env, val)
+#define unsetenv(env)                _putenv_s(env, "=")
+#endif
 
 /* Portable unroll pragma, for some reason clang defines __GNUC__ but uses the
  * non-GCC unroll pragma format */
+#define DO_PRAGMA(x) _Pragma(#x)
 #if defined(__clang__)
 #define PRAGMA_UNROLL(x) DO_PRAGMA(unroll x)
 #elif defined(__GNUC__)
 #define PRAGMA_UNROLL(x) DO_PRAGMA(GCC unroll x)
 #else
 #define PRAGMA_UNROLL(x) DO_PRAGMA(unroll x)
+#endif
+
+/* Portable struct packed attribute */
+#ifdef __GNUC__
+#define PACK( __Declaration__ ) __Declaration__ __attribute__((__packed__))
+#elif defined(_MSC_VER)
+#define PACK( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
 #endif
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
