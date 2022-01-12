@@ -117,12 +117,12 @@ message("")
 
 # Main library target
 add_library(sondedump_static STATIC ${LIBRARY_SOURCES})
-target_include_directories(sondedump_static PRIVATE ${COMMON_INC_DIRS})
-target_link_libraries(sondedump_static PRIVATE m)
+target_include_directories(sondedump_static PUBLIC ${COMMON_INC_DIRS})
+target_link_libraries(sondedump_static PUBLIC m)
 
 # Shared library target
 add_library(sonde SHARED ${LIBRARY_SOURCES})
-target_include_directories(sonde PRIVATE ${COMMON_INC_DIRS})
+target_include_directories(sonde PUBLIC ${COMMON_INC_DIRS})
 set_target_properties(sonde PROPERTIES EXCLUDE_FROM_ALL 1)
 
 # Main executable target
