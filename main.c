@@ -27,6 +27,7 @@ static void fill_printable_data(PrintableData *to_print, SondeData *data);
 static int printf_data(const char *fmt, PrintableData *data);
 static int wav_read_wrapper(float *dst);
 static int raw_read_wrapper(float *dst);
+static int audio_read_wrapper(float *dst);
 static void sigint_handler(int val);
 
 #ifdef ENABLE_TUI
@@ -161,7 +162,7 @@ main(int argc, char *argv[])
 	/* Open input */
 #ifdef ENABLE_AUDIO
 	if (input_from_audio) {
-		read_wrapper = audio_read;
+		read_wrapper = audio_read_wrapper;
 	} else {
 #endif
 	if (!(_wav = fopen(input_fname, "rb"))) {
@@ -326,6 +327,7 @@ main(int argc, char *argv[])
 static int
 wav_read_wrapper(float *dst)
 {
+	if (_interrupted) return 0;
 	return wav_read(dst, _bps, _wav);
 }
 
@@ -334,10 +336,18 @@ raw_read_wrapper(float *dst)
 {
 	int16_t tmp;
 
+	if (_interrupted) return 0;
 	if (!fread(&tmp, 2, 1, _wav)) return 0;
 
 	*dst = tmp;
 	return 1;
+}
+
+static int
+audio_read_wrapper(float *dst)
+{
+	if (_interrupted) return 0;
+	return audio_read(dst);
 }
 
 static void

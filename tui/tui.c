@@ -16,13 +16,13 @@
 #define XDATA_INFO_COUNT 1  /* xdata */
 #define INFO_COUNT (PTU_INFO_COUNT + GPS_INFO_COUNT + SONDE_INFO_COUNT + XDATA_INFO_COUNT)
 
-static void init_windows(int rows, int cols);
+static void init_windows();
 static void redraw();
 static void draw_tabs(WINDOW *win, int selected);
 static void handle_resize();
 static void *main_loop(void* args);
 
-static char *_decoder_names[] = { "RS41", "DFM", "M10", "iMS100" };
+static char *_decoder_names[] = {"RS41", "DFM", "M10", "iMS100"};
 static int _update_interval;
 static int _running;
 static pthread_t _tid;
@@ -38,7 +38,6 @@ static struct {
 void
 tui_init(int update_interval, void (*decoder_changer)(int index), int active_decoder)
 {
-	int rows, cols;
 	setlocale(LC_ALL, "");
 
 	_update_interval = (update_interval > 0 ? update_interval : DEFAULT_UPD_INTERVAL);
@@ -51,8 +50,7 @@ tui_init(int update_interval, void (*decoder_changer)(int index), int active_dec
 	use_default_colors();
 	start_color();
 
-	getmaxyx(stdscr, rows, cols);
-	init_windows(rows, cols);
+	init_windows();
 	keypad(tui.win, 1);
 
 	memset(&tui.data, 0, sizeof(tui.data));
@@ -133,12 +131,22 @@ handle_resize()
 
 	refresh();
 	getmaxyx(stdscr, rows, cols);
-	wresize(tui.win, height, width);
-	wresize(tui.tabs, 2, width);
-	mvwin(tui.win, (rows - height) / 2, (cols - width) / 2);
-	mvwin(tui.tabs, (rows - height) / 2 - 2, (cols - width) / 2);
+
+	if (!tui.win) {
+		tui.win = newwin(height, width, (rows - height) / 2 + 1, (cols - width) / 2);
+	} else {
+		wresize(tui.win, height, width);
+		mvwin(tui.win, (rows - height) / 2 + 1, (cols - width) / 2);
+	}
+	if (!tui.tabs) {
+		tui.tabs = newwin(2, width, (rows - height) / 2 - 1, (cols - width) / 2);
+	} else {
+		wresize(tui.tabs, 2, width);
+		mvwin(tui.tabs, (rows - height) / 2 - 1, (cols - width) / 2);
+	}
 	redraw();
 }
+
 static void
 redraw()
 {
@@ -243,12 +251,9 @@ draw_tabs(WINDOW *win, int selected)
 }
 
 static void
-init_windows(int rows, int cols)
+init_windows()
 {
-	const int width = 50;
-	const int height = INFO_COUNT + 3 + 3;
-	tui.win = newwin(height, width, (rows - height) / 2, (cols - width) / 2);
-	tui.tabs = newwin(2, width, (rows - height) / 2 - 2, (cols - width) / 2);
+	handle_resize();
 	wborder(tui.win,
 			0, 0, 0, 0,
 			0, 0, 0, 0);
