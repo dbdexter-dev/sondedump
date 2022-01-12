@@ -56,17 +56,7 @@ ims100_frame_error_correct(IMS100ECCFrame *frame, const RSDecoder *rs)
 			errdelta = rs_fix_block(rs, message);
 			if (errdelta < 0 || errcount < 0) {
 				errcount = -1;
-			} else if (errdelta) {
-				/* If an error was "corrected" in the padding, count it as a
-				 * failure to correct */
-				for (k=0; k<start_idx; k++) {
-					if (message[i] != 0x00) {
-						errcount = -1;
-						errdelta = -1;
-						break;
-					}
-				}
-
+			} else {
 				errcount += errdelta;
 			}
 

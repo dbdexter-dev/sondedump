@@ -52,7 +52,7 @@ ims100_decoder_init(int samplerate)
 	d->calib_bitmask = 0;
 	d->prev_alt.alt = 0;
 	d->prev_alt.time = 0;
-	strcpy(d->serial, "iMS(xxxxxxxx)");
+	d->serial[0] = 0;
 #ifndef NDEBUG
 	debug = fopen("/tmp/ims100frames.data", "wb");
 	debug_odd = fopen("/tmp/ims100frames_odd.data", "wb");
@@ -110,7 +110,7 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			validmask = IMS100_MASK_SEQ;
 			if (!IMS100_DATA_VALID(self->frame.valid, validmask)) data.type = EMPTY;
 			if (IMS100_DATA_VALID(self->calib_bitmask, IMS100_CALIB_SERIAL_MASK)) {
-				sprintf(self->serial, "iMS%d", (int)ieee754_be(self->calib.serial));
+				sprintf(self->serial, "IMS%d", (int)ieee754_be(self->calib.serial));
 			}
 
 			if (data.type != EMPTY) {
@@ -120,12 +120,6 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 
 			self->state = PARSE_PTU;
 
-#ifndef NDEBUG
-			fwrite(&self->calib, sizeof(self->calib), 1, debug);
-			fflush(debug);
-#endif
-
-
 			break;
 
 		case PARSE_PTU:
@@ -134,6 +128,26 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
 			/* Invalidate data if subframe is marked corrupted */
 			validmask = IMS100_MASK_PTU;
 			if (!IMS100_DATA_VALID(self->frame.valid, validmask)) data.type = EMPTY;
+
+#ifndef NDEBUG
+			static int offset[2] = {2, 2};
+			int myseq = ims100_frame_seq(&self->frame);
+			static IMS100Frame empty;
+			if (myseq & 0x1) {
+				if ((myseq & 0x2) == offset[0])
+					fwrite(&empty, sizeof(empty), 1, debug);
+				fwrite(&self->frame, sizeof(self->frame), 1, debug);
+				offset[0] = myseq & 0x2;
+			} else {
+				if ((myseq & 0x2) == offset[1])
+					fwrite(&empty, sizeof(empty), 1, debug_odd);
+				fwrite(&self->frame, sizeof(self->frame), 1, debug_odd);
+				offset[1] = myseq & 0x2;
+			}
+			fflush(debug);
+#endif
+
+
 
 			if (data.type != EMPTY) {
 				/* Fetch the ADC data carried by this frame based on its seq nr */

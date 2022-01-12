@@ -5,7 +5,7 @@ option(ENABLE_AUDIO "Enable audio input (requires portaudio)" ON)
 option(UNINSTALL_TARGET "Generate uninstall target" ON)
 
 project(sondedump
-	VERSION 0.5.1
+	VERSION 0.5.2
 	DESCRIPTION "Radiosonde decoder"
 	LANGUAGES C)
 add_definitions(-DVERSION="${CMAKE_PROJECT_VERSION}")

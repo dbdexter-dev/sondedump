@@ -65,7 +65,7 @@ float
 ims100_subframe_heading(const IMS100FrameGPS *frame) {
 	const int16_t raw_heading = (int16_t)frame->heading[0] << 8 | (int16_t)frame->heading[1];
 
-	return raw_heading / 1e2;
+	return abs(raw_heading) / 1e2;
 }
 
 
