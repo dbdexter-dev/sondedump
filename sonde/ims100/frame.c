@@ -1,7 +1,9 @@
 #include <math.h>
 #include <string.h>
 #include <time.h>
+#include "bitops.h"
 #include "frame.h"
+#include "physics.h"
 #include "utils.h"
 
 static float freq_to_temp(float temp_freq, float ref_freq, const float poly_coeffs[4], const float spline_resists[12], const float spline_temps[12]);

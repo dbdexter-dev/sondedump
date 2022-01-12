@@ -2,6 +2,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
+#include "bitops.h"
 #include "decode/framer.h"
 #include "decode/manchester.h"
 #include "frame.h"

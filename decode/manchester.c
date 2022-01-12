@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "manchester.h"
-#include "utils.h"
+#include "bitops.h"
 
 void
 manchester_decode(uint8_t *dst, uint8_t *src, int nbits)

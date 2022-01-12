@@ -8,6 +8,7 @@
 #include "frame.h"
 #include "protocol.h"
 #include "subframe.h"
+#include "bitops.h"
 
 struct dfm09decoder {
 	GFSKDemod gfsk;

@@ -7,6 +7,7 @@
 #include "tui.h"
 #include "gps/ecef.h"
 #include "utils.h"
+#include "physics.h"
 
 #define DEFAULT_UPD_INTERVAL 100
 

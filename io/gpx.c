@@ -18,7 +18,6 @@ gpx_init(GPXFile *file, char *fname)
 	fprintf(file->fd,
 			"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\" ?>\n"
 			"<gpx xmlns=\"http://www.topografix.com/GPX/1/1\" version=\"1.1\" creator=\"SondeDump\">\n"
-
 			);
 
 	file->offset = ftell(file->fd);

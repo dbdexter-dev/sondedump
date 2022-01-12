@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "decode/ecc/crc.h"
+#include "physics.h"
 #include "subframe.h"
 #include "utils.h"
 

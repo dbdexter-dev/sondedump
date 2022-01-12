@@ -1,5 +1,5 @@
+#include "bitops.h"
 #include "framer.h"
-#include "utils.h"
 
 int
 read_frame_gfsk(GFSKDemod *gfsk, Correlator *corr, uint8_t *dst, int (*read)(float *dst), size_t framelen, size_t bit_offset)

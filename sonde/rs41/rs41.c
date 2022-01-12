@@ -2,12 +2,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "bitops.h"
 #include "decode/framer.h"
 #include "decode/ecc/crc.h"
 #include "decode/xdata.h"
 #include "frame.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
+#include "physics.h"
 #include "subframe.h"
 
 typedef struct {

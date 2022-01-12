@@ -71,6 +71,8 @@ set(LIBRARY_SOURCES
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h
 
+	bitops.c bitops.h
+	physics.c physics.h
 	utils.c utils.h
 )
 

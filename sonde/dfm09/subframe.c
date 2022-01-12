@@ -1,6 +1,7 @@
 #include <math.h>
-#include "subframe.h"
+#include "bitops.h"
 #include "protocol.h"
+#include "subframe.h"
 #include "utils.h"
 
 float
