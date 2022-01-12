@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 option(ENABLE_TUI "Enable Ncurses TUI (requires ncurses)" ON)
 option(ENABLE_AUDIO "Enable audio input (requires portaudio)" ON)
+option(UNINSTALL_TARGET "Generate uninstall target" ON)
 
 project(sondedump
 	VERSION 0.5.1
@@ -135,7 +136,7 @@ target_link_libraries(sondedump PRIVATE m pthread sondedump_static
 install(TARGETS sondedump DESTINATION bin)
 
 # uninstall target
-if(NOT TARGET uninstall)
+if(UNINSTALL_TARGET AND NOT TARGET uninstall)
   configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
