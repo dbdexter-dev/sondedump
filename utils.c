@@ -111,8 +111,8 @@ usage(const char *pname)
 #ifdef ENABLE_TUI
 	fprintf(stderr,
 	        "\nTUI keybinds:\n"
-	        "Arrow keys: change active decoder\n"
-	        "Tab: toggle between absolute (lat, lon, alt) and relative (az, el, range) coordinates\n"
+	        "   Arrow keys: change active decoder\n"
+	        "   Tab: toggle between absolute (lat, lon, alt) and relative (az, el, range) coordinates (requires -r, --location)\n"
 	       );
 #endif
 }

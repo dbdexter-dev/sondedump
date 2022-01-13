@@ -33,6 +33,7 @@ static struct {
 	PrintableData data;
 	int data_changed;
 	int active_decoder;
+	int receiver_location_set;
 	float lat, lon, alt;
 	enum { ABSOLUTE=0, RELATIVE, POS_TYPE_COUNT } pos_type;
 } tui;
@@ -55,6 +56,7 @@ tui_init(int update_interval, void (*decoder_changer)(int index), int active_dec
 
 	tui.lat = tui.lon = tui.alt = 0;
 	tui.pos_type = ABSOLUTE;
+	tui.receiver_location_set = 0;
 
 	init_windows();
 	keypad(tui.win, 1);
@@ -82,6 +84,7 @@ tui_set_ground_location(float lat, float lon, float alt)
 	tui.lat = lat;
 	tui.lon = lon;
 	tui.alt = alt;
+	tui.receiver_location_set = 1;
 }
 
 
@@ -118,12 +121,16 @@ main_loop(void *args)
 				tui.data_changed = 1;
 				break;
 			case '\t':
-				tui.pos_type = (tui.pos_type + 1) % POS_TYPE_COUNT;
-				tui.data_changed = 1;
+				if (tui.receiver_location_set) {
+					tui.pos_type = (tui.pos_type + 1) % POS_TYPE_COUNT;
+					tui.data_changed = 1;
+				}
 				break;
 			case KEY_BTAB:
-				tui.pos_type = (tui.pos_type - 1 + POS_TYPE_COUNT) % POS_TYPE_COUNT;
-				tui.data_changed = 1;
+				if (tui.receiver_location_set) {
+					tui.pos_type = (tui.pos_type - 1 + POS_TYPE_COUNT) % POS_TYPE_COUNT;
+					tui.data_changed = 1;
+				}
 				break;
 			default:
 				break;

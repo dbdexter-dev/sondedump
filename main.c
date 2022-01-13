@@ -84,6 +84,7 @@ main(int argc, char *argv[])
 	char *gpx_fname = NULL;
 	char *csv_fname = NULL;
 	char *input_fname = NULL;
+	int receiver_location_set = 0;
 	float receiver_lat = 0, receiver_lon = 0, receiver_alt = 0;
 #ifdef ENABLE_TUI
 	int tui_enabled = 1;
@@ -134,6 +135,7 @@ main(int argc, char *argv[])
 					usage(argv[0]);
 					return 1;
 				}
+				receiver_location_set = 1;
 				break;
 			case 'f':
 				output_fmt = optarg;
@@ -216,7 +218,9 @@ main(int argc, char *argv[])
 	/* Enable TUI */
 	if (tui_enabled) {
 		tui_init(-1, &decoder_changer, _active_decoder);
-		tui_set_ground_location(receiver_lat, receiver_lon, receiver_alt);
+		if (receiver_location_set) {
+			tui_set_ground_location(receiver_lat, receiver_lon, receiver_alt);
+		}
 	}
 #endif
 

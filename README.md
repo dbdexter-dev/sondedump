@@ -48,20 +48,18 @@ Usage
 -----
 ```
 sondedump [options] file_in
-If no filename is specified and PortAudio support has been enabled during
-compilation, samples will be read from an audio device instead.
-
    -a, --audio-device <id> Use PortAudio device <id> as input (default: choose interactively)
-   -c, --csv <file>        Output data to <file> in CSV format
-   -f, --fmt <format>      Format output lines as <format>
-   -g, --gpx <file>        Output GPX track to <file>
-   -k, --kml <file>        Output KML track to <file>
-   -l, --live-kml <file>   Output live KML track to <file>
-   -t, --type <type>       Enable decoder for the given sonde type
-                           Supported values: rs41, dfm, m10, ims100
+   -c, --csv <file>             Output data to <file> in CSV format
+   -f, --fmt <format>           Format output lines as <format>
+   -g, --gpx <file>             Output GPX track to <file>
+   -k, --kml <file>             Output KML track to <file>
+   -l, --live-kml <file>        Output live KML track to <file>
+   -r, --location <lat,lon,alt> Set receiver location to <lat, lon, alt> (default: none)
+   -t, --type <type>            Enable decoder for the given sonde type
+                                Supported values: rs41, dfm, m10, ims100
 
-   -h, --help              Print this help screen
-   -v, --version           Print version info
+   -h, --help                   Print this help screen
+   -v, --version                Print version info
 
 Available format specifiers:
    %a      Altitude (m)
@@ -79,6 +77,9 @@ Available format specifiers:
    %t      Temperature (degrees Celsius)
    %T      Timestamp (yyyy-mm-dd hh:mm::ss, local)
 
+TUI keybinds:
+   Arrow keys: change active decoder
+   Tab: toggle between absolute (lat, lon, alt) and relative (az, el, range) coordinates (requires -r, --location)
 ```
 
 Examples:
