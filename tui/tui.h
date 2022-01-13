@@ -19,10 +19,20 @@ void tui_init(int update_interval, void (*decoder_changer)(int index), int activ
 void tui_deinit();
 
 /**
+ * Update ground receiver location
+ *
+ * @param lat ground latitude, degrees
+ * @param lon ground longitude, degrees
+ * @param alt ground altitude, meters
+ */
+void tui_set_ground_location(float lat, float lon, float alt);
+
+/**
  * Update the data displayed by the TUI
  *
  * @param data data to display
  */
 int tui_update(PrintableData *data);
+
 #endif
 

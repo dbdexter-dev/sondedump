@@ -28,6 +28,7 @@ ecef_to_lla(float *lat, float *lon, float *alt, float x, float y, float z)
 
 	return 0;
 }
+
 int
 ecef_to_spd_hdg(float *speed, float *heading, float *v_climb, float lat, float lon, float dx, float dy, float dz)
 {
@@ -52,3 +53,54 @@ ecef_to_spd_hdg(float *speed, float *heading, float *v_climb, float lat, float l
 
 	return 0;
 }
+
+int
+lla_to_ecef(float *x, float *y, float *z, float lat, float lon, float alt)
+{
+	/* Convert degrees to radians */
+	lat /= 180 / M_PI;
+	lon /= 180 / M_PI;
+
+	const float sinphi = sinf(lat);
+	const float n = WGS84_A / sqrtf(1 - WGS84_E_SQR * sinphi*sinphi);
+
+	/* Compute x, y, z */
+	*x = (n + alt) * cosf(lat) * cosf(lon);
+	*y = (n + alt) * cosf(lat) * sinf(lon);
+	*z = ((WGS84_B * WGS84_B) / (WGS84_A * WGS84_A) * n + alt) * sinf(lat);
+
+	return 0;
+}
+
+int
+lla_to_aes(float *az, float *el, float *slant, float lat, float lon, float alt, float lat_0, float lon_0, float alt_0)
+{
+	float x, y, z, x_0, y_0, z_0, dx, dy, dz;
+	float east, north, up;
+
+	lla_to_ecef(&x, &y, &z, lat, lon, alt);
+	lla_to_ecef(&x_0, &y_0, &z_0, lat_0, lon_0, alt_0);
+
+	/* Convert degrees to radians */
+	lat_0 /= 180.0 / M_PI;
+	lon_0 /= 180.0 / M_PI;
+
+	/* ECEF/LLA to ENU */
+	dx = x - x_0;
+	dy = y - y_0;
+	dz = z - z_0;
+
+	east  = -sinf(lon_0)               * dx +                cosf(lon_0) * dy;
+	north = -sinf(lat_0) * cosf(lon_0) * dx + -sinf(lat_0) * sinf(lon_0) * dy + cosf(lat_0) * dz;
+	up    =  cosf(lat_0) * cosf(lon_0) * dx +  cosf(lat_0) * sinf(lon_0) * dy + sinf(lat_0) * dz;
+
+	/* ENU to az/el/slant */
+	*slant = sqrtf(east * east + north * north + up * up);
+	*az = 180.0 / M_PI * atan2f(east, north);
+	*el = 180.0 / M_PI * atan2f(up, sqrtf(east * east + north * north));
+
+	if (*az < 0) *az += 360.0;
+
+	return 0;
+}
+

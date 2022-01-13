@@ -252,6 +252,9 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst))
 					ecef_to_lla(&data.data.pos.lat, &data.data.pos.lon, &data.data.pos.alt, x, y, z);
 					ecef_to_spd_hdg(&data.data.pos.speed, &data.data.pos.heading, &data.data.pos.climb,
 							data.data.pos.lat, data.data.pos.lon, dx, dy, dz);
+
+					/* If pressure is not provided, estimate it from altitude
+					 * so that ozone ppb calculation can stil happen */
 					if (!(self->pressure > 0)) self->pressure = altitude_to_pressure(data.data.pos.alt);
 
 					break;

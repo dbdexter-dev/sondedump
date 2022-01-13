@@ -48,7 +48,7 @@
 
 extern uint8_t ims100_bch_roots[];
 
-/* Even & odd seq frame types {{{ */
+/* Even & odd seq subframe types {{{ */
 PACK(typedef struct {
 	uint8_t _pad0[4];
 	uint8_t ms[2];

@@ -33,6 +33,8 @@ static struct {
 	PrintableData data;
 	int data_changed;
 	int active_decoder;
+	float lat, lon, alt;
+	enum { ABSOLUTE=0, RELATIVE, POS_TYPE_COUNT } pos_type;
 } tui;
 
 
@@ -50,6 +52,9 @@ tui_init(int update_interval, void (*decoder_changer)(int index), int active_dec
 
 	use_default_colors();
 	start_color();
+
+	tui.lat = tui.lon = tui.alt = 0;
+	tui.pos_type = ABSOLUTE;
 
 	init_windows();
 	keypad(tui.win, 1);
@@ -69,6 +74,14 @@ tui_deinit()
 	pthread_join(_tid, NULL);
 	delwin(tui.win);
 	endwin();
+}
+
+void
+tui_set_ground_location(float lat, float lon, float alt)
+{
+	tui.lat = lat;
+	tui.lon = lon;
+	tui.alt = alt;
 }
 
 
@@ -93,17 +106,23 @@ main_loop(void *args)
 				handle_resize();
 				break;
 			case KEY_LEFT:
-			case KEY_BTAB:
 				tui.active_decoder = (tui.active_decoder - 1) % LEN(_decoder_names);
 				memset(&tui.data, 0, sizeof(tui.data));
 				decoder_changer(tui.active_decoder);
 				tui.data_changed = 1;
 				break;
 			case KEY_RIGHT:
-			case '\t':
 				tui.active_decoder = (tui.active_decoder + 1) % LEN(_decoder_names);
 				memset(&tui.data, 0, sizeof(tui.data));
 				decoder_changer(tui.active_decoder);
+				tui.data_changed = 1;
+				break;
+			case '\t':
+				tui.pos_type = (tui.pos_type + 1) % POS_TYPE_COUNT;
+				tui.data_changed = 1;
+				break;
+			case KEY_BTAB:
+				tui.pos_type = (tui.pos_type - 1 + POS_TYPE_COUNT) % POS_TYPE_COUNT;
 				tui.data_changed = 1;
 				break;
 			default:
@@ -153,8 +172,8 @@ redraw()
 {
 	int rows, cols;
 	int start_row, start_col;
-	float synthetic_pressure;
 	char time[64], shutdown_timer[32];
+	float az, el, slant;
 
 	/* Draw tabs at top of the TUI */
 	draw_tabs(tui.tabs, tui.active_decoder);
@@ -170,9 +189,6 @@ redraw()
 	} else {
 		shutdown_timer[0] = 0;
 	}
-
-	synthetic_pressure = (isnormal(tui.data.pressure) ?
-			tui.data.pressure : altitude_to_pressure(tui.data.alt));
 
 	getmaxyx(tui.win, rows, cols);
 	start_row = (rows - INFO_COUNT - 4) / 2;
@@ -193,12 +209,32 @@ redraw()
 			"Shutdown in: %s", shutdown_timer);
 	start_row++;
 
-	mvwprintw(tui.win, start_row++, start_col - sizeof("Latitude:"),
-			"Latitude: %.5f%c", fabs(tui.data.lat), tui.data.lat >= 0 ? 'N' : 'S');
-	mvwprintw(tui.win, start_row++, start_col - sizeof("Longitude:"),
-			"Longitude: %.5f%c", fabs(tui.data.lon), tui.data.lon >= 0 ? 'E' : 'W');
-	mvwprintw(tui.win, start_row++, start_col - sizeof("Altitude:"),
-			"Altitude: %.0fm", tui.data.alt);
+	switch (tui.pos_type) {
+		case ABSOLUTE:
+			mvwprintw(tui.win, start_row++, start_col - sizeof("Latitude:"),
+					"Latitude: %.5f%c", fabs(tui.data.lat), tui.data.lat >= 0 ? 'N' : 'S');
+			mvwprintw(tui.win, start_row++, start_col - sizeof("Longitude:"),
+					"Longitude: %.5f%c", fabs(tui.data.lon), tui.data.lon >= 0 ? 'E' : 'W');
+			mvwprintw(tui.win, start_row++, start_col - sizeof("Altitude:"),
+					"Altitude: %.0fm", tui.data.alt);
+			break;
+		case RELATIVE:
+			lla_to_aes(&az, &el, &slant,
+			           tui.data.lat, tui.data.lon, tui.data.alt,
+			           tui.lat, tui.lon, tui.alt);
+
+			mvwprintw(tui.win, start_row++, start_col - sizeof("Azimuth:"),
+					"Azimuth: %.1f'", az);
+			mvwprintw(tui.win, start_row++, start_col - sizeof("Elevation:"),
+					"Elevation: %.2f'", el);
+			mvwprintw(tui.win, start_row++, start_col - sizeof("Slant range:"),
+					"Slant range: %.2fkm", slant / 1000.0);
+			break;
+		default:
+			tui.pos_type = ABSOLUTE;
+			break;
+	}
+
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Speed:"),
 			"Speed: %.1fm/s", tui.data.speed);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Heading:"),
@@ -216,7 +252,7 @@ redraw()
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Dew point:"),
 			"Dew point: %.1f'C", dewpt(tui.data.temp, tui.data.rh));
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Pressure:"),
-			"Pressure: %.1fhPa", synthetic_pressure);
+			"Pressure: %.1fhPa", tui.data.pressure);
 
 	start_row++;
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Aux. data:"),

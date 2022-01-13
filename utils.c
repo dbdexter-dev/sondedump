@@ -79,16 +79,17 @@ usage(const char *pname)
 #ifdef ENABLE_AUDIO
 			"   -a, --audio-device <id> Use PortAudio device <id> as input (default: choose interactively)\n"
 #endif
-			"   -c, --csv <file>        Output data to <file> in CSV format\n"
-			"   -f, --fmt <format>      Format output lines as <format>\n"
-			"   -g, --gpx <file>        Output GPX track to <file>\n"
-			"   -k, --kml <file>        Output KML track to <file>\n"
-			"   -l, --live-kml <file>   Output live KML track to <file>\n"
-			"   -t, --type <type>       Enable decoder for the given sonde type\n"
-			"                           Supported values: rs41, dfm, m10, ims100\n"
+			"   -c, --csv <file>             Output data to <file> in CSV format\n"
+			"   -f, --fmt <format>           Format output lines as <format>\n"
+			"   -g, --gpx <file>             Output GPX track to <file>\n"
+			"   -k, --kml <file>             Output KML track to <file>\n"
+			"   -l, --live-kml <file>        Output live KML track to <file>\n"
+			"   -r, --location <lat,lon,alt> Set receiver location to <lat, lon, alt> (default: none)\n"
+			"   -t, --type <type>            Enable decoder for the given sonde type\n"
+			"                                Supported values: rs41, dfm, m10, ims100\n"
 	        "\n"
-	        "   -h, --help              Print this help screen\n"
-	        "   -v, --version           Print version info\n"
+	        "   -h, --help                   Print this help screen\n"
+	        "   -v, --version                Print version info\n"
 	        );
 	fprintf(stderr,
 			"\nAvailable format specifiers:\n"
@@ -107,6 +108,13 @@ usage(const char *pname)
 			"   %%t      Temperature (degrees Celsius)\n"
 			"   %%T      Timestamp (yyyy-mm-dd hh:mm::ss, local)\n"
 		   );
+#ifdef ENABLE_TUI
+	fprintf(stderr,
+	        "\nTUI keybinds:\n"
+	        "Arrow keys: change active decoder\n"
+	        "Tab: toggle between absolute (lat, lon, alt) and relative (az, el, range) coordinates\n"
+	       );
+#endif
 }
 
 void
@@ -123,13 +131,16 @@ version()
 			"\n");
 }
 
+/* Static functions {{{ */
 static float
 spline_tangent(const float *xs, const float *ys, int k)
 {
 	return 0.5 * ((ys[k+1] - ys[k]) / (xs[k+1] - xs[k])
 	            + (ys[k] - ys[k-1]) / (xs[k] - xs[k-1]));
 }
+
 static float hermite_00(float x) { return (1 + 2*x) * (1-x)*(1-x); }
 static float hermite_10(float x) { return x * (1-x) * (1-x); }
 static float hermite_01(float x) { return x * x * (3 - 2*x); }
 static float hermite_11(float x) { return x * x * (x - 1); }
+/* }}} */

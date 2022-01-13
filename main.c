@@ -22,7 +22,7 @@
 #include "io/audio.h"
 #endif
 
-#define SHORTOPTS "a:c:f:g:hk:l:o:t:v"
+#define SHORTOPTS "a:c:f:g:hk:l:o:r:t:v"
 
 static void fill_printable_data(PrintableData *to_print, SondeData *data);
 static int printf_data(const char *fmt, PrintableData *data);
@@ -50,6 +50,7 @@ static struct option longopts[] = {
 	{ "kml",          1, NULL, 'k' },
 	{ "live-kml",     1, NULL, 'l' },
 	{ "output",       1, NULL, 'o' },
+	{ "location",     1, NULL, 'r' },
 	{ "type",         1, NULL, 't' },
 	{ "version",      0, NULL, 'v' },
 	{ NULL,           0, NULL,  0  }
@@ -83,6 +84,7 @@ main(int argc, char *argv[])
 	char *gpx_fname = NULL;
 	char *csv_fname = NULL;
 	char *input_fname = NULL;
+	float receiver_lat = 0, receiver_lon = 0, receiver_alt = 0;
 #ifdef ENABLE_TUI
 	int tui_enabled = 1;
 #endif
@@ -111,12 +113,6 @@ main(int argc, char *argv[])
 			case 'l':
 				live_kml_fname = optarg;
 				break;
-			case 'h':
-				usage(argv[0]);
-				return 0;
-			case 'v':
-				version();
-				return 0;
 			case 't':
 				if (!strcmp(optarg, "rs41")) {
 					_active_decoder = RS41;
@@ -132,12 +128,25 @@ main(int argc, char *argv[])
 					return 1;
 				}
 				break;
+			case 'r':
+				if (sscanf(optarg, "%f,%f,%f", &receiver_lat, &receiver_lon, &receiver_alt) < 3) {
+					fprintf(stderr, "Invalid receiver coordinates\n");
+					usage(argv[0]);
+					return 1;
+				}
+				break;
 			case 'f':
 				output_fmt = optarg;
 #ifdef ENABLE_TUI
 				tui_enabled = 0;
 #endif
 				break;
+			case 'h':
+				usage(argv[0]);
+				return 0;
+			case 'v':
+				version();
+				return 0;
 			default:
 				usage(argv[0]);
 				return 1;
@@ -204,8 +213,10 @@ main(int argc, char *argv[])
 		return 1;
 	}
 #ifdef ENABLE_TUI
+	/* Enable TUI */
 	if (tui_enabled) {
 		tui_init(-1, &decoder_changer, _active_decoder);
+		tui_set_ground_location(receiver_lat, receiver_lon, receiver_alt);
 	}
 #endif
 
@@ -253,6 +264,12 @@ main(int argc, char *argv[])
 		if (data.type == SOURCE_END) break;
 		switch (data.type) {
 			case FRAME_END:
+				/* If pressure is not provided by the device, estimate it from
+				 * the altitude data */
+				if (!isnormal(printable.pressure) || printable.pressure < 0) {
+					printable.pressure = altitude_to_pressure(printable.alt);
+				}
+
 				/* Write line at the end of the frame */
 				if (has_data) {
 #ifdef ENABLE_TUI
@@ -266,7 +283,7 @@ main(int argc, char *argv[])
 #endif
 				}
 
-				if (csv_fd) {
+				if (csv_fd && printable.calibrated) {
 					fprintf(csv_fd, "%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
 							printable.temp, printable.rh,
 							isnan(printable.pressure) ? altitude_to_pressure(printable.alt) : printable.pressure,

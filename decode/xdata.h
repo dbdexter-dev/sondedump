@@ -4,7 +4,7 @@
 #define XDATA_ENSCI_OZONE 0x05
 
 /**
- * Decoder ASCII-encoded xdata
+ * Decode ASCII-encoded xdata
  *
  * @param cur_pressure current pressure, used for ozone PPM decoding
  * @param ascii_data standard ASCII xdata string (without the 'xdata=')
