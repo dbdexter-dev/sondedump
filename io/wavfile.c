@@ -11,6 +11,7 @@ static union {
 	float floats[FILE_BUFFER_SIZE/4];
 } _buffer;
 static size_t _offset;
+static int _num_channels;
 
 struct wave_header {
 	char _riff[4];          /* Literally RIFF */
@@ -38,12 +39,12 @@ wav_parse(FILE *fd, int *samplerate, int *bps)
 
 	if (strncmp(header._riff, "RIFF", 4)) return 1;
 	if (strncmp(header._filetype, "WAVE", 4)) return 1;
-	if (header.num_channels != 1) return 1;
+	_num_channels = header.num_channels;
 
 	if (!(*bps = header.bits_per_sample)) return 1;
 	*samplerate = (int)header.sample_rate;
 
-	_offset = (size_t)-1;
+	_offset = 0;
 
 	return 0;
 }
@@ -58,28 +59,48 @@ wav_read(float *dst, int bps, size_t count, FILE *fd)
 		/* If offset is at end of buffer, read more bytes */
 		if (!_offset) {
 			if (!fread(&_buffer.bytes, sizeof(_buffer.bytes), 1, fd)) return 0;
-			_offset = 0;
 		}
 
 		/* Compute number of samples to send over */
-		copy_count = MIN(count, sizeof(_buffer) / (bps/8) - _offset);
+		copy_count = MIN(count, (sizeof(_buffer) / (bps/8) - _offset) / _num_channels);
 
 		/* Convert samples */
 		switch (bps) {
 			case 8:
-				for (i=0; i<copy_count; i++) {
-					*dst++ = _buffer.bytes[_offset++] - 128;
+				if (_num_channels == 1) {
+					for (i=0; i<copy_count; i++) {
+						*dst++ = _buffer.bytes[_offset++] - 128;
+					}
+				} else {
+					for (i=0; i<copy_count; i++) {
+						*dst++ = _buffer.bytes[_offset] - 128;
+						_offset += _num_channels;
+					}
 				}
 				break;
 			case 16:
-				for (i=0; i<copy_count; i++) {
-					*dst++ = _buffer.words[_offset++];
+				if (_num_channels == 1) {
+					for (i=0; i<copy_count; i++) {
+						*dst++ = _buffer.words[_offset++];
+					}
+				} else {
+					for (i=0; i<copy_count; i++) {
+						*dst++ = _buffer.words[_offset];
+						_offset += _num_channels;
+					}
 				}
 				break;
 			case 32:
-				memcpy(dst, _buffer.floats + _offset, bps/8 * copy_count);
-				dst += copy_count;
-				_offset += copy_count;
+				if (_num_channels == 1) {
+					for (i=0; i<copy_count; i++) {
+						*dst++ = _buffer.floats[_offset++];
+					}
+				} else {
+					for (i=0; i<copy_count; i++) {
+						*dst++ = _buffer.floats[_offset];
+						_offset += _num_channels;
+					}
+				}
 				break;
 			default:
 				return 0;
