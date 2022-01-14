@@ -74,7 +74,7 @@ ims100_decoder_deinit(IMS100Decoder *d)
 }
 
 SondeData
-ims100_decode(IMS100Decoder *self, int (*read)(float *dst))
+ims100_decode(IMS100Decoder *self, int (*read)(float *dst, size_t len))
 {
 	SondeData data = {.type = EMPTY};
 	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;

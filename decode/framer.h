@@ -18,6 +18,6 @@
  *
  * @return -1 on read failure, else offset of the sync marker found
  */
-int read_frame_gfsk(GFSKDemod *gfsk, Correlator *corr, uint8_t *dst, int (*read)(float *dst), size_t framelen, size_t bit_offset);
+int read_frame_gfsk(GFSKDemod *gfsk, Correlator *corr, uint8_t *dst, int (*read)(float *dst, size_t len), size_t framelen, size_t bit_offset);
 
 #endif

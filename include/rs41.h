@@ -26,6 +26,6 @@ void rs41_decoder_deinit(RS41Decoder *d);
  * @param d decoder to use
  * @param read function to use to pull in new raw samples
  */
-SondeData rs41_decode(RS41Decoder *d, int (*read)(float *dst));
+SondeData rs41_decode(RS41Decoder *d, int (*read)(float *dst, size_t len));
 
 #endif

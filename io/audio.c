@@ -1,6 +1,7 @@
 #include <portaudio.h>
 #include <semaphore.h>
 #include <stdio.h>
+#include <string.h>
 #include "audio.h"
 #include "utils.h"
 
@@ -10,7 +11,7 @@ static const double _samplerates[] = {48000, 44100};
 static struct {
 	PaStream *stream;
 	float buffer[BUFFER_SIZE];
-	int idx;
+	size_t idx;
 } _state;
 
 int
@@ -113,13 +114,10 @@ audio_deinit()
 }
 
 int
-audio_read(float *ptr)
+audio_read(float *ptr, size_t count)
 {
-	if (_state.idx == BUFFER_SIZE) {
-		Pa_ReadStream(_state.stream, _state.buffer, BUFFER_SIZE);
-		_state.idx = 0;
-	}
-	*ptr = _state.buffer[_state.idx++];
+	Pa_ReadStream(_state.stream, ptr, count);
+
 	return 1;
 }
 

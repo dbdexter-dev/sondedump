@@ -53,7 +53,7 @@ m10_decoder_deinit(M10Decoder *d)
 }
 
 SondeData
-m10_decode(M10Decoder *self, int (*read)(float *dst))
+m10_decode(M10Decoder *self, int (*read)(float *dst, size_t len))
 {
 	SondeData data = {.type = EMPTY};
 	uint8_t *const raw_frame = (uint8_t*)self->frame;

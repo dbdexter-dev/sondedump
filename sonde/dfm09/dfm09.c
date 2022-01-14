@@ -65,7 +65,7 @@ dfm09_decoder_deinit(DFM09Decoder *d)
 
 
 SondeData
-dfm09_decode(DFM09Decoder *self, int (*read)(float *dst))
+dfm09_decode(DFM09Decoder *self, int (*read)(float *dst, size_t len))
 {
 	DFM09Subframe_GPS *gpsSubframe;
 	DFM09Subframe_PTU *ptu_subframe;

@@ -26,7 +26,7 @@ void dfm09_decoder_deinit(DFM09Decoder *d);
  * @param d decoder to use
  * @param read function to use to pull in new raw samples
  */
-SondeData dfm09_decode(DFM09Decoder *d, int (*read)(float *dst));
+SondeData dfm09_decode(DFM09Decoder *d, int (*read)(float *dst, size_t len));
 
 
 

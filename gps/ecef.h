@@ -12,7 +12,7 @@
 /**
  * Convert ECEF coordinates to lat/lon/alt
  *
- * @param lat pointer latitude, in degrees
+ * @param lat pointer to latitude, in degrees
  * @param lon pointer to longitude, in degrees
  * @param alt pointer to altitude, in meters
  * @param x ECEF x coordinate
@@ -38,6 +38,19 @@ int ecef_to_lla(float *lat, float *lon, float *alt, float x, float y, float z);
 int ecef_to_spd_hdg(float *speed, float *heading, float *v_climb, float lat, float lon, float dx, float dy, float dz);
 
 
+/**
+ * Convert lat/lon/alt to ECEF coordinates
+ *
+ * @param x pointer to ECEF x coordinate
+ * @param y pointer to ECEF y coordinate
+ * @param z pointer to ECEF z coordinate
+ * @param lat latitude, in degrees
+ * @param lon longitude, in degrees
+ * @param alt altitude, in meters
+ *
+ * @return 0 on success, 1 on invalid lat/lon/alt coordinates
+ */
+int lla_to_ecef(float *x, float *y, float *z, float lat, float lon, float alt);
 
 /**
  * Map lat/lon/alt coordinates to azimuth/elevation/slant range, given the

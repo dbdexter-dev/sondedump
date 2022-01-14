@@ -136,7 +136,7 @@ rs41_decoder_deinit(RS41Decoder *d)
 }
 
 SondeData
-rs41_decode(RS41Decoder *self, int (*read)(float *dst))
+rs41_decode(RS41Decoder *self, int (*read)(float *dst, size_t len))
 {
 	SondeData data;
 	RS41Subframe *subframe;

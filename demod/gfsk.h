@@ -9,12 +9,16 @@
 
 #define GFSK_FILTER_ORDER 24
 #define SYM_ZETA 0.707
+#define BUFLEN 1024
 
 typedef struct {
 	int samplerate, symrate;
 	Agc agc;
 	Filter lpf;
 	Timing timing;
+
+	float buffer[BUFLEN];
+	size_t offset;
 } GFSKDemod;
 
 /**
@@ -40,6 +44,6 @@ void gfsk_deinit(GFSKDemod *g);
  *
  * @return offset of the last bit decoded
  */
-int gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(float *dst));
+int gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(float *dst, size_t count));
 
 #endif

@@ -4,12 +4,6 @@
 #include "gfsk.h"
 #include "utils.h"
 
-#define NDEBUG
-
-#ifndef NDEBUG
-static FILE *debug;
-#endif
-
 int
 gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 {
@@ -28,9 +22,8 @@ gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 	/* Initialize symbol timing recovery */
 	timing_init(&g->timing, sym_freq, SYM_ZETA, sym_freq/250);
 
-#ifndef NDEBUG
-	debug = fopen("/tmp/demod.data", "wb");
-#endif
+	/* Initialize symbol buffer */
+	g->offset = 0;
 
 	return 0;
 }
@@ -39,16 +32,10 @@ void
 gfsk_deinit(GFSKDemod *g)
 {
 	filter_deinit(&g->lpf);
-#ifndef NDEBUG
-	if (debug) {
-		fclose(debug);
-		debug = NULL;
-	}
-#endif
 }
 
 int
-gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(float *dst))
+gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(float *dst, size_t count))
 {
 	float symbol;
 	float interm;
@@ -61,31 +48,27 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(f
 	/* Initialize first byte that will be touched */
 	tmp = *dst >> (8 - bit_offset);
 	interm = 0;
+
+
 	while (len > 0) {
-		/* Read a new sample and filter it */
-		if (!read(&symbol)) break;
-		symbol = agc_apply(&g->agc, symbol);
+		/* Read new samples into buffer */
+		if (!g->offset && !read(g->buffer, BUFLEN)) return 0;
+
+		/* Apply AGC and pass to filter */
+		symbol = agc_apply(&g->agc, g->buffer[g->offset]);
 		filter_fwd_sample(&g->lpf, symbol);
+		g->offset = (g->offset + 1) % BUFLEN;
 
-#ifndef NDEBUG
-		fprintf(debug, "%f ", filter_get(&g->lpf));
-#endif
-
+		/* Recover symbol value */
 		switch (advance_timeslot(&g->timing)) {
 			case 1:
 				/* Half-way slot */
 				interm = filter_get(&g->lpf);
-#ifndef NDEBUG
-				fprintf(debug, "0\n");
-#endif
 				break;
 			case 2:
 				/* Correct slot: update time estimate */
 				symbol = filter_get(&g->lpf);
 				retime(&g->timing, interm, symbol);
-#ifndef NDEBUG
-				fprintf(debug, "%f\n", symbol);
-#endif
 
 				/* Slice sample to get bit value */
 				tmp = (tmp << 1) | (symbol > 0 ? 1 : 0);
@@ -99,9 +82,6 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(f
 				}
 				break;
 			default:
-#ifndef NDEBUG
-				fprintf(debug, "0\n");
-#endif
 				break;
 
 		}

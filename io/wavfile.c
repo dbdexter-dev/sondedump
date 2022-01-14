@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "wavfile.h"
+#include "utils.h"
 
 #define FILE_BUFFER_SIZE 32768
 static union {
@@ -42,37 +43,51 @@ wav_parse(FILE *fd, int *samplerate, int *bps)
 	if (!(*bps = header.bits_per_sample)) return 1;
 	*samplerate = (int)header.sample_rate;
 
+	_offset = (size_t)-1;
+
 	return 0;
 }
 
 int
-wav_read(float *dst, int bps, FILE *fd)
+wav_read(float *dst, int bps, size_t count, FILE *fd)
 {
-	float tmp;
+	size_t copy_count;
+	size_t i;
 
-	if (!_offset && !fread(&_buffer.bytes, sizeof(_buffer.bytes), 1, fd)) return 0;
+	while (count > 0) {
+		/* If offset is at end of buffer, read more bytes */
+		if (!_offset) {
+			if (!fread(&_buffer.bytes, sizeof(_buffer.bytes), 1, fd)) return 0;
+			_offset = 0;
+		}
 
-	switch (bps) {
-		case 8:
-			/* Unsigned byte */
-			tmp = (int)_buffer.bytes[_offset]-128;
-			break;
-		case 16:
-			/* Signed short */
-			tmp = _buffer.words[_offset];
-			break;
-		case 32:
-			/* Float */
-			tmp = _buffer.floats[_offset];
-			break;
-		default:
-			return 0;
-			break;
+		/* Compute number of samples to send over */
+		copy_count = MIN(count, sizeof(_buffer) / (bps/8) - _offset);
+
+		/* Convert samples */
+		switch (bps) {
+			case 8:
+				for (i=0; i<copy_count; i++) {
+					*dst++ = _buffer.bytes[_offset++] - 128;
+				}
+				break;
+			case 16:
+				for (i=0; i<copy_count; i++) {
+					*dst++ = _buffer.words[_offset++];
+				}
+				break;
+			case 32:
+				memcpy(dst, _buffer.floats + _offset, bps/8 * copy_count);
+				dst += copy_count;
+				_offset += copy_count;
+				break;
+			default:
+				return 0;
+		}
+
+		count -= copy_count;
+		_offset %= (sizeof(_buffer) / (bps/8));
 	}
 
-	_offset++;
-	if (_offset*bps/8 >= sizeof(_buffer)) _offset = 0;
-
-	*dst = tmp;
 	return 1;
 }

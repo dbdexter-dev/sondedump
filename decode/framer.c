@@ -2,7 +2,7 @@
 #include "framer.h"
 
 int
-read_frame_gfsk(GFSKDemod *gfsk, Correlator *corr, uint8_t *dst, int (*read)(float *dst), size_t framelen, size_t bit_offset)
+read_frame_gfsk(GFSKDemod *gfsk, Correlator *corr, uint8_t *dst, int (*read)(float *dst, size_t len), size_t framelen, size_t bit_offset)
 {
 	int i, offset, inverted;
 

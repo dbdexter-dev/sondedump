@@ -26,9 +26,9 @@
 
 static void fill_printable_data(PrintableData *to_print, SondeData *data);
 static int printf_data(const char *fmt, PrintableData *data);
-static int wav_read_wrapper(float *dst);
-static int raw_read_wrapper(float *dst);
-static int audio_read_wrapper(float *dst);
+static int wav_read_wrapper(float *dst, size_t count);
+static int raw_read_wrapper(float *dst, size_t count);
+static int audio_read_wrapper(float *dst, size_t count);
 static void sigint_handler(int val);
 
 #ifdef ENABLE_TUI
@@ -65,7 +65,7 @@ main(int argc, char *argv[])
 	KMLFile kml, live_kml;
 	GPXFile gpx;
 	int samplerate;
-	int (*read_wrapper)(float *dst);
+	int (*read_wrapper)(float *dst, size_t count);
 	int c;
 	int has_data;
 	FILE *csv_fd = NULL;
@@ -184,7 +184,7 @@ main(int argc, char *argv[])
 	read_wrapper = &wav_read_wrapper;
 	if (wav_parse(_wav, &samplerate, &_bps)) {
 		fprintf(stderr, "Could not recognize input file type\n");
-		fprintf(stderr, "Will assume raw, mono, 16 bit, 48kHz\n");
+		fprintf(stderr, "Will assume raw, mono, 32 bit float, 48kHz\n");
 		samplerate = 48000;
 
 		read_wrapper = &raw_read_wrapper;
@@ -263,9 +263,10 @@ main(int argc, char *argv[])
 				break;
 		}
 
+		/* Exit if the input source is done */
+		if (data.type == SOURCE_END) break;
 		fill_printable_data(&printable, &data);
 
-		if (data.type == SOURCE_END) break;
 		switch (data.type) {
 			case FRAME_END:
 				/* If pressure is not provided by the device, estimate it from
@@ -347,29 +348,25 @@ main(int argc, char *argv[])
 
 /* Static functions {{{ */
 static int
-wav_read_wrapper(float *dst)
+wav_read_wrapper(float *dst, size_t count)
 {
 	if (_interrupted) return 0;
-	return wav_read(dst, _bps, _wav);
+	return wav_read(dst, _bps, count, _wav);
 }
 
 static int
-raw_read_wrapper(float *dst)
+raw_read_wrapper(float *dst, size_t count)
 {
-	int16_t tmp;
-
 	if (_interrupted) return 0;
-	if (!fread(&tmp, 2, 1, _wav)) return 0;
-
-	*dst = tmp;
+	if (!fread(dst, 4, count, _wav)) return 0;
 	return 1;
 }
 
 static int
-audio_read_wrapper(float *dst)
+audio_read_wrapper(float *dst, size_t count)
 {
 	if (_interrupted) return 0;
-	return audio_read(dst);
+	return audio_read(dst, count);
 }
 
 static void
