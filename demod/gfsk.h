@@ -40,8 +40,9 @@ void gfsk_deinit(GFSKDemod *g);
  *
  * @param dst destination buffer where the bits will be written to
  * @param bit_offset offset from the start of dst where bits should be written, in bits
- * @param len number of bits to decode
- * @param read pointer to function used to read samples
+ * @param count number of bits to decode
+ * @param src pointer to samples to demodulate
+ * @param len number of samples in the input buffer
  *
  * @return offset of the last bit decoded
  */

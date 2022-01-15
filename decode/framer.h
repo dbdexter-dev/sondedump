@@ -14,7 +14,25 @@ typedef struct {
 	int inverted;
 } Framer;
 
+/**
+ * Initialize a GFSK framer object
+ *
+ * @param f object to init
+ * @param samplerate input samplerate
+ * @param baudrate baud rate of the signal to decode
+ * @param syncword synchronization sequence
+ * @param synclen size of the synchronization sequence, in bytes
+ *
+ * @return 0 on success, nonzero otherwise
+ */
 int framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword, int synclen);
+
+
+/**
+ * Deinitialize a GFSK framer object
+ *
+ * @param f object to deinit
+ */
 void framer_deinit(Framer *f);
 
 /**
@@ -23,12 +41,15 @@ void framer_deinit(Framer *f);
  *
  * @param framer framer to use to decode a frame
  * @param dst destination buffer to write the frame to
- * @param src source buffer to read samples from
+ * @param bit_offset pointer to number of bits to assume as correct within dst,
+ *        automatically updated by the function
  * @param framelen size of the frame, in bits
- * @param bit_offset pointer to number of bits to assume as correct within dst
+ * @param src source buffer to read samples from
+ * @param len number of samples in the buffer
  *
- * @return -1 on read failure, -2 on incomplete frame, else offset of the sync marker found
+ * @return PROCEED if the src buffer has been fully processed
+ *         PARSED  if a frame has been decoded into *dst
  */
-ParserStatus read_frame_gfsk(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len);
+ParserStatus read_frame_gfsk(Framer *framer, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len);
 
 #endif

@@ -25,7 +25,12 @@ void m10_decoder_deinit(M10Decoder *d);
  * Decode the next frame in the stream
  *
  * @param d decoder to use
- * @param read function to use to pull in new raw samples
+ * @param dst pointer to data struct to fill
+ * @param src pointer to raw samples to decode
+ * @param len number of samples available
+ *
+ * @return PROCEED if the src buffer has been fully processed
+ *         PARSED  if a frame has been decoded into *dst
  */
 ParserStatus m10_decode(M10Decoder *d, SondeData *dst, const float *src, size_t len);
 
