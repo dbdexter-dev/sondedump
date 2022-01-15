@@ -61,7 +61,7 @@ wav_read(float *dst, int bps, size_t count, FILE *fd)
 			if (!fread(&_buffer.bytes, sizeof(_buffer.bytes), 1, fd)) return 0;
 		}
 
-		/* Compute number of samples to send over */
+		/* Compute number of samples to copy over to the destination ptr */
 		copy_count = MIN(count, (sizeof(_buffer) / (bps/8) - _offset) / _num_channels);
 
 		/* Convert samples */
@@ -69,11 +69,11 @@ wav_read(float *dst, int bps, size_t count, FILE *fd)
 			case 8:
 				if (_num_channels == 1) {
 					for (i=0; i<copy_count; i++) {
-						*dst++ = _buffer.bytes[_offset++] - 128;
+						*dst++ = _buffer.bytes[_offset++] - 127;
 					}
 				} else {
 					for (i=0; i<copy_count; i++) {
-						*dst++ = _buffer.bytes[_offset] - 128;
+						*dst++ = _buffer.bytes[_offset] - 127;
 						_offset += _num_channels;
 					}
 				}

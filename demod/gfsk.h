@@ -18,7 +18,8 @@ typedef struct {
 	Filter lpf;
 	Timing timing;
 
-	size_t src_offset, dst_offset;
+	size_t src_offset;
+	float interm;
 } GFSKDemod;
 
 /**

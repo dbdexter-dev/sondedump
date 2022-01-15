@@ -235,7 +235,7 @@ main(int argc, char *argv[])
 		}
 
 		/* Decode data */
-		float srcbuf[1024];
+		float srcbuf[64];
 		if (wav_read_wrapper(srcbuf, LEN(srcbuf)) <= 0) break;
 		while (rs41_decode(rs41decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED) {
 			fill_printable_data(&printable, &data);

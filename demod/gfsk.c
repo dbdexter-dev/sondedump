@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include "dsp/agc.h"
@@ -23,7 +24,6 @@ gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 	timing_init(&g->timing, sym_freq, SYM_ZETA, sym_freq/250);
 
 	g->src_offset = 0;
-	g->dst_offset = 0;
 
 	return 0;
 }
@@ -37,24 +37,21 @@ gfsk_deinit(GFSKDemod *g)
 ParserStatus
 gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const float *src, size_t len)
 {
-	size_t local_bit_offset = *bit_offset;
 	float symbol;
-	float interm;
 	uint8_t tmp;
 
 	/* Normalize bit offset */
-	dst += local_bit_offset/8;
-	count -= local_bit_offset;
-	local_bit_offset %= 8;
+	dst += *bit_offset/8;
+	count -= *bit_offset;
 
 	/* Initialize first byte that will be touched */
-	tmp = *dst >> (8 - local_bit_offset);
-	interm = 0;
+	tmp = *dst >> (8 - *bit_offset%8);
+	g->interm = 0;
 
 	while (count > 0) {
 		/* If new read would be out of bounds, ask the reader for more */
 		if (g->src_offset >= len) {
-			*bit_offset = *bit_offset - *bit_offset%8 + local_bit_offset;
+			if (*bit_offset%8) *dst = (tmp << (8 - (*bit_offset % 8)));
 			g->src_offset = 0;
 			return PROCEED;
 		}
@@ -67,20 +64,20 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const f
 		switch (advance_timeslot(&g->timing)) {
 			case 1:
 				/* Half-way slot */
-				interm = filter_get(&g->lpf);
+				g->interm = filter_get(&g->lpf);
 				break;
 			case 2:
 				/* Correct slot: update time estimate */
 				symbol = filter_get(&g->lpf);
-				retime(&g->timing, interm, symbol);
+				retime(&g->timing, g->interm, symbol);
 
 				/* Slice sample to get bit value */
 				tmp = (tmp << 1) | (symbol > 0 ? 1 : 0);
-				local_bit_offset++;
+				(*bit_offset)++;
 				count--;
 
 				/* If a byte boundary is crossed, write to dst */
-				if (!(local_bit_offset % 8)) {
+				if (!(*bit_offset % 8)) {
 					*dst++ = tmp;
 					tmp = 0;
 				}
@@ -92,7 +89,7 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const f
 	}
 
 	/* Last write */
-	if (local_bit_offset%8) *dst = (tmp << (8 - (local_bit_offset % 8)));
+	if (*bit_offset%8) *dst = (tmp << (8 - (*bit_offset % 8)));
 	*bit_offset = 0;
 	return PARSED;
 }
