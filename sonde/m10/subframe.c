@@ -11,7 +11,7 @@ time_t m10_frame_9f_time(M10Frame_9f* f) {
 void
 m10_frame_9f_serial(char *dst, M10Frame_9f *frame)
 {
-	sprintf(dst, "ME%02X%02X%02X%02X", frame->data[59], frame->data[60], frame->data[61], frame->data[62]);
+	sprintf(dst, "ME%02X%02X%02X%02X", frame->data[61], frame->data[59], frame->data[63], frame->data[62]);
 }
 
 
