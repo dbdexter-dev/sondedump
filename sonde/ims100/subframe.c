@@ -9,7 +9,7 @@ ims100_subframe_time(const IMS100FrameGPS *frame) {
 	int year_unit;
 
 	now = time(NULL);
-	gmtime_r(&now, &tm);
+	tm = *gmtime(&now);
 
 	year_unit = tm.tm_year % 10;
 	tm.tm_year -= year_unit;

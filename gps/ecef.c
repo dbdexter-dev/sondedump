@@ -1,5 +1,6 @@
 #include <math.h>
 #include "ecef.h"
+#include "utils.h"
 
 int
 ecef_to_lla(float *lat, float *lon, float *alt, float x, float y, float z)

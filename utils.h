@@ -39,6 +39,9 @@
 #ifndef sgn
 #define sgn(x) ((x) < 0 ? -1 : 1)
 #endif
+#ifndef M_PI
+#define M_PI 3.1415926536
+#endif
 
 /**
  * strdup, but portable since it's not part of the C standard and has a

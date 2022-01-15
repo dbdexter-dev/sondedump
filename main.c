@@ -241,19 +241,17 @@ main(int argc, char *argv[])
 	 * immediately in the main processing loop */
 	decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&rs41_decode;
 	decoder = rs41decoder;
+	_decoder_changed = 1;
 
 	/* Catch SIGINT to exit the loop */
 	_interrupted = 0;
 	has_data = 0;
 	signal(SIGINT, sigint_handler);
 
-	_decoder_changed = 1;
-
 	/* Process decoded frames */
 	while (!_interrupted) {
-		/* If decoder changed, reset printable data store */
 		if (_decoder_changed) {
-			/* Set decoder pointers */
+			/* Update decoder pointers */
 			switch (_active_decoder) {
 				case RS41:
 					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&rs41_decode;
@@ -275,24 +273,31 @@ main(int argc, char *argv[])
 					break;
 			}
 
+			/* Reset displayed info */
 			memset(&printable, 0, sizeof(printable));
 			_decoder_changed = 0;
 		}
 
-		/* Decode data */
+		/* Read new samples */
 		if (read_wrapper(srcbuf, LEN(srcbuf)) <= 0) break;
+
+		/* Decode samples into frames */
 		while (decode(decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED) {
+
+			/* !PROCEED = PARSED, aka data has been updated: parse new info */
 			fill_printable_data(&printable, &data);
 
+			/* Extra handling for special data types */
 			switch (data.type) {
 				case FRAME_END:
-					/* If pressure is not provided by the device, estimate it from
-					 * the altitude data */
+					/* If pressure is not provided by the radiosonde, estimate
+					 * it from the altitude data */
 					if (!isnormal(printable.pressure) || printable.pressure < 0) {
 						printable.pressure = altitude_to_pressure(printable.alt);
 					}
 
-					/* Write line at the end of the frame */
+					/* If we got new data between the last FRAME_END and this
+					 * one, update the info being displayed */
 					if (has_data) {
 #ifdef ENABLE_TUI
 						if (tui_enabled) {
@@ -305,10 +310,11 @@ main(int argc, char *argv[])
 #endif
 					}
 
+					/* If we are also calibrated enough, and CSV output is
+					 * enabled, append the new datapoint to the file */
 					if (csv_fd && printable.calibrated) {
 						fprintf(csv_fd, "%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
-								printable.temp, printable.rh,
-								isnan(printable.pressure) ? altitude_to_pressure(printable.alt) : printable.pressure,
+								printable.temp, printable.rh, printable.pressure,
 								printable.alt, printable.lat, printable.lon,
 								printable.speed, printable.heading, printable.climb);
 					}
@@ -327,7 +333,9 @@ main(int argc, char *argv[])
 					}
 					if (gpx_fname) {
 						gpx_start_track(&gpx, printable.serial);
-						gpx_add_trackpoint(&gpx, printable.lat, printable.lon, printable.alt, printable.speed, printable.heading, printable.utc_time);
+						gpx_add_trackpoint(&gpx,
+								printable.lat, printable.lon, printable.alt,
+								printable.speed, printable.heading, printable.utc_time);
 					}
 					has_data = 1;
 					break;
@@ -340,11 +348,13 @@ main(int argc, char *argv[])
 		}
 	}
 
+	/* Close all open files */
 	if (kml_fname) kml_close(&kml);
 	if (live_kml_fname) kml_close(&live_kml);
 	if (gpx_fname) gpx_close(&gpx);
 	if (csv_fd) fclose(csv_fd);
 
+	/* Deinitialize all decoders */
 	rs41_decoder_deinit(rs41decoder);
 	ims100_decoder_deinit(ims100decoder);
 	m10_decoder_deinit(m10decoder);

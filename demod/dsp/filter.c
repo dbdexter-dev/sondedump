@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "filter.h"
+#include "utils.h"
 
 static float sinc_coeff(float cutoff, int stage_no, unsigned num_taps, float osf);
 static float rc_coeff(float cutoff, int stage_no, unsigned num_taps, float osf, float alpha);

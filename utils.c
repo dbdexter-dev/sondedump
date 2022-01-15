@@ -9,6 +9,8 @@ static float hermite_01(float x);
 static float hermite_10(float x);
 static float hermite_11(float x);
 
+static unsigned int count_days(unsigned int year, unsigned int month, unsigned int day);
+
 char
 *my_strdup(char *str)
 {
@@ -27,22 +29,13 @@ char
 time_t
 my_timegm(struct tm *tm)
 {
-    time_t ret;
-    char *tz;
+	time_t time;
 
-    tz = getenv("TZ");
-    if (tz) tz = strdup(tz);
-    setenv("TZ", "", 1);
-    tzset();
-    ret = mktime(tm);
-    if (tz) {
-        setenv("TZ", tz, 1);
-        free(tz);
-    } else {
-        setenv("TZ", "", 1);
-	}
-    tzset();
-    return ret;
+	time = tm->tm_sec + tm->tm_min * 60 + tm->tm_hour * 3600;
+	time += 86400UL * (count_days(1900 + tm->tm_year, tm->tm_mon, tm->tm_mday)
+	                  - count_days(1970, 0, 1));
+
+	return time;
 }
 
 float
@@ -132,6 +125,34 @@ version()
 }
 
 /* Static functions {{{ */
+static unsigned int
+count_days(unsigned int year, unsigned int month, unsigned int day)
+{
+	const unsigned int days[2][12] = {
+		{0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334},
+		{0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335}
+	};
+	int is_leap;
+	unsigned int day_count;
+
+	is_leap = (!(year%4) && year%100) || !(year%400);
+	day_count = days[is_leap][month] + day;
+
+	/* Normalize day/month */
+	while (day_count >= 365U + is_leap) {
+		year++;
+		day_count -= 365U + is_leap;
+		is_leap = (!(year%4) && year%100) || !(year%400);
+	}
+
+	day_count += 365 * year
+	          + (year / 4) - (year / 100) + (year / 400);
+
+
+	return day_count - 1;
+
+}
+
 static float
 spline_tangent(const float *xs, const float *ys, int k)
 {
