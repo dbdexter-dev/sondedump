@@ -9,10 +9,9 @@
 #include "gps/time.h"
 
 struct m10decoder {
-	GFSKDemod gfsk;
-	Correlator correlator;
+	Framer f;
 	M10Frame frame[4];
-	int offset;
+	size_t offset;
 	int state;
 	char serial[16];
 };
@@ -21,7 +20,7 @@ struct m10decoder {
 static FILE *debug;
 #endif
 
-enum state { READ,
+enum state { READ_PRE, READ,
              PARSE_M10_INFO, PARSE_M10_GPS_POS, PARSE_M10_GPS_TIME, PARSE_M10_PTU,
              PARSE_M20_INFO, PARSE_M20_GPS_POS, PARSE_M20_GPS_TIME, PARSE_M20_PTU };
 
@@ -30,8 +29,7 @@ m10_decoder_init(int samplerate)
 {
 	M10Decoder *d = malloc(sizeof(*d));
 
-	gfsk_init(&d->gfsk, samplerate, M10_BAUDRATE);
-	correlator_init(&d->correlator, M10_SYNCWORD, M10_SYNCLEN);
+	framer_init_gfsk(&d->f, samplerate, M10_BAUDRATE, M10_SYNCWORD, M10_SYNC_LEN);
 	d->state = READ;
 	d->offset = 0;
 
@@ -45,17 +43,16 @@ m10_decoder_init(int samplerate)
 void
 m10_decoder_deinit(M10Decoder *d)
 {
-	gfsk_deinit(&d->gfsk);
+	framer_deinit(&d->f);
 	free(d);
 #ifndef NDEBUG
 	fclose(debug);
 #endif
 }
 
-SondeData
-m10_decode(M10Decoder *self, int (*read)(float *dst, size_t len))
+ParserStatus
+m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 {
-	SondeData data = {.type = EMPTY};
 	uint8_t *const raw_frame = (uint8_t*)self->frame;
 	time_t time;
 	float lat, lon, alt;
@@ -64,20 +61,21 @@ m10_decode(M10Decoder *self, int (*read)(float *dst, size_t len))
 	M10Frame_9f *data_frame;
 
 	switch (self->state) {
-		case READ:
+		case READ_PRE:
 			/* Copy residual bits from the previous frame */
 			if (self->offset) {
 				self->frame[0] = self->frame[2];
 				self->frame[1] = self->frame[3];
 			}
-
+			self->state = READ;
+			__attribute__((fallthrough));
+		case READ:
 			/* Read a new frame */
-			self->offset = read_frame_gfsk(&self->gfsk, &self->correlator,
-					raw_frame, read, M10_FRAME_LEN, self->offset);
-
-			if (self->offset < 0) {
-				data.type = SOURCE_END;
-				return data;
+			switch (read_frame_gfsk(&self->f, raw_frame, &self->offset, M10_FRAME_LEN, src, len)) {
+				case PROCEED:
+					return PROCEED;
+				case PARSED:
+					break;
 			}
 
 			/* Manchester decode, then massage bits into shape */
@@ -88,8 +86,8 @@ m10_decode(M10Decoder *self, int (*read)(float *dst, size_t len))
 				case M10_FTYPE_DATA:
 					/* If corrupted, don't decode */
 					if (m10_frame_correct(self->frame) < 0) {
-						data.type = EMPTY;
-						return data;
+						dst->type = EMPTY;
+						return PARSED;
 					}
 					/* M10 GPS + PTU data */
 					self->state = PARSE_M10_INFO;
@@ -98,9 +96,9 @@ m10_decode(M10Decoder *self, int (*read)(float *dst, size_t len))
 					break;
 				default:
 					/* Unknown frame type */
-					self->state = READ;
-					data.type = EMPTY;
-					return data;
+					self->state = READ_PRE;
+					dst->type = EMPTY;
+					return PARSED;
 			}
 
 #ifndef NDEBUG
@@ -116,9 +114,9 @@ m10_decode(M10Decoder *self, int (*read)(float *dst, size_t len))
 		case PARSE_M10_INFO:
 			data_frame = (M10Frame_9f*)&self->frame[0];
 
-			data.type = INFO;
+			dst->type = INFO;
 			m10_frame_9f_serial(self->serial, data_frame);
-			data.data.info.sonde_serial = self->serial;
+			dst->data.info.sonde_serial = self->serial;
 
 			self->state = PARSE_M10_GPS_TIME;
 			break;
@@ -127,8 +125,8 @@ m10_decode(M10Decoder *self, int (*read)(float *dst, size_t len))
 			data_frame = (M10Frame_9f*)&self->frame[0];
 			time = m10_frame_9f_time(data_frame);
 
-			data.type = DATETIME;
-			data.data.datetime.datetime = time;
+			dst->type = DATETIME;
+			dst->data.datetime.datetime = time;
 
 			self->state = PARSE_M10_GPS_POS;
 			break;
@@ -148,13 +146,13 @@ m10_decode(M10Decoder *self, int (*read)(float *dst, size_t len))
 			heading = atan2f(dy, dx) * 180.0 / M_PI;
 			if (heading < 0) heading += 360;
 
-			data.type = POSITION;
-			data.data.pos.lat = lat;
-			data.data.pos.lon = lon;
-			data.data.pos.alt = alt;
-			data.data.pos.speed = speed;
-			data.data.pos.heading = heading;
-			data.data.pos.climb = climb;
+			dst->type = POSITION;
+			dst->data.pos.lat = lat;
+			dst->data.pos.lon = lon;
+			dst->data.pos.alt = alt;
+			dst->data.pos.speed = speed;
+			dst->data.pos.heading = heading;
+			dst->data.pos.climb = climb;
 
 			self->state = PARSE_M10_PTU;
 
@@ -162,16 +160,16 @@ m10_decode(M10Decoder *self, int (*read)(float *dst, size_t len))
 
 		case PARSE_M10_PTU:
 			/* TODO */
-			data.type = FRAME_END;
-			self->state = READ;
+			dst->type = FRAME_END;
+			self->state = READ_PRE;
 			break;
 		/* }}} */
 
 		default:
-			data.type = EMPTY;
-			self->state = READ;
+			dst->type = EMPTY;
+			self->state = READ_PRE;
 			break;
 	}
 
-	return data;
+	return PARSED;
 }

@@ -48,24 +48,24 @@ set(LIBRARY_SOURCES
 	sonde/rs41/subframe.c sonde/rs41/subframe.h
 	sonde/rs41/protocol.h
 
-	#sonde/dfm09/dfm09.c
-	#sonde/dfm09/frame.c sonde/dfm09/frame.h
-	#sonde/dfm09/subframe.c sonde/dfm09/subframe.h
-	#sonde/dfm09/protocol.h
+	sonde/dfm09/dfm09.c
+	sonde/dfm09/frame.c sonde/dfm09/frame.h
+	sonde/dfm09/subframe.c sonde/dfm09/subframe.h
+	sonde/dfm09/protocol.h
 
-	#sonde/ims100/ims100.c
-	#sonde/ims100/frame.c sonde/ims100/frame.h
-	#sonde/ims100/subframe.c sonde/ims100/subframe.h
-	#sonde/ims100/protocol.c sonde/ims100/protocol.h
+	sonde/ims100/ims100.c
+	sonde/ims100/frame.c sonde/ims100/frame.h
+	sonde/ims100/subframe.c sonde/ims100/subframe.h
+	sonde/ims100/protocol.c sonde/ims100/protocol.h
 
-	#sonde/m10/m10.c
-	#sonde/m10/frame.c sonde/m10/frame.h
-	#sonde/m10/subframe.c sonde/m10/subframe.h
-	#sonde/m10/protocol.h
+	sonde/m10/m10.c
+	sonde/m10/frame.c sonde/m10/frame.h
+	sonde/m10/subframe.c sonde/m10/subframe.h
+	sonde/m10/protocol.h
 
-	#include/dfm09.h
-	#include/m10.h
-	#include/ims100.h
+	include/dfm09.h
+	include/m10.h
+	include/ims100.h
 	include/rs41.h
 	include/data.h
 

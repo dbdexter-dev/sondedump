@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <include/dfm09.h>
+#include <include/ims100.h>
+#include <include/m10.h>
 #include <include/rs41.h>
 #include "gps/ecef.h"
 #include "gps/time.h"
@@ -18,6 +21,8 @@
 #ifdef ENABLE_AUDIO
 #include "io/audio.h"
 #endif
+
+#define BUFLEN 1024
 
 #define SHORTOPTS "a:c:f:g:hk:l:o:r:t:v"
 
@@ -63,11 +68,19 @@ main(int argc, char *argv[])
 	GPXFile gpx;
 	int samplerate;
 	int (*read_wrapper)(float *dst, size_t count);
+
+	ParserStatus (*decode)(void*, SondeData*, const float*, size_t);
+	void *decoder;
+
 	int c;
 	int has_data;
 	FILE *csv_fd = NULL;
 
+	float srcbuf[BUFLEN];
 	RS41Decoder *rs41decoder;
+	DFM09Decoder *dfm09decoder;
+	IMS100Decoder *ims100decoder;
+	M10Decoder *m10decoder;
 
 	memset(&printable, 0, sizeof(PrintableData));
 
@@ -220,24 +233,55 @@ main(int argc, char *argv[])
 
 	/* Initialize decoders */
 	rs41decoder = rs41_decoder_init(samplerate);
+	dfm09decoder = dfm09_decoder_init(samplerate);
+	ims100decoder = ims100_decoder_init(samplerate);
+	m10decoder = m10_decoder_init(samplerate);
+
+	/* Initialize decoder pointer to something valid (will be changed
+	 * immediately in the main processing loop */
+	decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&rs41_decode;
+	decoder = rs41decoder;
 
 	/* Catch SIGINT to exit the loop */
 	_interrupted = 0;
 	has_data = 0;
 	signal(SIGINT, sigint_handler);
 
+	_decoder_changed = 1;
+
 	/* Process decoded frames */
 	while (!_interrupted) {
 		/* If decoder changed, reset printable data store */
 		if (_decoder_changed) {
-			_decoder_changed = 0;
+			/* Set decoder pointers */
+			switch (_active_decoder) {
+				case RS41:
+					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&rs41_decode;
+					decoder = rs41decoder;
+					break;
+				case DFM:
+					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&dfm09_decode;
+					decoder = dfm09decoder;
+					break;
+				case M10:
+					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&m10_decode;
+					decoder = m10decoder;
+					break;
+				case IMS100:
+					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&ims100_decode;
+					decoder = ims100decoder;
+					break;
+				default:
+					break;
+			}
+
 			memset(&printable, 0, sizeof(printable));
+			_decoder_changed = 0;
 		}
 
 		/* Decode data */
-		float srcbuf[64];
-		if (wav_read_wrapper(srcbuf, LEN(srcbuf)) <= 0) break;
-		while (rs41_decode(rs41decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED) {
+		if (read_wrapper(srcbuf, LEN(srcbuf)) <= 0) break;
+		while (decode(decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED) {
 			fill_printable_data(&printable, &data);
 
 			switch (data.type) {
@@ -302,6 +346,9 @@ main(int argc, char *argv[])
 	if (csv_fd) fclose(csv_fd);
 
 	rs41_decoder_deinit(rs41decoder);
+	ims100_decoder_deinit(ims100decoder);
+	m10_decoder_deinit(m10decoder);
+	dfm09_decoder_deinit(dfm09decoder);
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO
 	if (input_from_audio) {

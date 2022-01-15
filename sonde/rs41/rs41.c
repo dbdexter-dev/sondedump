@@ -95,7 +95,7 @@ static const uint8_t _default_calib_data[sizeof(RS41Calibration)] = {
 };
 /* }}} */
 
-enum { READ_INIT, READ, PARSE_SUBFRAME };
+enum { READ_PRE, READ, PARSE_SUBFRAME };
 
 RS41Decoder*
 rs41_decoder_init(int samplerate)
@@ -149,7 +149,7 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 	RS41Subframe_XDATA *xdata;
 
 	switch (self->state) {
-		case READ_INIT:
+		case READ_PRE:
 			/* Copy residual bits from the previous frame */
 			if (self->offset) self->frame[0] = self->frame[1];
 			self->state = READ;
@@ -190,7 +190,7 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 			/* If the frame ends out of bounds, we reached the end: read next */
 			if (self->frame_offset >= frame_data_len) {
 				dst->type = FRAME_END;
-				self->state = READ_INIT;
+				self->state = READ_PRE;
 				break;
 			}
 

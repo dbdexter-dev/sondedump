@@ -26,7 +26,7 @@ void ims100_decoder_deinit(IMS100Decoder *d);
  * @param d decoder to use
  * @param read function to use to pull in new raw samples
  */
-SondeData ims100_decode(IMS100Decoder *d, int (*read)(float *dst, size_t len));
+ParserStatus ims100_decode(IMS100Decoder *d, SondeData *dst, const float *src, size_t len);
 
 
 #endif

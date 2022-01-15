@@ -27,6 +27,6 @@ void m10_decoder_deinit(M10Decoder *d);
  * @param d decoder to use
  * @param read function to use to pull in new raw samples
  */
-SondeData m10_decode(M10Decoder *d, int (*read)(float *dst, size_t len));
+ParserStatus m10_decode(M10Decoder *d, SondeData *dst, const float *src, size_t len);
 
 #endif
