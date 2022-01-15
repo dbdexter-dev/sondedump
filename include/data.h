@@ -5,6 +5,12 @@
 #include <stdint.h>
 
 typedef enum {
+	PROCEED,
+	PARSED
+} ParserStatus;
+
+
+typedef enum {
 	SOURCE_END,             /* Samples source exhausted, no more data left */
 	FRAME_END,              /* End of this frame, start of the next */
 	EMPTY,                  /* No data */

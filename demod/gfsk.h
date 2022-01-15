@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include "include/data.h"
 #include "dsp/agc.h"
 #include "dsp/filter.h"
 #include "dsp/timing.h"
@@ -17,8 +18,7 @@ typedef struct {
 	Filter lpf;
 	Timing timing;
 
-	float buffer[BUFLEN];
-	size_t offset;
+	size_t src_offset, dst_offset;
 } GFSKDemod;
 
 /**
@@ -44,6 +44,6 @@ void gfsk_deinit(GFSKDemod *g);
  *
  * @return offset of the last bit decoded
  */
-int gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(float *dst, size_t count));
+ParserStatus gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const float *src, size_t len);
 
 #endif

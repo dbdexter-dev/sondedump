@@ -148,8 +148,6 @@ ims100_decode(IMS100Decoder *self, int (*read)(float *dst, size_t len))
 			fflush(debug);
 #endif
 
-
-
 			if (data.type != EMPTY) {
 				/* Fetch the ADC data carried by this frame based on its seq nr */
 				switch (ims100_frame_seq(&self->frame) & 0x3) {

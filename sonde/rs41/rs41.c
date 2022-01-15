@@ -20,12 +20,11 @@ typedef struct {
 
 
 struct rs41decoder {
-	GFSKDemod gfsk;
-	Correlator correlator;
+	Framer f;
 	RSDecoder rs;
 	RS41Frame frame[2];
 	int state;
-	int offset, frame_offset;
+	size_t offset, frame_offset;
 	int calibrated;
 	float calib_percent;
 	RS41Metadata metadata;
@@ -34,6 +33,7 @@ struct rs41decoder {
 };
 
 static float rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s);
+static int rs41_metadata_ptu_calibrated(RS41Metadata *m);
 
 #ifndef NDEBUG
 static FILE *debug;
@@ -95,14 +95,13 @@ static const uint8_t _default_calib_data[sizeof(RS41Calibration)] = {
 };
 /* }}} */
 
-enum { READ, PARSE_SUBFRAME };
+enum { READ_INIT, READ, PARSE_SUBFRAME };
 
 RS41Decoder*
 rs41_decoder_init(int samplerate)
 {
 	RS41Decoder *d = malloc(sizeof(*d));
-	correlator_init(&d->correlator, RS41_SYNCWORD, RS41_SYNC_LEN);
-	gfsk_init(&d->gfsk, samplerate, RS41_BAUDRATE);
+	framer_init_gfsk(&d->f, samplerate, RS41_BAUDRATE, RS41_SYNCWORD, RS41_SYNC_LEN);
 	rs_init(&d->rs, RS41_REEDSOLOMON_N, RS41_REEDSOLOMON_K, RS41_REEDSOLOMON_POLY,
 			RS41_REEDSOLOMON_FIRST_ROOT, RS41_REEDSOLOMON_ROOT_SKIP);
 
@@ -127,20 +126,18 @@ rs41_decoder_init(int samplerate)
 void
 rs41_decoder_deinit(RS41Decoder *d)
 {
-	gfsk_deinit(&d->gfsk);
-	rs_deinit(&d->rs);
+	framer_deinit(&d->f);
 	free(d);
 #ifndef NDEBUG
 	fclose(debug);
 #endif
 }
 
-SondeData
-rs41_decode(RS41Decoder *self, int (*read)(float *dst, size_t len))
+ParserStatus
+rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 {
-	SondeData data;
 	RS41Subframe *subframe;
-	int frame_data_len;
+	size_t frame_data_len;
 	int burstkill_timer;
 	float x, y, z, dx, dy, dz;
 	uint8_t *const raw_frame = (uint8_t*)self->frame;
@@ -152,17 +149,19 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst, size_t len))
 	RS41Subframe_XDATA *xdata;
 
 	switch (self->state) {
-		case READ:
+		case READ_INIT:
 			/* Copy residual bits from the previous frame */
 			if (self->offset) self->frame[0] = self->frame[1];
+			self->state = READ;
+			__attribute__((fallthrough));
 
+		case READ:
 			/* Read a new frame */
-			self->offset = read_frame_gfsk(&self->gfsk, &self->correlator,
-					raw_frame, read, RS41_FRAME_LEN, self->offset);
-
-			if (self->offset < 0) {
-				data.type = SOURCE_END;
-				return data;
+			switch (read_frame_gfsk(&self->f, raw_frame, &self->offset, RS41_FRAME_LEN, src, len)) {
+				case PROCEED:
+					return PROCEED;
+				case PARSED:
+					break;
 			}
 
 			/* Descramble and error correct */
@@ -190,15 +189,15 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst, size_t len))
 
 			/* If the frame ends out of bounds, we reached the end: read next */
 			if (self->frame_offset >= frame_data_len) {
-				data.type = FRAME_END;
-				self->state = READ;
+				dst->type = FRAME_END;
+				self->state = READ_INIT;
 				break;
 			}
 
 			/* Validate the subframe's checksum against the one received.
 			 * If it doesn't match, discard it */
 			if (crc16_ccitt_false(subframe->data, subframe->len) != *(uint16_t*)&subframe->data[subframe->len]) {
-				data.type = EMPTY;
+				dst->type = EMPTY;
 				break;
 			}
 
@@ -206,35 +205,35 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst, size_t len))
 			switch (subframe->type) {
 				case RS41_SFTYPE_EMPTY:
 					/* Padding */
-					data.type = EMPTY;
+					dst->type = EMPTY;
 					break;
 				case RS41_SFTYPE_INFO:
 					/* Frame sequence number, serial no., board info, calibration data */
 					status = (RS41Subframe_Info*)subframe;
 					self->calib_percent = rs41_update_metadata(&self->metadata, (RS41Subframe_Info*)subframe);
-					self->calibrated = (self->calib_percent >= 100);
+					self->calibrated = rs41_metadata_ptu_calibrated(&self->metadata);
 
-					data.type = INFO;
+					dst->type = INFO;
 
 					strncpy(self->serial, status->serial, 8);
 					self->serial[8] = 0;
-					data.data.info.seq = status->frame_seq;
-					data.data.info.sonde_serial = self->serial;
+					dst->data.info.seq = status->frame_seq;
+					dst->data.info.sonde_serial = self->serial;
 					burstkill_timer = self->metadata.data.burstkill_timer;
-					data.data.info.burstkill_status = (burstkill_timer == 0xFFFF ? -1 : burstkill_timer);
+					dst->data.info.burstkill_status = (burstkill_timer == 0xFFFF ? -1 : burstkill_timer);
 					break;
 				case RS41_SFTYPE_PTU:
 					/* Temperature, humidity, pressure */
 					ptu = (RS41Subframe_PTU*)subframe;
 
-					data.type = PTU;
+					dst->type = PTU;
 
-					data.data.ptu.temp = rs41_subframe_temp(ptu, &self->metadata.data);
-					data.data.ptu.rh = rs41_subframe_humidity(ptu, &self->metadata.data);
-					data.data.ptu.pressure = rs41_subframe_pressure(ptu, &self->metadata.data);
-					data.data.ptu.calibrated = self->calibrated;
-					data.data.ptu.calib_percent = self->calib_percent;
-					self->pressure = data.data.ptu.pressure;
+					dst->data.ptu.temp = rs41_subframe_temp(ptu, &self->metadata.data);
+					dst->data.ptu.rh = rs41_subframe_humidity(ptu, &self->metadata.data);
+					dst->data.ptu.pressure = rs41_subframe_pressure(ptu, &self->metadata.data);
+					dst->data.ptu.calibrated = self->calibrated;
+					dst->data.ptu.calib_percent = self->calib_percent;
+					self->pressure = dst->data.ptu.pressure;
 					break;
 				case RS41_SFTYPE_GPSPOS:
 					/* GPS position */
@@ -247,34 +246,34 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst, size_t len))
 					dy = rs41_subframe_dy(gpspos);
 					dz = rs41_subframe_dz(gpspos);
 
-					data.type = POSITION;
+					dst->type = POSITION;
 
-					ecef_to_lla(&data.data.pos.lat, &data.data.pos.lon, &data.data.pos.alt, x, y, z);
-					ecef_to_spd_hdg(&data.data.pos.speed, &data.data.pos.heading, &data.data.pos.climb,
-							data.data.pos.lat, data.data.pos.lon, dx, dy, dz);
+					ecef_to_lla(&dst->data.pos.lat, &dst->data.pos.lon, &dst->data.pos.alt, x, y, z);
+					ecef_to_spd_hdg(&dst->data.pos.speed, &dst->data.pos.heading, &dst->data.pos.climb,
+							dst->data.pos.lat, dst->data.pos.lon, dx, dy, dz);
 
 					/* If pressure is not provided, estimate it from altitude
 					 * so that ozone ppb calculation can stil happen */
-					if (!(self->pressure > 0)) self->pressure = altitude_to_pressure(data.data.pos.alt);
+					if (!(self->pressure > 0)) self->pressure = altitude_to_pressure(dst->data.pos.alt);
 
 					break;
 				case RS41_SFTYPE_GPSINFO:
 					/* GPS date/time and RSSI */
 					gpsinfo = (RS41Subframe_GPSInfo*)subframe;
 
-					data.type = DATETIME;
+					dst->type = DATETIME;
 
-					data.data.datetime.datetime = gps_time_to_utc(gpsinfo->week, gpsinfo->ms);
+					dst->data.datetime.datetime = gps_time_to_utc(gpsinfo->week, gpsinfo->ms);
 					break;
 				case RS41_SFTYPE_XDATA:
 					/* XDATA */
 					xdata = (RS41Subframe_XDATA*)subframe;
-					data.type = XDATA;
-					data.data.xdata.data = xdata_decode(self->pressure, xdata->ascii_data, xdata->len-1);
+					dst->type = XDATA;
+					dst->data.xdata.data = xdata_decode(self->pressure, xdata->ascii_data, xdata->len-1);
 					break;
 				default:
 					/* Unknown */
-					data.type = UNKNOWN;
+					dst->type = UNKNOWN;
 					break;
 			}
 			/* }}} */
@@ -282,11 +281,11 @@ rs41_decode(RS41Decoder *self, int (*read)(float *dst, size_t len))
 
 			break;
 		default:
-			data.type = UNKNOWN;
+			dst->type = UNKNOWN;
 			break;
 	}
 
-	return data;
+	return PARSED;
 }
 
 /* Static functions {{{ */
@@ -305,5 +304,18 @@ rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s)
 	num_received = count_ones(m->bitmask, sizeof(m->bitmask));
 
 	return (num_received * 100.0) / (8 * sizeof(m->bitmask));
+}
+
+static int
+rs41_metadata_ptu_calibrated(RS41Metadata *m)
+{
+	const uint8_t cmp[] = {0x1F, 0xFF, 0xF8, 0x00, 0x0E};
+	size_t i;
+
+	for (i=0; i<LEN(cmp); i++) {
+		if ((m->bitmask[i] & cmp[i]) != cmp[i]) return 0;
+	}
+
+	return 1;
 }
 /* }}} */

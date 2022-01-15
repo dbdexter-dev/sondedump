@@ -22,8 +22,8 @@ gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 	/* Initialize symbol timing recovery */
 	timing_init(&g->timing, sym_freq, SYM_ZETA, sym_freq/250);
 
-	/* Initialize symbol buffer */
-	g->offset = 0;
+	g->src_offset = 0;
+	g->dst_offset = 0;
 
 	return 0;
 }
@@ -34,30 +34,34 @@ gfsk_deinit(GFSKDemod *g)
 	filter_deinit(&g->lpf);
 }
 
-int
-gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(float *dst, size_t count))
+ParserStatus
+gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const float *src, size_t len)
 {
+	size_t local_bit_offset = *bit_offset;
 	float symbol;
 	float interm;
 	uint8_t tmp;
 
 	/* Normalize bit offset */
-	dst += bit_offset/8;
-	bit_offset %= 8;
+	dst += local_bit_offset/8;
+	count -= local_bit_offset;
+	local_bit_offset %= 8;
 
 	/* Initialize first byte that will be touched */
-	tmp = *dst >> (8 - bit_offset);
+	tmp = *dst >> (8 - local_bit_offset);
 	interm = 0;
 
-
-	while (len > 0) {
-		/* Read new samples into buffer */
-		if (!g->offset && !read(g->buffer, BUFLEN)) return 0;
+	while (count > 0) {
+		/* If new read would be out of bounds, ask the reader for more */
+		if (g->src_offset >= len) {
+			*bit_offset = *bit_offset - *bit_offset%8 + local_bit_offset;
+			g->src_offset = 0;
+			return PROCEED;
+		}
 
 		/* Apply AGC and pass to filter */
-		symbol = agc_apply(&g->agc, g->buffer[g->offset]);
+		symbol = agc_apply(&g->agc, src[g->src_offset++]);
 		filter_fwd_sample(&g->lpf, symbol);
-		g->offset = (g->offset + 1) % BUFLEN;
 
 		/* Recover symbol value */
 		switch (advance_timeslot(&g->timing)) {
@@ -72,11 +76,11 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(f
 
 				/* Slice sample to get bit value */
 				tmp = (tmp << 1) | (symbol > 0 ? 1 : 0);
-				bit_offset++;
-				len--;
+				local_bit_offset++;
+				count--;
 
 				/* If a byte boundary is crossed, write to dst */
-				if (!(bit_offset % 8)) {
+				if (!(local_bit_offset % 8)) {
 					*dst++ = tmp;
 					tmp = 0;
 				}
@@ -88,7 +92,7 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, int bit_offset, size_t len, int (*read)(f
 	}
 
 	/* Last write */
-	if (bit_offset%8) *dst = (tmp << (8 - (bit_offset % 8)));
-
-	return bit_offset;
+	if (local_bit_offset%8) *dst = (tmp << (8 - (local_bit_offset % 8)));
+	*bit_offset = 0;
+	return PARSED;
 }

@@ -4,9 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <include/dfm09.h>
-#include <include/ims100.h>
-#include <include/m10.h>
 #include <include/rs41.h>
 #include "gps/ecef.h"
 #include "gps/time.h"
@@ -71,9 +68,6 @@ main(int argc, char *argv[])
 	FILE *csv_fd = NULL;
 
 	RS41Decoder *rs41decoder;
-	DFM09Decoder *dfm09decoder;
-	M10Decoder *m10decoder;
-	IMS100Decoder *ims100decoder;
 
 	memset(&printable, 0, sizeof(PrintableData));
 
@@ -226,9 +220,6 @@ main(int argc, char *argv[])
 
 	/* Initialize decoders */
 	rs41decoder = rs41_decoder_init(samplerate);
-	dfm09decoder = dfm09_decoder_init(samplerate);
-	m10decoder = m10_decoder_init(samplerate);
-	ims100decoder = ims100_decoder_init(samplerate);
 
 	/* Catch SIGINT to exit the loop */
 	_interrupted = 0;
@@ -244,81 +235,64 @@ main(int argc, char *argv[])
 		}
 
 		/* Decode data */
-		switch (_active_decoder) {
-			case RS41:
-				data = rs41_decode(rs41decoder, read_wrapper);
-				break;
-			case DFM:
-				data = dfm09_decode(dfm09decoder, read_wrapper);
-				break;
-			case M10:
-				data = m10_decode(m10decoder, read_wrapper);
-				break;
-			case IMS100:
-				data = ims100_decode(ims100decoder, read_wrapper);
-				break;
-			default:
-				/* Silence, GCC! */
-				data.type = EMPTY;
-				break;
-		}
+		float srcbuf[1024];
+		if (wav_read_wrapper(srcbuf, LEN(srcbuf)) <= 0) break;
+		while (rs41_decode(rs41decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED) {
+			fill_printable_data(&printable, &data);
 
-		/* Exit if the input source is done */
-		if (data.type == SOURCE_END) break;
-		fill_printable_data(&printable, &data);
-
-		switch (data.type) {
-			case FRAME_END:
-				/* If pressure is not provided by the device, estimate it from
-				 * the altitude data */
-				if (!isnormal(printable.pressure) || printable.pressure < 0) {
-					printable.pressure = altitude_to_pressure(printable.alt);
-				}
-
-				/* Write line at the end of the frame */
-				if (has_data) {
-#ifdef ENABLE_TUI
-					if (tui_enabled) {
-						tui_update(&printable);
-					} else {
-						printf_data(output_fmt, &printable);
+			switch (data.type) {
+				case FRAME_END:
+					/* If pressure is not provided by the device, estimate it from
+					 * the altitude data */
+					if (!isnormal(printable.pressure) || printable.pressure < 0) {
+						printable.pressure = altitude_to_pressure(printable.alt);
 					}
+
+					/* Write line at the end of the frame */
+					if (has_data) {
+#ifdef ENABLE_TUI
+						if (tui_enabled) {
+							tui_update(&printable);
+						} else {
+							printf_data(output_fmt, &printable);
+						}
 #else
-					printf_data(output_fmt, &printable);
+						printf_data(output_fmt, &printable);
 #endif
-				}
+					}
 
-				if (csv_fd && printable.calibrated) {
-					fprintf(csv_fd, "%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
-							printable.temp, printable.rh,
-							isnan(printable.pressure) ? altitude_to_pressure(printable.alt) : printable.pressure,
-							printable.alt, printable.lat, printable.lon,
-							printable.speed, printable.heading, printable.climb);
-				}
+					if (csv_fd && printable.calibrated) {
+						fprintf(csv_fd, "%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
+								printable.temp, printable.rh,
+								isnan(printable.pressure) ? altitude_to_pressure(printable.alt) : printable.pressure,
+								printable.alt, printable.lat, printable.lon,
+								printable.speed, printable.heading, printable.climb);
+					}
 
-				has_data = 0;
-				break;
-			case POSITION:
-				/* Add position to whichever files are open */
-				if (kml_fname) {
-					kml_start_track(&kml, printable.serial);
-					kml_add_trackpoint(&kml, printable.lat, printable.lon, printable.alt);
-				}
-				if (live_kml_fname) {
-					kml_start_track(&live_kml, printable.serial);
-					kml_add_trackpoint(&live_kml, printable.lat, printable.lon, printable.alt);
-				}
-				if (gpx_fname) {
-					gpx_start_track(&gpx, printable.serial);
-					gpx_add_trackpoint(&gpx, printable.lat, printable.lon, printable.alt, printable.speed, printable.heading, printable.utc_time);
-				}
-				has_data = 1;
-				break;
-			case EMPTY:
-				break;
-			default:
-				has_data = 1;
-				break;
+					has_data = 0;
+					break;
+				case POSITION:
+					/* Add position to whichever files are open */
+					if (kml_fname) {
+						kml_start_track(&kml, printable.serial);
+						kml_add_trackpoint(&kml, printable.lat, printable.lon, printable.alt);
+					}
+					if (live_kml_fname) {
+						kml_start_track(&live_kml, printable.serial);
+						kml_add_trackpoint(&live_kml, printable.lat, printable.lon, printable.alt);
+					}
+					if (gpx_fname) {
+						gpx_start_track(&gpx, printable.serial);
+						gpx_add_trackpoint(&gpx, printable.lat, printable.lon, printable.alt, printable.speed, printable.heading, printable.utc_time);
+					}
+					has_data = 1;
+					break;
+				case EMPTY:
+					break;
+				default:
+					has_data = 1;
+					break;
+			}
 		}
 	}
 
@@ -328,9 +302,6 @@ main(int argc, char *argv[])
 	if (csv_fd) fclose(csv_fd);
 
 	rs41_decoder_deinit(rs41decoder);
-	dfm09_decoder_deinit(dfm09decoder);
-	m10_decoder_deinit(m10decoder);
-	ims100_decoder_deinit(ims100decoder);
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO
 	if (input_from_audio) {
