@@ -8,6 +8,7 @@ typedef struct {
 	float *coeffs;
 
 	int size;
+	int num_phases;
 	int idx;
 } Filter;
 
@@ -17,11 +18,12 @@ typedef struct {
  * @param flt filter to initialize
  * @param order order of the filter (e.g. 16 = 16 + 1 + 16 taps)
  * @param cutoff cutoff frequency, in 1/samples
+ * @param num_phases number of phases in the polyphase filter
  *
  * @return 0 on success, non-zero on failure
  */
 
-int filter_init_lpf(Filter *flt, int order, float cutoff);
+int filter_init_lpf(Filter *flt, int order, float cutoff, int num_phases);
 
 /**
  * Feed a sample to a filter object
@@ -36,9 +38,10 @@ void filter_fwd_sample(Filter *flt, float sample);
  * Get the output of a filter object
  *
  * @param flt filter to read the sample from
+ * @param phase phase to get the value of
  * @return filter output
  */
-float filter_get(Filter *flt);
+float filter_get(Filter *flt, int phase);
 
 
 /**

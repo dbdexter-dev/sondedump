@@ -8,18 +8,23 @@ static float sinc_coeff(float cutoff, int stage_no, unsigned num_taps, float osf
 static float rc_coeff(float cutoff, int stage_no, unsigned num_taps, float osf, float alpha);
 
 int
-filter_init_lpf(Filter *flt, int order, float cutoff)
+filter_init_lpf(Filter *flt, int order, float cutoff, int num_phases)
 {
-	int i;
+	int i, phase;
 	const int taps = order * 2 + 1;
 
-	if (!(flt->coeffs = malloc(sizeof(*flt->coeffs) * taps))) return 1;
+	if (!(flt->coeffs = malloc(num_phases * sizeof(*flt->coeffs) * taps))) return 1;
 	if (!(flt->mem = calloc(taps, sizeof(*flt->mem)))) return 1;
 
-	for (i=0; i<taps; i++) {
-		flt->coeffs[i] = rc_coeff(cutoff, i, taps, 1, 0.4);
+	cutoff /= num_phases;
+
+	for (phase = 0; phase < num_phases; phase++) {
+		for (i=0; i<taps; i++) {
+			flt->coeffs[phase * taps + i] = rc_coeff(cutoff, i * num_phases + phase, taps * num_phases, num_phases, 0.4);
+		}
 	}
 
+	flt->num_phases = num_phases;
 	flt->size = taps;
 	flt->idx = 0;
 
@@ -41,12 +46,12 @@ filter_fwd_sample(Filter *flt, float sample)
 }
 
 float
-filter_get(Filter *flt)
+filter_get(Filter *flt, int phase)
 {
 	int i, j;
 	float result;
 
-	j = 0;
+	j = flt->size * (flt->num_phases - phase - 1);
 	result = 0;
 
 	/* Chunk 1: from current position to end */

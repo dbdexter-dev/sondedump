@@ -11,6 +11,7 @@
 #define GFSK_FILTER_ORDER 24
 #define SYM_ZETA 0.707
 #define BUFLEN 1024
+#define MIN_SAMPLES_PER_SYMBOL 8
 
 typedef struct {
 	int samplerate, symrate;

@@ -9,6 +9,7 @@ int
 gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 {
 	const float sym_freq = (float)symrate/samplerate;
+	const int num_phases = 1 + (MIN_SAMPLES_PER_SYMBOL * sym_freq);
 
 	/* Save input settings */
 	g->samplerate = samplerate;
@@ -18,10 +19,10 @@ gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 	agc_init(&g->agc);
 
 	/* Initialize a low-pass filter with the appropriate bandwidth */
-	if (filter_init_lpf(&g->lpf, GFSK_FILTER_ORDER, sym_freq)) return 1;
+	if (filter_init_lpf(&g->lpf, GFSK_FILTER_ORDER, sym_freq, num_phases)) return 1;
 
 	/* Initialize symbol timing recovery */
-	timing_init(&g->timing, sym_freq, SYM_ZETA, sym_freq/250);
+	timing_init(&g->timing, sym_freq / num_phases, SYM_ZETA, sym_freq/num_phases/250);
 
 	g->src_offset = 0;
 
@@ -39,6 +40,7 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const f
 {
 	float symbol;
 	uint8_t tmp;
+	int phase;
 
 	/* Normalize bit offset */
 	dst += *bit_offset/8;
@@ -61,30 +63,32 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const f
 		filter_fwd_sample(&g->lpf, symbol);
 
 		/* Recover symbol value */
-		switch (advance_timeslot(&g->timing)) {
-			case 1:
-				/* Half-way slot */
-				g->interm = filter_get(&g->lpf);
-				break;
-			case 2:
-				/* Correct slot: update time estimate */
-				symbol = filter_get(&g->lpf);
-				retime(&g->timing, g->interm, symbol);
+		for (phase = 0; phase < g->lpf.num_phases; phase++)  {
+			switch (advance_timeslot(&g->timing)) {
+				case 1:
+					/* Half-way slot */
+					g->interm = filter_get(&g->lpf, phase);
+					break;
+				case 2:
+					/* Correct slot: update time estimate */
+					symbol = filter_get(&g->lpf, phase);
+					retime(&g->timing, g->interm, symbol);
 
-				/* Slice sample to get bit value */
-				tmp = (tmp << 1) | (symbol > 0 ? 1 : 0);
-				(*bit_offset)++;
-				count--;
+					/* Slice sample to get bit value */
+					tmp = (tmp << 1) | (symbol > 0 ? 1 : 0);
+					(*bit_offset)++;
+					count--;
 
-				/* If a byte boundary is crossed, write to dst */
-				if (!(*bit_offset % 8)) {
-					*dst++ = tmp;
-					tmp = 0;
-				}
-				break;
-			default:
-				break;
+					/* If a byte boundary is crossed, write to dst */
+					if (!(*bit_offset % 8)) {
+						*dst++ = tmp;
+						tmp = 0;
+					}
+					break;
+				default:
+					break;
 
+			}
 		}
 	}
 
