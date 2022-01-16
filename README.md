@@ -55,8 +55,12 @@ sondedump [options] file_in
    -k, --kml <file>             Output KML track to <file>
    -l, --live-kml <file>        Output live KML track to <file>
    -r, --location <lat,lon,alt> Set receiver location to <lat, lon, alt> (default: none)
-   -t, --type <type>            Enable decoder for the given sonde type
-                                Supported values: rs41, dfm, m10, ims100
+   -t, --type <type>            Enable decoder for the given sonde type. Supported values:
+                                auto: Autodetect
+                                rs41: Vaisala RS41-SG(P,M)
+                                dfm: GRAW DFM06/09
+                                m10: MeteoModem M10
+                                ims100: Meisei iMS-100
 
    -h, --help                   Print this help screen
    -v, --version                Print version info

@@ -83,10 +83,10 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 			m10_frame_descramble(self->frame);
 
 #ifndef NDEBUG
+			if (raw_frame[0] == 0x00 && raw_frame[1] == 0x00)
 			fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
 			fflush(debug);
 #endif
-
 
 			switch (self->frame[0].type) {
 				case M10_FTYPE_DATA:
