@@ -10,7 +10,7 @@
 /* Frame parameters */
 #define M10_FRAME_LEN 1664
 
-#define M10_SYNCWORD 0x6666b3665659
+#define M10_SYNCWORD 0x66666666b366
 #define M10_SYNC_LEN 6
 
 #define M10_FTYPE_DATA 0x9F
@@ -18,6 +18,7 @@
 
 PACK(typedef struct {
 	uint8_t sync_mark[3];
+	uint8_t len;
 	uint8_t type;
 	uint8_t data[97];
 	uint8_t crc[2];
@@ -27,6 +28,7 @@ PACK(typedef struct {
 /* Specific subframe types {{{ */
 PACK(typedef struct {
 	uint8_t sync_mark[3];
+	uint8_t len;
 	uint8_t type;                       /* 0x9f */
 
 	uint8_t small_values[2];
