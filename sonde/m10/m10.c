@@ -82,6 +82,12 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 			manchester_decode(raw_frame, raw_frame, M10_FRAME_LEN);
 			m10_frame_descramble(self->frame);
 
+#ifndef NDEBUG
+			fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
+			fflush(debug);
+#endif
+
+
 			switch (self->frame[0].type) {
 				case M10_FTYPE_DATA:
 					/* If corrupted, don't decode */
@@ -100,12 +106,6 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 					dst->type = EMPTY;
 					return PARSED;
 			}
-
-#ifndef NDEBUG
-			fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
-			fflush(debug);
-#endif
-
 
 
 			break;

@@ -148,6 +148,8 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 	RS41Subframe_GPSPos *gpspos;
 	RS41Subframe_XDATA *xdata;
 
+	dst->type = EMPTY;
+
 	switch (self->state) {
 		case READ_PRE:
 			/* Copy residual bits from the previous frame */

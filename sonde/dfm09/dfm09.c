@@ -76,6 +76,8 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	int serial_idx;
 	uint8_t *const raw_frame = (uint8_t*)self->frame;
 
+	dst->type = EMPTY;
+
 	switch (self->state) {
 		case READ:
 			/* Read a new frame */
@@ -98,7 +100,6 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 			/* Error correct, and exit prematurely if too many errors are found */
 			errcount = dfm09_frame_correct(self->frame);
 			if (errcount < 0 || errcount > 8) {
-				dst->type = EMPTY;
 				return PARSED;
 			}
 

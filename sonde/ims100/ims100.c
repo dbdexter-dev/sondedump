@@ -82,6 +82,8 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	unsigned int seq;
 	uint32_t validmask;
 
+	dst->type = EMPTY;
+
 	switch (self->state) {
 		case READ:
 			/* Read a new frame */
@@ -98,7 +100,6 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 
 			/* Error correct and remove all ECC bits */
 			if (ims100_frame_error_correct(self->raw_frame, &self->rs) < 0) {
-				dst->type = EMPTY;
 				return PARSED;
 			}
 			ims100_frame_unpack(&self->frame, self->raw_frame);

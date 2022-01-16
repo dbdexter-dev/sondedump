@@ -32,15 +32,15 @@ static struct {
 	WINDOW *tabs;
 	PrintableData data;
 	int data_changed;
-	int active_decoder;
 	int receiver_location_set;
 	float lat, lon, alt;
+	int (*get_active_decoder)();
 	enum { ABSOLUTE=0, RELATIVE, POS_TYPE_COUNT } pos_type;
 } tui;
 
 
 void
-tui_init(int update_interval, void (*decoder_changer)(int index), int active_decoder)
+tui_init(int update_interval, void (*decoder_changer)(int index), int (*get_active_decoder)())
 {
 	setlocale(LC_ALL, "");
 
@@ -57,6 +57,8 @@ tui_init(int update_interval, void (*decoder_changer)(int index), int active_dec
 	tui.lat = tui.lon = tui.alt = 0;
 	tui.pos_type = ABSOLUTE;
 	tui.receiver_location_set = 0;
+	tui.data_changed = 1;
+	tui.get_active_decoder = get_active_decoder;
 
 	init_windows();
 	keypad(tui.win, 1);
@@ -64,8 +66,6 @@ tui_init(int update_interval, void (*decoder_changer)(int index), int active_dec
 	memset(&tui.data, 0, sizeof(tui.data));
 
 	_running = 1;
-	tui.data_changed = 1;
-	tui.active_decoder = active_decoder;
 	pthread_create(&_tid, NULL, main_loop, decoder_changer);
 }
 
@@ -103,21 +103,23 @@ main_loop(void *args)
 {
 	int ch;
 	void (*decoder_changer)(int index) = args;
+	int new_decoder;
+
 	while (_running) {
 		switch (ch = wgetch(tui.win)) {
 			case KEY_RESIZE:
 				handle_resize();
 				break;
 			case KEY_LEFT:
-				tui.active_decoder = (tui.active_decoder - 1) % LEN(_decoder_names);
+				new_decoder = (tui.get_active_decoder() - 1) % LEN(_decoder_names);
 				memset(&tui.data, 0, sizeof(tui.data));
-				decoder_changer(tui.active_decoder);
+				decoder_changer(new_decoder);
 				tui.data_changed = 1;
 				break;
 			case KEY_RIGHT:
-				tui.active_decoder = (tui.active_decoder + 1) % LEN(_decoder_names);
+				new_decoder = (tui.get_active_decoder() + 1) % LEN(_decoder_names);
 				memset(&tui.data, 0, sizeof(tui.data));
-				decoder_changer(tui.active_decoder);
+				decoder_changer(new_decoder);
 				tui.data_changed = 1;
 				break;
 			case '\t':
@@ -183,7 +185,7 @@ redraw()
 	float az, el, slant;
 
 	/* Draw tabs at top of the TUI */
-	draw_tabs(tui.tabs, tui.active_decoder);
+	draw_tabs(tui.tabs, tui.get_active_decoder());
 
 	/* Format data to be printable */
 	strftime(time, LEN(time), "%a %b %d %Y %H:%M:%S", gmtime(&tui.data.utc_time));
