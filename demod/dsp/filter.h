@@ -13,12 +13,12 @@ typedef struct {
 } Filter;
 
 /**
- * Initialize a FIR filter with sinc coefficients
+ * Initialize a FIR lowpass filter with raised cosine coefficients
  *
  * @param flt filter to initialize
  * @param order order of the filter (e.g. 16 = 16 + 1 + 16 taps)
- * @param cutoff cutoff frequency, in 1/samples
- * @param num_phases number of phases in the polyphase filter
+ * @param cutoff normalized cutoff frequency, in 1/samples
+ * @param num_phases number of phases in the filter
  *
  * @return 0 on success, non-zero on failure
  */
@@ -26,7 +26,7 @@ typedef struct {
 int filter_init_lpf(Filter *flt, int order, float cutoff, int num_phases);
 
 /**
- * Feed a sample to a filter object
+ * Feed a sample to a filter
  *
  * @param flt filter to pass the sample through
  * @param sample sample to feed
@@ -35,10 +35,10 @@ void filter_fwd_sample(Filter *flt, float sample);
 
 
 /**
- * Get the output of a filter object
+ * Get the output of a filter
  *
  * @param flt filter to read the sample from
- * @param phase phase to get the value of
+ * @param phase index of the phase to get the value of
  * @return filter output
  */
 float filter_get(Filter *flt, int phase);
