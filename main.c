@@ -32,6 +32,8 @@ static int wav_read_wrapper(float *dst, size_t count);
 static int raw_read_wrapper(float *dst, size_t count);
 static int audio_read_wrapper(float *dst, size_t count);
 static void sigint_handler(int val);
+static int ascii_to_decoder(const char *ascii);
+static int get_active_decoder();
 
 #ifdef ENABLE_TUI
 static void decoder_changer(int delta);
@@ -40,8 +42,11 @@ static void decoder_changer(int delta);
 static FILE *_wav;
 static int _bps;
 static int _interrupted;
-static enum { RS41=0, DFM, M10, IMS100, END } _active_decoder;
+
+static enum { RS41=0, DFM09, M10, IMS100, AUTO, END} _active_decoder;
+static const char *_decoder_names[] = {"rs41", "dfm", "m10", "ims100", "auto"};
 static int _decoder_changed;
+
 static struct option longopts[] = {
 	{ "audio-device", 1, NULL, 'a'},
 	{ "fmt",          1, NULL, 'f' },
@@ -122,15 +127,8 @@ main(int argc, char *argv[])
 				live_kml_fname = optarg;
 				break;
 			case 't':
-				if (!strcmp(optarg, "rs41")) {
-					_active_decoder = RS41;
-				} else if (!strcmp(optarg, "dfm")) {
-					_active_decoder = DFM;
-				} else if (!strcmp(optarg, "m10")) {
-					_active_decoder = M10;
-				} else if (!strcmp(optarg, "ims100")) {
-					_active_decoder = IMS100;
-				} else {
+				_active_decoder = ascii_to_decoder(optarg);
+				if (_active_decoder < 0) {
 					fprintf(stderr, "Unsupported type: %s\n", optarg);
 					usage(argv[0]);
 					return 1;
@@ -224,7 +222,7 @@ main(int argc, char *argv[])
 #ifdef ENABLE_TUI
 	/* Enable TUI */
 	if (tui_enabled) {
-		tui_init(-1, &decoder_changer, _active_decoder);
+		tui_init(-1, &decoder_changer, &get_active_decoder);
 		if (receiver_location_set) {
 			tui_set_ground_location(receiver_lat, receiver_lon, receiver_alt);
 		}
@@ -237,10 +235,9 @@ main(int argc, char *argv[])
 	ims100decoder = ims100_decoder_init(samplerate);
 	m10decoder = m10_decoder_init(samplerate);
 
-	/* Initialize decoder pointer to something valid (will be changed
-	 * immediately in the main processing loop */
-	decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&rs41_decode;
-	decoder = rs41decoder;
+	/* Initialize decoder pointer to "no decoder" */
+	decode = NULL;
+	decoder = NULL;
 	_decoder_changed = 1;
 
 	/* Catch SIGINT to exit the loop */
@@ -250,14 +247,21 @@ main(int argc, char *argv[])
 
 	/* Process decoded frames */
 	while (!_interrupted) {
+		/* Read new samples */
+		if (read_wrapper(srcbuf, LEN(srcbuf)) <= 0) break;
+
+		/* Update decoder pointers if necessary */
 		if (_decoder_changed) {
-			/* Update decoder pointers */
+			/* Reset displayed info */
+			memset(&printable, 0, sizeof(printable));
+			_decoder_changed = 0;
+
 			switch (_active_decoder) {
 				case RS41:
 					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&rs41_decode;
 					decoder = rs41decoder;
 					break;
-				case DFM:
+				case DFM09:
 					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&dfm09_decode;
 					decoder = dfm09decoder;
 					break;
@@ -269,20 +273,24 @@ main(int argc, char *argv[])
 					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&ims100_decode;
 					decoder = ims100decoder;
 					break;
+				case AUTO:
+					while (rs41_decode(rs41decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED)
+						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = RS41;
+					while (m10_decode(m10decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED)
+						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = M10;
+					while (ims100_decode(ims100decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED)
+						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = IMS100;
+					while (dfm09_decode(dfm09decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED)
+						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = DFM09;
+					_decoder_changed = 1;
+					break;
 				default:
 					break;
 			}
-
-			/* Reset displayed info */
-			memset(&printable, 0, sizeof(printable));
-			_decoder_changed = 0;
 		}
 
-		/* Read new samples */
-		if (read_wrapper(srcbuf, LEN(srcbuf)) <= 0) break;
-
 		/* Decode samples into frames */
-		while (decode(decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED) {
+		while (decoder && decode(decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED) {
 
 			/* !PROCEED = PARSED, aka data has been updated: parse new info */
 			fill_printable_data(&printable, &data);
@@ -517,6 +525,24 @@ sigint_handler(int val)
 {
 	(void)val;
 	_interrupted = 1;
+}
+
+static int
+ascii_to_decoder(const char *ascii)
+{
+	size_t i;
+
+	for (i=0; i<LEN(_decoder_names); i++) {
+		if (!strcmp(ascii, _decoder_names[i])) return i;
+
+	}
+	return -1;
+}
+
+static int
+get_active_decoder()
+{
+	return _active_decoder;
 }
 
 #ifdef ENABLE_TUI
