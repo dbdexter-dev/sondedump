@@ -9,6 +9,7 @@ getopt_long(int argc, char *const argv[], const char *optstring, const struct op
 {
 	const char *cur_argv;
 	const struct option *cur_option;
+	const char *cur_shortopt;
 	int opt_len;
 	int i;
 
@@ -20,7 +21,7 @@ getopt_long(int argc, char *const argv[], const char *optstring, const struct op
 			for(i=0, cur_option = longopts; cur_option->name != NULL; cur_option++, i++) {
 				opt_len = strlen(cur_option->name);
 				if (!strncmp(cur_argv+2, cur_option->name, opt_len)) {
-					if (cur_option->has_arg) optarg = &cur_argv[2 + opt_len];
+					if (cur_option->has_arg) optarg = argv[++optind];
 					if (longindex) *longindex = i;
 					optind++;
 					return cur_option->val;
@@ -28,9 +29,9 @@ getopt_long(int argc, char *const argv[], const char *optstring, const struct op
 			}
 		} else {
 			/* Short option */
-			for(i=0, cur_option = longopts; cur_option->name != NULL; cur_option++, i++) {
-				if (cur_argv[2] == cur_option->val) {
-					if (cur_option->has_arg) optarg = &cur_argv[4];
+			for(i=0, cur_shortopt = optstring; cur_shortopt != 0; cur_shortopt++, i++) {
+				if (cur_argv[2] == *cur_shortopt) {
+					if (cur_shortopt[1] == ':') optarg = argv[++optind];
 					if (longindex) *longindex = i;
 					optind++;
 					return cur_option->val;
