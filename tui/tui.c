@@ -17,13 +17,15 @@
 #define XDATA_INFO_COUNT 1  /* xdata */
 #define INFO_COUNT (PTU_INFO_COUNT + GPS_INFO_COUNT + SONDE_INFO_COUNT + XDATA_INFO_COUNT)
 
+extern char *_decoder_names[];
+extern int _decoder_count;
+
 static void init_windows();
 static void redraw();
 static void draw_tabs(WINDOW *win, int selected);
 static void handle_resize();
 static void *main_loop(void* args);
 
-static char *_decoder_names[] = {"RS41", "DFM", "M10", "iMS100"};
 static int _update_interval;
 static int _running;
 static pthread_t _tid;
@@ -103,7 +105,6 @@ main_loop(void *args)
 {
 	int ch;
 	void (*decoder_changer)(int index) = args;
-	int new_decoder;
 
 	while (_running) {
 		switch (ch = wgetch(tui.win)) {
@@ -111,15 +112,13 @@ main_loop(void *args)
 				handle_resize();
 				break;
 			case KEY_LEFT:
-				new_decoder = (tui.get_active_decoder() - 1) % LEN(_decoder_names);
 				memset(&tui.data, 0, sizeof(tui.data));
-				decoder_changer(new_decoder);
+				decoder_changer(tui.get_active_decoder() - 1);
 				tui.data_changed = 1;
 				break;
 			case KEY_RIGHT:
-				new_decoder = (tui.get_active_decoder() + 1) % LEN(_decoder_names);
 				memset(&tui.data, 0, sizeof(tui.data));
-				decoder_changer(new_decoder);
+				decoder_changer(tui.get_active_decoder() + 1);
 				tui.data_changed = 1;
 				break;
 			case '\t':
@@ -280,16 +279,16 @@ draw_tabs(WINDOW *win, int selected)
 
 	werase(win);
 	cols = getmaxx(win);
-	elemWidth = (float)cols / LEN(_decoder_names);
+	elemWidth = (float)cols / _decoder_count;
 	wborder(tui.tabs,
 			0, 0, 0, ' ',
 			0, 0, ACS_VLINE, ACS_VLINE);
 
-	for (i=0; i<(int)LEN(_decoder_names); i++) {
+	for (i=0; i<_decoder_count; i++) {
 		if (i != 0) mvwprintw(win, 1, i * elemWidth, "|");
 
 		if (i == selected) wattron(win, A_STANDOUT);
-		mvwprintw(win, 1, i * elemWidth + roundf(elemWidth - strlen(_decoder_names[i])) / 2, "%s",_decoder_names[i]);
+		mvwprintw(win, 1, i * elemWidth + roundf((elemWidth - strlen(_decoder_names[i])) / 2), "%s",_decoder_names[i]);
 		if (i == selected) wattroff(win, A_STANDOUT);
 	}
 

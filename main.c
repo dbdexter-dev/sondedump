@@ -36,16 +36,17 @@ static int ascii_to_decoder(const char *ascii);
 static int get_active_decoder();
 
 #ifdef ENABLE_TUI
-static void decoder_changer(int delta);
+static void decoder_changer(int index);
 #endif
 
 static FILE *_wav;
 static int _bps;
 static int _interrupted;
 
-static enum { RS41=0, DFM09, M10, IMS100, AUTO, END} _active_decoder;
-static const char *_decoder_names[] = {"rs41", "dfm", "m10", "ims100", "auto"};
+static enum { AUTO=0, RS41, DFM09, M10, IMS100, END} _active_decoder;
 static int _decoder_changed;
+const char *_decoder_names[] = {"Auto", "RS41", "DFM", "M10", "iMS100"};
+const int _decoder_count = LEN(_decoder_names);
 
 static struct option longopts[] = {
 	{ "audio-device", 1, NULL, 'a'},
@@ -98,8 +99,9 @@ main(int argc, char *argv[])
 	char *input_fname = NULL;
 	int receiver_location_set = 0;
 	float receiver_lat = 0, receiver_lon = 0, receiver_alt = 0;
+	int tui_enabled = 0;
 #ifdef ENABLE_TUI
-	int tui_enabled = 1;
+	tui_enabled = 1;
 #endif
 #ifdef ENABLE_AUDIO
 	int input_from_audio = 0;
@@ -283,6 +285,11 @@ main(int argc, char *argv[])
 					while (dfm09_decode(dfm09decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED)
 						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = DFM09;
 					_decoder_changed = 1;
+
+					/* Indicate decoder changed */
+					if (_active_decoder != AUTO && !tui_enabled) {
+						printf("Sonde detected: %s\n", _decoder_names[(int)_active_decoder]);
+					}
 					break;
 				default:
 					break;
@@ -307,14 +314,13 @@ main(int argc, char *argv[])
 					/* If we got new data between the last FRAME_END and this
 					 * one, update the info being displayed */
 					if (has_data) {
-#ifdef ENABLE_TUI
-						if (tui_enabled) {
-							tui_update(&printable);
-						} else {
+						if (!tui_enabled) {
 							printf_data(output_fmt, &printable);
 						}
-#else
-						printf_data(output_fmt, &printable);
+#ifdef ENABLE_TUI
+						else {
+							tui_update(&printable);
+						}
 #endif
 					}
 
@@ -533,7 +539,7 @@ ascii_to_decoder(const char *ascii)
 	size_t i;
 
 	for (i=0; i<LEN(_decoder_names); i++) {
-		if (!strcmp(ascii, _decoder_names[i])) return i;
+		if (!strcasecmp(ascii, _decoder_names[i])) return i;
 
 	}
 	return -1;
@@ -549,7 +555,7 @@ get_active_decoder()
 static void
 decoder_changer(int decoder)
 {
-	_active_decoder = decoder % END;
+	_active_decoder = (decoder + END) % END;
 	_decoder_changed = 1;
 }
 #endif
