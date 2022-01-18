@@ -1,13 +1,13 @@
+#include <curses.h>
 #include <locale.h>
 #include <math.h>
-#include <ncurses.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
-#include "tui.h"
 #include "gps/ecef.h"
-#include "utils.h"
 #include "physics.h"
+#include "tui.h"
+#include "utils.h"
 
 #define DEFAULT_UPD_INTERVAL 100
 

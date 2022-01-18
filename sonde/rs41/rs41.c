@@ -129,7 +129,7 @@ rs41_decoder_deinit(RS41Decoder *d)
 	framer_deinit(&d->f);
 	free(d);
 #ifndef NDEBUG
-	fclose(debug);
+	if (debug) fclose(debug);
 #endif
 }
 
@@ -170,8 +170,10 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 			rs41_frame_correct(self->frame, &self->rs);
 
 #ifndef NDEBUG
-			/* Output the frame to file */
-			fwrite(self->frame, RS41_FRAME_LEN/8, 1, debug);
+			if (debug) {
+				/* Output the frame to file */
+				fwrite(self->frame, RS41_FRAME_LEN/8, 1, debug);
+			}
 #endif
 
 			/* Prepare to parse subframes */
