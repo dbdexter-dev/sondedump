@@ -50,5 +50,4 @@ m10_crc_step(uint16_t c, uint8_t b)
 	s ^= (s >> 2) & 0xFF;
 	c0 = b ^ t ^ s;
 	return ((c1 << 8) | c0) & 0xFFFF;
-	return 0;
 }

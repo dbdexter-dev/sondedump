@@ -8,7 +8,7 @@ static void kml_add_point(KMLFile *kml, float lat, float lon, float alt);
 static void kml_temp_close(KMLFile *kml);
 
 int
-kml_init(KMLFile *kml, char *fname, int live_update)
+kml_init(KMLFile *kml, const char *fname, int live_update)
 {
 	FILE *tmpfd;
 	char live_fname[256];
@@ -84,7 +84,7 @@ kml_close(KMLFile *kml)
 }
 
 void
-kml_start_track(KMLFile *kml, char *name)
+kml_start_track(KMLFile *kml, const char *name)
 {
 	if (kml->live_update) fseek(kml->fd, kml->next_update_fseek, SEEK_SET);
 	if (kml->sonde_serial != NULL && !strcmp(kml->sonde_serial, name)) return;

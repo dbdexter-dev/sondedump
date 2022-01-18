@@ -68,7 +68,7 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 				self->frame[1] = self->frame[3];
 			}
 			self->state = READ;
-			__attribute__((fallthrough));
+			/* FALLTHROUGH */
 		case READ:
 			/* Read a new frame */
 			switch (read_frame_gfsk(&self->f, raw_frame, &self->offset, M10_FRAME_LEN, src, len)) {

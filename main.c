@@ -1,4 +1,8 @@
+#ifdef _WIN32
+#include "win_getopt.h"
+#else
 #include <getopt.h>
+#endif
 #include <math.h>
 #include <signal.h>
 #include <stdio.h>
@@ -48,7 +52,7 @@ static const char *_decoder_names[] = {"rs41", "dfm", "m10", "ims100", "auto"};
 static int _decoder_changed;
 
 static struct option longopts[] = {
-	{ "audio-device", 1, NULL, 'a'},
+	{ "audio-device", 1, NULL, 'a' },
 	{ "fmt",          1, NULL, 'f' },
 	{ "csv",          1, NULL, 'c' },
 	{ "decoders",     1, NULL, 'd' },
@@ -91,11 +95,11 @@ main(int argc, char *argv[])
 
 	/* Command-line changeable parameters {{{ */
 	char *output_fmt = "[%f] %t'C %r%%    %l %o %am    %sm/s %h' %cm/s";
-	char *live_kml_fname = NULL;
-	char *kml_fname = NULL;
-	char *gpx_fname = NULL;
-	char *csv_fname = NULL;
-	char *input_fname = NULL;
+	const char *live_kml_fname = NULL;
+	const char *kml_fname = NULL;
+	const char *gpx_fname = NULL;
+	const char *csv_fname = NULL;
+	const char *input_fname = NULL;
 	int receiver_location_set = 0;
 	float receiver_lat = 0, receiver_lon = 0, receiver_alt = 0;
 #ifdef ENABLE_TUI

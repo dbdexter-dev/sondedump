@@ -34,13 +34,13 @@ static struct {
 	int data_changed;
 	int receiver_location_set;
 	float lat, lon, alt;
-	int (*get_active_decoder)();
+	int (*get_active_decoder)(void);
 	enum { ABSOLUTE=0, RELATIVE, POS_TYPE_COUNT } pos_type;
 } tui;
 
 
 void
-tui_init(int update_interval, void (*decoder_changer)(int index), int (*get_active_decoder)())
+tui_init(int update_interval, void (*decoder_changer)(int index), int (*get_active_decoder)(void))
 {
 	setlocale(LC_ALL, "");
 
@@ -289,7 +289,7 @@ draw_tabs(WINDOW *win, int selected)
 		if (i != 0) mvwprintw(win, 1, i * elemWidth, "|");
 
 		if (i == selected) wattron(win, A_STANDOUT);
-		mvwprintw(win, 1, i * elemWidth + roundf(elemWidth - strlen(_decoder_names[i])) / 2, "%s",_decoder_names[i]);
+		mvwprintw(win, 1, i * elemWidth + roundf((elemWidth - strlen(_decoder_names[i])) / 2), "%s",_decoder_names[i]);
 		if (i == selected) wattroff(win, A_STANDOUT);
 	}
 

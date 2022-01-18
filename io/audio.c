@@ -1,5 +1,4 @@
 #include <portaudio.h>
-#include <semaphore.h>
 #include <stdio.h>
 #include <string.h>
 #include "audio.h"
@@ -11,7 +10,7 @@ static const double _samplerates[] = {48000, 44100};
 static struct {
 	PaStream *stream;
 	float buffer[BUFFER_SIZE];
-	size_t idx;
+	unsigned long idx;
 } _state;
 
 int

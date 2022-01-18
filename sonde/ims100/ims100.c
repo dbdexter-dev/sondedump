@@ -104,7 +104,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 			}
 			ims100_frame_unpack(&self->frame, self->raw_frame);
 
-			__attribute__((fallthrough));
+			/* FALLTHROUGH */
 		case PARSE_INFO:
 			/* Copy calibration data */
 			if (IMS100_DATA_VALID(self->frame.valid, IMS100_MASK_SEQ | IMS100_MASK_CALIB)) {

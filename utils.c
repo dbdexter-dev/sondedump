@@ -12,7 +12,7 @@ static float hermite_11(float x);
 static unsigned int count_days(unsigned int year, unsigned int month, unsigned int day);
 
 char
-*my_strdup(char *str)
+*my_strdup(const char *str)
 {
 	size_t len;
 	char *ret;

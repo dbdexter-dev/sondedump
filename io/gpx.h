@@ -6,7 +6,7 @@
 
 typedef struct {
 	FILE *fd;
-	size_t offset;
+	long offset;
 	int track_active;
 	char *cur_serial;
 } GPXFile;
@@ -18,7 +18,7 @@ typedef struct {
  * @param fname path to write file to
  * @return 0 on success, non-zero otherwise
  */
-int gpx_init(GPXFile *file, char *fname);
+int gpx_init(GPXFile *file, const char *fname);
 
 /**
  * Close a GPX output file
@@ -34,7 +34,7 @@ void gpx_close(GPXFile *file);
  * @param file file struct to open track in
  * @param name name of the track to use
  */
-void gpx_start_track(GPXFile *file, char *name);
+void gpx_start_track(GPXFile *file, const char *name);
 
 /**
  * Add a trackpoint to the currently open track on the given file. Will silently

@@ -50,7 +50,7 @@
  * @param str string to duplicate
  * @return duplicated string, allocated on the heap with malloc(0
  */
-char *my_strdup(char *str);
+char *my_strdup(const char *str);
 
 /**
  * timegm, but portable since it's not part of the C standard
@@ -77,12 +77,12 @@ float cspline(const float *xs, const float *ys, float count, float x);
  *
  * @param progname executable name
  */
-void  usage(const char *progname);
+void usage(const char *progname);
 
 /**
  * Write version info to stdout
  */
-void  version();
+void version();
 
 #endif
 

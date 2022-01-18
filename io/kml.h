@@ -24,7 +24,7 @@ typedef struct {
  *                    0 otherwise
  * @return 0 on success, non-zero otherwise
  */
-int kml_init(KMLFile *file, char *fname, int live_update);
+int kml_init(KMLFile *file, const char *fname, int live_update);
 
 /**
  * Close a KML output file
@@ -40,7 +40,7 @@ void kml_close(KMLFile *file);
  * @param file file struct to open track in
  * @param name name of the track to use
  */
-void kml_start_track(KMLFile *file, char *name);
+void kml_start_track(KMLFile *file, const char *name);
 
 /**
  * Add a trackpoint to the currently open track on the given file. Will silently
