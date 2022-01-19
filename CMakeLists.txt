@@ -20,11 +20,11 @@ endif()
 if (MSVC)
 	set(CMAKE_C_STANDARD 11)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Wall /std:c11")
-	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -ftree-vectorize")
+	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ftree-vectorize")
 else()
 	set(CMAKE_C_STANDARD 99)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -pipe -Wall -Wextra -Wimplicit-fallthrough")
-	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -ftree-vectorize")
+	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ftree-vectorize")
 endif()
 
 # ARM architectures need -mfpu=auto in order to enable NEON when available,
