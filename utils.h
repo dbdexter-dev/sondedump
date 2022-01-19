@@ -82,7 +82,7 @@ void usage(const char *progname);
 /**
  * Write version info to stdout
  */
-void version();
+void version(void);
 
 #endif
 

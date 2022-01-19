@@ -101,7 +101,7 @@ audio_init(int device_num)
 }
 
 int
-audio_deinit()
+audio_deinit(void)
 {
 	/* Stop streaming audio, deinitialize stream, then deinitialize portaudio
 	 * itself. If we error here nobody cares cause we're closing shop anyway */

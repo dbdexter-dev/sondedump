@@ -17,10 +17,10 @@
 #define XDATA_INFO_COUNT 1  /* xdata */
 #define INFO_COUNT (PTU_INFO_COUNT + GPS_INFO_COUNT + SONDE_INFO_COUNT + XDATA_INFO_COUNT)
 
-static void init_windows();
-static void redraw();
+static void init_windows(void);
+static void redraw(void);
 static void draw_tabs(WINDOW *win, int selected);
-static void handle_resize();
+static void handle_resize(void);
 static void *main_loop(void* args);
 
 static char *_decoder_names[] = {"RS41", "DFM", "M10", "iMS100"};
@@ -150,7 +150,7 @@ main_loop(void *args)
 }
 
 static void
-handle_resize()
+handle_resize(void)
 {
 	const int width = 50;
 	const int height = INFO_COUNT + 3 + 3;
@@ -177,7 +177,7 @@ handle_resize()
 }
 
 static void
-redraw()
+redraw(void)
 {
 	int rows, cols;
 	int start_row, start_col;
@@ -297,7 +297,7 @@ draw_tabs(WINDOW *win, int selected)
 }
 
 static void
-init_windows()
+init_windows(void)
 {
 	handle_resize();
 	wborder(tui.win,

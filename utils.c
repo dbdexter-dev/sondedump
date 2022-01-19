@@ -115,7 +115,7 @@ usage(const char *pname)
 }
 
 void
-version()
+version(void)
 {
 	fprintf(stderr,
 			"sondedump v" VERSION

@@ -37,7 +37,7 @@ static int raw_read_wrapper(float *dst, size_t count);
 static int audio_read_wrapper(float *dst, size_t count);
 static void sigint_handler(int val);
 static int ascii_to_decoder(const char *ascii);
-static int get_active_decoder();
+static int get_active_decoder(void);
 
 #ifdef ENABLE_TUI
 static void decoder_changer(int delta);
@@ -544,7 +544,7 @@ ascii_to_decoder(const char *ascii)
 }
 
 static int
-get_active_decoder()
+get_active_decoder(void)
 {
 	return _active_decoder;
 }
