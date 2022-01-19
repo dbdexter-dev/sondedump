@@ -30,6 +30,8 @@
 
 #define SHORTOPTS "a:c:f:g:hk:l:o:r:t:v"
 
+static void usage(const char *progname);
+static void version(void);
 static void fill_printable_data(PrintableData *to_print, SondeData *data);
 static int printf_data(const char *fmt, PrintableData *data);
 static int wav_read_wrapper(float *dst, size_t count);
@@ -41,6 +43,7 @@ static int get_active_decoder(void);
 
 #ifdef ENABLE_TUI
 static void decoder_changer(int index);
+static int get_active_decoder();
 #endif
 
 static FILE *_wav;
@@ -415,6 +418,72 @@ audio_read_wrapper(float *dst, size_t count)
 	return audio_read(dst, count);
 }
 
+
+static void
+usage(const char *pname)
+{
+	fprintf(stderr, "Usage: %s [options] file_in\n", pname);
+	fprintf(stderr,
+#ifdef ENABLE_AUDIO
+			"   -a, --audio-device <id> Use PortAudio device <id> as input (default: choose interactively)\n"
+#endif
+			"   -c, --csv <file>             Output data to <file> in CSV format\n"
+			"   -f, --fmt <format>           Format output lines as <format>\n"
+			"   -g, --gpx <file>             Output GPX track to <file>\n"
+			"   -k, --kml <file>             Output KML track to <file>\n"
+			"   -l, --live-kml <file>        Output live KML track to <file>\n"
+			"   -r, --location <lat,lon,alt> Set receiver location to <lat, lon, alt> (default: none)\n"
+			"   -t, --type <type>            Enable decoder for the given sonde type. Supported values:\n"
+			"                                auto: Autodetect\n"
+			"                                rs41: Vaisala RS41-SG(P,M)\n"
+			"                                dfm: GRAW DFM06/09\n"
+			"                                m10: MeteoModem M10\n"
+			"                                ims100: Meisei iMS-100\n"
+	        "\n"
+	        "   -h, --help                   Print this help screen\n"
+	        "   -v, --version                Print version info\n"
+	        );
+	fprintf(stderr,
+			"\nAvailable format specifiers:\n"
+			"   %%a      Altitude (m)\n"
+			"   %%b      Burstkill/shutdown timer\n"
+			"   %%c      Climb rate (m/s)\n"
+			"   %%d      Dew point (degrees Celsius)\n"
+			"   %%f      Frame counter\n"
+			"   %%h      Heading (degrees)\n"
+			"   %%l      Latitude (decimal degrees + N/S)\n"
+			"   %%o      Longitude (decimal degrees + E/W)\n"
+			"   %%p      Pressure (hPa)\n"
+			"   %%r      Relative humidity (%%)\n"
+			"   %%s      Speed (m/s)\n"
+			"   %%S      Sonde serial number\n"
+			"   %%t      Temperature (degrees Celsius)\n"
+			"   %%T      Timestamp (yyyy-mm-dd hh:mm::ss, local)\n"
+		   );
+#ifdef ENABLE_TUI
+	fprintf(stderr,
+	        "\nTUI keybinds:\n"
+	        "   Arrow keys: change active decoder\n"
+	        "   Tab: toggle between absolute (lat, lon, alt) and relative (az, el, range) coordinates (requires -r, --location)\n"
+	       );
+#endif
+}
+
+static void
+version(void)
+{
+	fprintf(stderr,
+			"sondedump v" VERSION
+#ifdef ENABLE_AUDIO
+			" +portaudio"
+#endif
+#ifdef ENABLE_TUI
+			" +ncurses"
+#endif
+			"\n");
+}
+
+
 static void
 fill_printable_data(PrintableData *to_print, SondeData *data)
 {
@@ -549,12 +618,6 @@ ascii_to_decoder(const char *ascii)
 	return -1;
 }
 
-static int
-get_active_decoder(void)
-{
-	return _active_decoder;
-}
-
 #ifdef ENABLE_TUI
 static void
 decoder_changer(int decoder)
@@ -562,5 +625,12 @@ decoder_changer(int decoder)
 	_active_decoder = (decoder + END) % END;
 	_decoder_changed = 1;
 }
+
+static int
+get_active_decoder(void)
+{
+	return _active_decoder;
+}
+
 #endif
 /* }}} */

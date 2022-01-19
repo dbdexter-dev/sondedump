@@ -72,18 +72,6 @@ time_t my_timegm(struct tm *tm);
  */
 float cspline(const float *xs, const float *ys, float count, float x);
 
-/**
- * Write usage info to stdout
- *
- * @param progname executable name
- */
-void usage(const char *progname);
-
-/**
- * Write version info to stdout
- */
-void version(void);
-
 #endif
 
 

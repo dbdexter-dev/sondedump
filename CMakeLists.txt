@@ -11,7 +11,7 @@ project(sondedump
 add_definitions(-DVERSION="${CMAKE_PROJECT_VERSION}")
 
 # Include modules for external libraries
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
 
 if (NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE "Release")
@@ -65,7 +65,7 @@ set(LIBRARY_SOURCES
 	sonde/ims100/ims100.c
 	sonde/ims100/frame.c sonde/ims100/frame.h
 	sonde/ims100/subframe.c sonde/ims100/subframe.h
-	sonde/ims100/protocol.c sonde/ims100/protocol.h
+	sonde/ims100/protocol.h
 
 	sonde/m10/m10.c
 	sonde/m10/frame.c sonde/m10/frame.h
