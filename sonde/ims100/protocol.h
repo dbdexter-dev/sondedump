@@ -46,7 +46,7 @@
 #define IMS100_CALIB_FRAGSIZE 4
 #define IMS100_CALIB_FRAGCOUNT 64
 
-extern uint8_t ims100_bch_roots[];
+static const uint8_t ims100_bch_roots[] = {0x02, 0x04, 0x08, 0x10};
 
 /* Even & odd seq subframe types {{{ */
 PACK(typedef struct {
