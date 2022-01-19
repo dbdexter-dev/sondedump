@@ -140,20 +140,15 @@ endif()
 
 
 # Main library target
-add_library(sondedump_static STATIC ${LIBRARY_SOURCES})
-target_include_directories(sondedump_static PUBLIC ${COMMON_INC_DIRS})
-target_link_libraries(sondedump_static PUBLIC ${MATH_LIBRARY})
-
-# Shared library target
-add_library(sonde SHARED ${LIBRARY_SOURCES})
-target_include_directories(sonde PUBLIC ${COMMON_INC_DIRS})
-set_target_properties(sonde PROPERTIES EXCLUDE_FROM_ALL 1)
+add_library(radiosonde STATIC ${LIBRARY_SOURCES})
+target_include_directories(radiosonde PUBLIC ${COMMON_INC_DIRS})
+target_link_libraries(radiosonde PUBLIC ${MATH_LIBRARY})
 
 # Main executable target
 add_executable(sondedump ${EXEC_SOURCES})
 target_include_directories(sondedump PRIVATE ${COMMON_INC_DIRS}
 	${PORTAUDIO_INCLUDE_DIRS} ${CURSES_INCLUDE_DIRS})
-target_link_libraries(sondedump PRIVATE sondedump_static
+target_link_libraries(sondedump PRIVATE radiosonde
 	${CMAKE_THREAD_LIBS_INIT}
 	${MATH_LIBRARY} ${PORTAUDIO_LIBRARIES} ${CURSES_LIBRARIES})
 
