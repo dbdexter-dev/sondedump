@@ -105,16 +105,16 @@ rs_fix_block(const RSDecoder *self, uint8_t *data)
 	const uint8_t *logtable = self->logtable;
 	const uint8_t *gaproots = self->gaproots;
 	const uint8_t *zeroes = self->zeroes;
-
+	const size_t sizeof_lambda = rs_t2 + 1;
 
 	int i, m, n, delta, prev_delta;
 	int lambda_deg;
 	int has_errors;
 	int error_count;
-	uint8_t syndrome[rs_t];
-	uint8_t lambda[rs_t2+1], prev_lambda[rs_t2+1], tmp[rs_t2+1];
-	uint8_t lambda_root[rs_t2], error_pos[rs_t2];
-	uint8_t omega[rs_t], lambda_prime[rs_t2];
+	uint8_t syndrome[256];
+	uint8_t lambda[256], prev_lambda[256], tmp[256];
+	uint8_t lambda_root[256], error_pos[256];
+	uint8_t omega[256], lambda_prime[256];
 	uint8_t num, den, fcr;
 
 	/* Compute syndromes */
@@ -128,8 +128,8 @@ rs_fix_block(const RSDecoder *self, uint8_t *data)
 	}
 
 	/* Berlekamp-Massey algorithm */
-	memset(lambda, 0, sizeof(lambda));
-	memset(prev_lambda, 0, sizeof(prev_lambda));
+	memset(lambda, 0, sizeof_lambda);
+	memset(prev_lambda, 0, sizeof_lambda);
 	lambda_deg = 0;
 	prev_delta = 1;
 	lambda[0] = prev_lambda[0] = 1;

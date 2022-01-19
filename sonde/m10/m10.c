@@ -46,7 +46,7 @@ m10_decoder_deinit(M10Decoder *d)
 	framer_deinit(&d->f);
 	free(d);
 #ifndef NDEBUG
-	fclose(debug);
+	if (debug) fclose(debug);
 #endif
 }
 
@@ -68,7 +68,7 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 				self->frame[1] = self->frame[3];
 			}
 			self->state = READ;
-			__attribute__((fallthrough));
+			/* FALLTHROUGH */
 		case READ:
 			/* Read a new frame */
 			switch (read_frame_gfsk(&self->f, raw_frame, &self->offset, M10_FRAME_LEN, src, len)) {
@@ -83,11 +83,13 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 			m10_frame_descramble(self->frame);
 
 #ifndef NDEBUG
-			if (self->frame[0].sync_mark[0] == 0x00
-			 && self->frame[0].sync_mark[1] == 0x00
-			 && self->frame[0].sync_mark[2] == 0x88) {
-				fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
-				fflush(debug);
+			if (debug) {
+				if (self->frame[0].sync_mark[0] == 0x00
+				 && self->frame[0].sync_mark[1] == 0x00
+				 && self->frame[0].sync_mark[2] == 0x88) {
+					fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
+					fflush(debug);
+				}
 			}
 #endif
 			switch (self->frame[0].type) {

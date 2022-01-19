@@ -1,5 +1,4 @@
 #include <portaudio.h>
-#include <semaphore.h>
 #include <stdio.h>
 #include <string.h>
 #include "audio.h"
@@ -11,7 +10,7 @@ static const double _samplerates[] = {48000, 44100};
 static struct {
 	PaStream *stream;
 	float buffer[BUFFER_SIZE];
-	size_t idx;
+	unsigned long idx;
 } _state;
 
 int
@@ -102,7 +101,7 @@ audio_init(int device_num)
 }
 
 int
-audio_deinit()
+audio_deinit(void)
 {
 	/* Stop streaming audio, deinitialize stream, then deinitialize portaudio
 	 * itself. If we error here nobody cares cause we're closing shop anyway */

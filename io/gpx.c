@@ -8,7 +8,7 @@
 #define GPX_TIME_FORMAT "%Y-%m-%dT%H:%M:%SZ"
 
 int
-gpx_init(GPXFile *file, char *fname)
+gpx_init(GPXFile *file, const char *fname)
 {
 	file->fd = fopen(fname, "wb");
 	file->cur_serial = NULL;
@@ -39,7 +39,7 @@ gpx_close(GPXFile *file)
 }
 
 void
-gpx_start_track(GPXFile *file, char *name)
+gpx_start_track(GPXFile *file, const char *name)
 {
 	int i;
 

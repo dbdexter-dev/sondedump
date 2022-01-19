@@ -129,7 +129,7 @@ rs41_decoder_deinit(RS41Decoder *d)
 	framer_deinit(&d->f);
 	free(d);
 #ifndef NDEBUG
-	fclose(debug);
+	if (debug) fclose(debug);
 #endif
 }
 
@@ -155,8 +155,7 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 			/* Copy residual bits from the previous frame */
 			if (self->offset) self->frame[0] = self->frame[1];
 			self->state = READ;
-			__attribute__((fallthrough));
-
+			/* FALLTHROUGH */
 		case READ:
 			/* Read a new frame */
 			switch (read_frame_gfsk(&self->f, raw_frame, &self->offset, RS41_FRAME_LEN, src, len)) {
@@ -171,15 +170,17 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 			rs41_frame_correct(self->frame, &self->rs);
 
 #ifndef NDEBUG
-			/* Output the frame to file */
-			fwrite(self->frame, RS41_FRAME_LEN/8, 1, debug);
+			if (debug) {
+				/* Output the frame to file */
+				fwrite(self->frame, RS41_FRAME_LEN/8, 1, debug);
+			}
 #endif
 
 			/* Prepare to parse subframes */
 			self->frame_offset = 0;
 			self->pressure = 0;
 			self->state = PARSE_SUBFRAME;
-			__attribute__((fallthrough));
+			/* FALLTHROUGH */
 
 		case PARSE_SUBFRAME:
 			/* Parse expected data length from extended flag */

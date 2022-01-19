@@ -25,6 +25,6 @@ int audio_read(float *ptr, size_t len);
 /**
  * Deinitialize PortAudio
  */
-int audio_deinit();
+int audio_deinit(void);
 
 #endif

@@ -70,8 +70,8 @@ ims100_decoder_deinit(IMS100Decoder *d)
 	framer_deinit(&d->f);
 	free(d);
 #ifndef NDEBUG
-	fclose(debug);
-	fclose(debug_odd);
+	if (debug) fclose(debug);
+	if (debug_odd) fclose(debug_odd);
 #endif
 }
 
@@ -104,7 +104,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 			}
 			ims100_frame_unpack(&self->frame, self->raw_frame);
 
-			__attribute__((fallthrough));
+			/* FALLTHROUGH */
 		case PARSE_INFO:
 			/* Copy calibration data */
 			if (IMS100_DATA_VALID(self->frame.valid, IMS100_MASK_SEQ | IMS100_MASK_CALIB)) {
@@ -138,21 +138,23 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 			if (!IMS100_DATA_VALID(self->frame.valid, validmask)) dst->type = EMPTY;
 
 #ifndef NDEBUG
-			static int offset[2] = {2, 2};
-			int myseq = ims100_frame_seq(&self->frame);
-			static IMS100Frame empty;
-			if (myseq & 0x1) {
-				if ((myseq & 0x2) == offset[0])
-					fwrite(&empty, sizeof(empty), 1, debug);
-				fwrite(&self->frame, sizeof(self->frame), 1, debug);
-				offset[0] = myseq & 0x2;
-			} else {
-				if ((myseq & 0x2) == offset[1])
-					fwrite(&empty, sizeof(empty), 1, debug_odd);
-				fwrite(&self->frame, sizeof(self->frame), 1, debug_odd);
-				offset[1] = myseq & 0x2;
+			if (debug && debug_odd) {
+				static int offset[2] = {2, 2};
+				int myseq = ims100_frame_seq(&self->frame);
+				static IMS100Frame empty;
+				if (myseq & 0x1) {
+					if ((myseq & 0x2) == offset[0])
+						fwrite(&empty, sizeof(empty), 1, debug);
+					fwrite(&self->frame, sizeof(self->frame), 1, debug);
+					offset[0] = myseq & 0x2;
+				} else {
+					if ((myseq & 0x2) == offset[1])
+						fwrite(&empty, sizeof(empty), 1, debug_odd);
+					fwrite(&self->frame, sizeof(self->frame), 1, debug_odd);
+					offset[1] = myseq & 0x2;
+				}
+				fflush(debug);
 			}
-			fflush(debug);
 #endif
 
 			if (dst->type != EMPTY) {

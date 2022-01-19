@@ -1,4 +1,8 @@
+#ifdef _WIN32
+#include "win_getopt.h"
+#else
 #include <getopt.h>
+#endif
 #include <math.h>
 #include <signal.h>
 #include <stdio.h>
@@ -33,7 +37,7 @@ static int raw_read_wrapper(float *dst, size_t count);
 static int audio_read_wrapper(float *dst, size_t count);
 static void sigint_handler(int val);
 static int ascii_to_decoder(const char *ascii);
-static int get_active_decoder();
+static int get_active_decoder(void);
 
 #ifdef ENABLE_TUI
 static void decoder_changer(int index);
@@ -49,7 +53,7 @@ const char *_decoder_names[] = {"Auto", "RS41", "DFM", "M10", "iMS100"};
 const int _decoder_count = LEN(_decoder_names);
 
 static struct option longopts[] = {
-	{ "audio-device", 1, NULL, 'a'},
+	{ "audio-device", 1, NULL, 'a' },
 	{ "fmt",          1, NULL, 'f' },
 	{ "csv",          1, NULL, 'c' },
 	{ "decoders",     1, NULL, 'd' },
@@ -92,11 +96,11 @@ main(int argc, char *argv[])
 
 	/* Command-line changeable parameters {{{ */
 	char *output_fmt = "[%f] %t'C %r%%    %l %o %am    %sm/s %h' %cm/s";
-	char *live_kml_fname = NULL;
-	char *kml_fname = NULL;
-	char *gpx_fname = NULL;
-	char *csv_fname = NULL;
-	char *input_fname = NULL;
+	const char *live_kml_fname = NULL;
+	const char *kml_fname = NULL;
+	const char *gpx_fname = NULL;
+	const char *csv_fname = NULL;
+	const char *input_fname = NULL;
 	int receiver_location_set = 0;
 	float receiver_lat = 0, receiver_lon = 0, receiver_alt = 0;
 	int tui_enabled = 0;
@@ -546,7 +550,7 @@ ascii_to_decoder(const char *ascii)
 }
 
 static int
-get_active_decoder()
+get_active_decoder(void)
 {
 	return _active_decoder;
 }

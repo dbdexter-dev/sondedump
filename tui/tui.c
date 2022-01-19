@@ -1,13 +1,13 @@
+#include <curses.h>
 #include <locale.h>
 #include <math.h>
-#include <ncurses.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
-#include "tui.h"
 #include "gps/ecef.h"
-#include "utils.h"
 #include "physics.h"
+#include "tui.h"
+#include "utils.h"
 
 #define DEFAULT_UPD_INTERVAL 100
 
@@ -20,10 +20,10 @@
 extern char *_decoder_names[];
 extern int _decoder_count;
 
-static void init_windows();
-static void redraw();
+static void init_windows(void);
+static void redraw(void);
 static void draw_tabs(WINDOW *win, int selected);
-static void handle_resize();
+static void handle_resize(void);
 static void *main_loop(void* args);
 
 static int _update_interval;
@@ -36,13 +36,13 @@ static struct {
 	int data_changed;
 	int receiver_location_set;
 	float lat, lon, alt;
-	int (*get_active_decoder)();
+	int (*get_active_decoder)(void);
 	enum { ABSOLUTE=0, RELATIVE, POS_TYPE_COUNT } pos_type;
 } tui;
 
 
 void
-tui_init(int update_interval, void (*decoder_changer)(int index), int (*get_active_decoder)())
+tui_init(int update_interval, void (*decoder_changer)(int index), int (*get_active_decoder)(void))
 {
 	setlocale(LC_ALL, "");
 
@@ -149,7 +149,7 @@ main_loop(void *args)
 }
 
 static void
-handle_resize()
+handle_resize(void)
 {
 	const int width = 50;
 	const int height = INFO_COUNT + 3 + 3;
@@ -176,7 +176,7 @@ handle_resize()
 }
 
 static void
-redraw()
+redraw(void)
 {
 	int rows, cols;
 	int start_row, start_col;
@@ -296,7 +296,7 @@ draw_tabs(WINDOW *win, int selected)
 }
 
 static void
-init_windows()
+init_windows(void)
 {
 	handle_resize();
 	wborder(tui.win,

@@ -10,13 +10,22 @@ project(sondedump
 	LANGUAGES C)
 add_definitions(-DVERSION="${CMAKE_PROJECT_VERSION}")
 
+# Include modules for external libraries
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
+
 if (NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-set(CMAKE_C_STANDARD 99)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -pipe -Wall -Wextra -Wimplicit-fallthrough")
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -ftree-vectorize")
+if (MSVC)
+	set(CMAKE_C_STANDARD 11)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Wall /std:c11")
+	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -ftree-vectorize")
+else()
+	set(CMAKE_C_STANDARD 99)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -pipe -Wall -Wextra -Wimplicit-fallthrough")
+	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -ftree-vectorize")
+endif()
 
 # ARM architectures need -mfpu=auto in order to enable NEON when available,
 # but that option is unrecognized by x86 gcc (and possibly others): only
@@ -93,48 +102,55 @@ set(EXEC_SOURCES
 	main.c
 )
 
-set(COMMON_INC_DIRS
-	${PROJECT_SOURCE_DIR}
-)
+set(COMMON_INC_DIRS ${PROJECT_SOURCE_DIR})
 
-# Extra functionality libraries
-message("\nBuild configuration:")
-find_library(NCURSES_LIBRARY NAMES ncursesw libncursesw ncurses libncurses OPTIONAL)
-if (ENABLE_TUI AND NCURSES_LIBRARY)
+if (MSVC)
+	set(EXEC_SOURCES ${EXEC_SOURCES}
+		win_getopt.c win_getopt.h
+	)
+endif()
+
+# Portable math
+if (NOT WIN32)
+	set(MATH_LIBRARY "m")
+endif()
+
+# Find Curses/Ncurses
+find_package(Curses)
+if (ENABLE_TUI AND CURSES_LIBRARIES)
+	# Portable threads
+	find_package(Threads REQUIRED)
+
 	add_definitions(-DENABLE_TUI)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${TUI_SOURCES})
-	message("   ncurses     ON")
 else()
-	set(NCURSES_LIBRARY "")
-	message("   ncurses     OFF")
+	set(CURSES_LIBRARIES "")
+	set(CURSES_INCLUDE_DIRS "")
 endif()
-find_library(PORTAUDIO_LIBRARY NAMES portaudio libportaudio OPTIONAL)
-if(ENABLE_AUDIO AND PORTAUDIO_LIBRARY)
+
+# Find PortAudio
+find_package(Portaudio)
+if(ENABLE_AUDIO AND PORTAUDIO_LIBRARIES)
 	add_definitions(-DENABLE_AUDIO)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${AUDIO_SOURCES})
-	message("   portaudio   ON")
 else()
-	set(PORTAUDIO_LIBRARY "")
-	message("   portaudio   OFF")
+	set(PORTAUDIO_LIBRARIES "")
+	set(PORTAUDIO_INCLUDE_DIRS "")
 endif()
-message("")
 
 
 # Main library target
-add_library(sondedump_static STATIC ${LIBRARY_SOURCES})
-target_include_directories(sondedump_static PUBLIC ${COMMON_INC_DIRS})
-target_link_libraries(sondedump_static PUBLIC m)
-
-# Shared library target
-add_library(sonde SHARED ${LIBRARY_SOURCES})
-target_include_directories(sonde PUBLIC ${COMMON_INC_DIRS})
-set_target_properties(sonde PROPERTIES EXCLUDE_FROM_ALL 1)
+add_library(radiosonde STATIC ${LIBRARY_SOURCES})
+target_include_directories(radiosonde PUBLIC ${COMMON_INC_DIRS})
+target_link_libraries(radiosonde PUBLIC ${MATH_LIBRARY})
 
 # Main executable target
 add_executable(sondedump ${EXEC_SOURCES})
-target_include_directories(sondedump PRIVATE ${COMMON_INC_DIRS})
-target_link_libraries(sondedump PRIVATE m pthread sondedump_static
-	${PORTAUDIO_LIBRARY} ${NCURSES_LIBRARY})
+target_include_directories(sondedump PRIVATE ${COMMON_INC_DIRS}
+	${PORTAUDIO_INCLUDE_DIRS} ${CURSES_INCLUDE_DIRS})
+target_link_libraries(sondedump PRIVATE radiosonde
+	${CMAKE_THREAD_LIBS_INIT}
+	${MATH_LIBRARY} ${PORTAUDIO_LIBRARIES} ${CURSES_LIBRARIES})
 
 # Install targets
 install(TARGETS sondedump DESTINATION bin)
@@ -142,8 +158,8 @@ install(TARGETS sondedump DESTINATION bin)
 # uninstall target
 if(UNINSTALL_TARGET AND NOT TARGET uninstall)
   configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake"
     IMMEDIATE @ONLY)
 
   add_custom_target(uninstall

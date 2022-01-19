@@ -39,7 +39,7 @@ read_frame_gfsk(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, co
 			*bit_offset = f->sync_offset;
 
 			f->state = REALIGN;
-			__attribute__((fallthrough));
+			/* FALLTHROUGH */
 		case REALIGN:
 			/* Read more bits to get a full frame worth */
 			switch (gfsk_demod(&f->gfsk, dst, &f->offset, framelen + f->sync_offset, src, len)) {

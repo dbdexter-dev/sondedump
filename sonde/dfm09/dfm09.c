@@ -59,7 +59,7 @@ dfm09_decoder_deinit(DFM09Decoder *d)
 	framer_deinit(&d->f);
 	free(d);
 #ifndef NDEBUG
-	fclose(debug);
+	if (debug) fclose(debug);
 #endif
 }
 
