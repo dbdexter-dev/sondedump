@@ -41,9 +41,27 @@ PACK(typedef struct {
 	uint8_t alt[4];
 	uint8_t _pad0[6];
 	uint8_t week[2];
-
 	uint8_t data[80];
 }) M10Frame_9f;
+
+PACK(typedef struct {
+	uint8_t sync_mark[3];
+	uint8_t len;
+	uint8_t type;                       /* 0x20 */
+	uint8_t small_values[6];
+	uint8_t alt[3];
+	uint8_t dlat[2];    /* x velocity */
+	uint8_t dlon[2];    /* y velocity */
+	uint8_t time[3];
+	uint8_t sn[3];
+	uint8_t cnt[1];
+	uint8_t BlkChk[2];
+	uint8_t dalt[2];    /* z velocity */
+	uint8_t week[2];
+	uint8_t lat[4];
+	uint8_t lon[4];
+	uint8_t data[33];
+}) M20Frame_20;
 /* }}} */
 
 #endif
