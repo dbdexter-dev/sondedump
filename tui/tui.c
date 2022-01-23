@@ -20,13 +20,12 @@
 extern char *_decoder_names[];
 extern int _decoder_count;
 
-static void init_windows(void);
+static void init_windows(int update_interval);
 static void redraw(void);
 static void draw_tabs(WINDOW *win, int selected);
 static void handle_resize(void);
-static void *main_loop(void* args);
+static void *main_loop(void *args);
 
-static int _update_interval;
 static int _running;
 static pthread_t _tid;
 static struct {
@@ -36,17 +35,19 @@ static struct {
 	int data_changed;
 	int receiver_location_set;
 	float lat, lon, alt;
-	int (*get_active_decoder)(void);
 	enum { ABSOLUTE=0, RELATIVE, POS_TYPE_COUNT } pos_type;
+
+	int (*get_active_decoder)(void);
+	void (*decoder_changer)(int index);
 } tui;
 
 
 void
 tui_init(int update_interval, void (*decoder_changer)(int index), int (*get_active_decoder)(void))
 {
-	setlocale(LC_ALL, "");
+	update_interval = (update_interval > 0 ? update_interval : DEFAULT_UPD_INTERVAL);
 
-	_update_interval = (update_interval > 0 ? update_interval : DEFAULT_UPD_INTERVAL);
+	setlocale(LC_ALL, "");
 
 	initscr();
 	noecho();
@@ -56,19 +57,19 @@ tui_init(int update_interval, void (*decoder_changer)(int index), int (*get_acti
 	use_default_colors();
 	start_color();
 
-	tui.lat = tui.lon = tui.alt = 0;
 	tui.pos_type = ABSOLUTE;
 	tui.receiver_location_set = 0;
 	tui.data_changed = 1;
 	tui.get_active_decoder = get_active_decoder;
+	tui.decoder_changer = decoder_changer;
 
-	init_windows();
+	init_windows(update_interval);
 	keypad(tui.win, 1);
 
 	memset(&tui.data, 0, sizeof(tui.data));
 
 	_running = 1;
-	pthread_create(&_tid, NULL, main_loop, decoder_changer);
+	pthread_create(&_tid, NULL, main_loop, NULL);
 }
 
 void
@@ -91,7 +92,7 @@ tui_set_ground_location(float lat, float lon, float alt)
 
 
 int
-tui_update(PrintableData *data)
+tui_update(const PrintableData *data)
 {
 	tui.data = *data;
 	tui.data_changed = 1;
@@ -104,7 +105,10 @@ static void*
 main_loop(void *args)
 {
 	int ch;
-	void (*decoder_changer)(int index) = args;
+	void (*decoder_changer)(int index) = tui.decoder_changer;
+	int (*get_active_decoder)(void) = tui.get_active_decoder;
+
+	(void)args;
 
 	while (_running) {
 		switch (ch = wgetch(tui.win)) {
@@ -114,13 +118,13 @@ main_loop(void *args)
 			case KEY_LEFT:
 			case '<':
 				memset(&tui.data, 0, sizeof(tui.data));
-				decoder_changer(tui.get_active_decoder() - 1);
+				decoder_changer(get_active_decoder() - 1);
 				tui.data_changed = 1;
 				break;
 			case KEY_RIGHT:
 			case '>':
 				memset(&tui.data, 0, sizeof(tui.data));
-				decoder_changer(tui.get_active_decoder() + 1);
+				decoder_changer(get_active_decoder() + 1);
 				tui.data_changed = 1;
 				break;
 			case '\t':
@@ -147,6 +151,7 @@ main_loop(void *args)
 			mvwprintw(tui.win, 1, 1, " ");
 		}
 	}
+
 	return NULL;
 }
 
@@ -290,7 +295,7 @@ draw_tabs(WINDOW *win, int selected)
 	for (i=-1; i<2; i++) {
 		elem_idx = (selected + i + _decoder_count) % _decoder_count;
 		if (i == 0) wattron(win, A_STANDOUT);
-		mvwprintw(win, 1, cols/2 + i * cols/4 - roundf(strlen(_decoder_names[elem_idx]) / 2.0f), "%s", _decoder_names[elem_idx]);
+		mvwprintw(win, 1, cols/2.0 + i * cols/4.0 - roundf(strlen(_decoder_names[elem_idx]) / 2.0), "%s", _decoder_names[elem_idx]);
 		if (i == 0) wattroff(win, A_STANDOUT);
 	}
 
@@ -298,7 +303,7 @@ draw_tabs(WINDOW *win, int selected)
 }
 
 static void
-init_windows(void)
+init_windows(int update_interval)
 {
 	handle_resize();
 	wborder(tui.win,
@@ -307,7 +312,7 @@ init_windows(void)
 	wborder(tui.tabs,
 			0, 0, 0, ' ',
 			0, 0, ACS_VLINE, ACS_VLINE);
-	wtimeout(tui.win, _update_interval);
+	wtimeout(tui.win, update_interval);
 	wrefresh(tui.win);
 	wrefresh(tui.tabs);
 }

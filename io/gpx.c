@@ -77,7 +77,7 @@ gpx_add_trackpoint(GPXFile *file, float lat, float lon, float alt, float spd, fl
 	if (lat == 0 && lon == 0 && alt == 0) return;
 	if (lat > 90 || lat < -90) return;
 	if (lon > 180 || lon < -180) return;
-	hdg = fmod(hdg, 360.0f);
+	hdg = fmod(hdg, 360.0);
 
 	strftime(timestr, sizeof(timestr), GPX_TIME_FORMAT, gmtime(&time));
 

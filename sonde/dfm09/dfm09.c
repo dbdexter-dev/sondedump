@@ -130,7 +130,7 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 					*dst = self->ptu_data;
 					dst->type = PTU;
 					dst->data.ptu.calibrated = 1;
-					dst->data.ptu.calib_percent = 100.0f;
+					dst->data.ptu.calib_percent = 100.0;
 
 					/* Temperature */
 					self->ptu_data.data.ptu.temp = dfm09_subframe_temp(ptu_subframe, &self->calib);

@@ -58,7 +58,7 @@ char *my_strdup(const char *str);
  * @param tm UTC time decomposed as if by gmtime
  * @return UTC time, such that gmtime(my_timegm(tm)) = tm
  */
-time_t my_timegm(struct tm *tm);
+time_t my_timegm(const struct tm *tm);
 
 /**
  * Given a set of ordered coordinate pairs and a point, compute the value

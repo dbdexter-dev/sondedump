@@ -8,7 +8,8 @@ static float o3_correction_factor(float pressure);
 
 /* Pressure-dependent O3 correction factors */
 static const float _cfPressure[] = {3, 5, 7, 10, 15, 20, 30, 50, 70, 100, 150, 200};
-static const float _cfFactor[]   = {1.24, 1.124, 1.087, 1.066, 1.048, 1.041, 1.029, 1.018, 1.013, 1.007, 1.002, 1};
+static const float _cfFactor[]   = {1.24, 1.124, 1.087, 1.066, 1.048, 1.041,
+                                   1.029, 1.018, 1.013, 1.007, 1.002, 1.000};
 
 float
 altitude_to_pressure(float alt)
@@ -17,10 +18,10 @@ altitude_to_pressure(float alt)
 	const float M = 0.0289644;
 	const float R_star = 8.3144598;
 
-	const float hbs[] = {0,       11000,   20000,   32000,  47000,  51000,  77000};
-	const float Lbs[] = {-0.0065, 0,       0.001,   0.0028, 0.0,   -0.0028, -0.002};
-	const float Pbs[] = {101325,  22632.1, 5474.89, 868.02, 110.91, 66.94,  3.96};
-	const float Tbs[] = {288.15,  216.65,  216.65,  228.65, 270.65, 270.65, 214.65};
+	const float hbs[] = {0.0,      11000.0, 20000.0, 32000.0, 47000.0, 51000.0, 77000.0};
+	const float Lbs[] = {-0.0065,  0.0,     0.001,   0.0028,  0.0,     -0.0028, -0.002};
+	const float Pbs[] = {101325.0, 22632.1, 5474.89, 868.02,  110.91,  66.94,   3.96};
+	const float Tbs[] = {288.15,   216.65,  216.65,  228.65,  270.65,  270.65,  214.65};
 
 	float Lb, Pb, Tb, hb;
 	int b;
@@ -51,8 +52,8 @@ altitude_to_pressure(float alt)
 float
 dewpt(float temp, float rh)
 {
-	const float tmp = (logf(rh / 100.0f) + (17.27f * temp / (237.3f + temp))) / 17.27f;
-	return 237.3f * tmp  / (1 - tmp);
+	const float tmp = (logf(rh / 100.0) + (17.27 * temp / (237.3 + temp))) / 17.27;
+	return 237.3 * tmp  / (1 - tmp);
 }
 
 float
@@ -71,11 +72,11 @@ sat_mixing_ratio(float temp, float p)
 float
 wv_sat_pressure(float temp)
 {
-	const float coeffs[] = {-0.493158, 1 + 4.6094296e-3, -1.3746454e-5, 1.2743214e-8};
+	const float coeffs[] = {-0.493158, 1.0 + 4.6094296e-3, -1.3746454e-5, 1.2743214e-8};
 	float T, p;
 	int i;
 
-	temp += 273.15f;
+	temp += 273.15;
 
 	T = 0;
 	for (i=LEN(coeffs)-1; i>=0; i--) {
@@ -83,14 +84,14 @@ wv_sat_pressure(float temp)
 		T += coeffs[i];
 	}
 
-	p = expf(-5800.2206f / T
-		  + 1.3914993f
-		  + 6.5459673f * logf(T)
-		  - 4.8640239e-2f * T
-		  + 4.1764768e-5f * T * T
-		  - 1.4452093e-8f * T * T * T);
+	p = expf(-5800.2206 / T
+		  + 1.3914993
+		  + 6.5459673 * logf(T)
+		  - 4.8640239e-2 * T
+		  + 4.1764768e-5 * T * T
+		  - 1.4452093e-8 * T * T * T);
 
-	return p / 100.0f;
+	return p / 100.0;
 
 }
 
@@ -111,5 +112,5 @@ o3_correction_factor(float pressure)
 	for (int i=0; i<(int)LEN(_cfFactor); i++) {
 		if (pressure < _cfPressure[i]) return _cfFactor[i];
 	}
-	return 1;
+	return 1.0;
 }

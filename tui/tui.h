@@ -11,12 +11,12 @@
  *        changes the active decoder
  * @param active_decoder index of the decoder currently active
  */
-void tui_init(int update_interval, void (*decoder_changer)(int index), int (*get_active_decoder)());
+void tui_init(int update_interval, void (*decoder_changer)(int index), int (*get_active_decoder)(void));
 
 /**
  * Deinitialize the text user interface
  */
-void tui_deinit();
+void tui_deinit(void);
 
 /**
  * Update ground receiver location
@@ -32,7 +32,7 @@ void tui_set_ground_location(float lat, float lon, float alt);
  *
  * @param data data to display
  */
-int tui_update(PrintableData *data);
+int tui_update(const PrintableData *data);
 
 #endif
 

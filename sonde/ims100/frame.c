@@ -13,7 +13,7 @@ static float freq_to_rh(float rh_freq, float ref_freq, float rh_temp, float air_
 /* K0..K6 in the GRUAN docs, found by fitting polynomials to the graphs shown.
  * TODO find the official values somewhere? */
 static const float temp_rh_coeffs[] = {5.79231318e-02, -2.64030081e-03, -1.32089353e-05, 7.15251769e-07,
-                                       -4.81000481e-04, 1.86628187e+00, -7.69600770e-01};
+                                       -4.81000481e-04, 1.86628187e+00f, -7.69600770e-01};
 
 
 void

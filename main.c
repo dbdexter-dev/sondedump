@@ -47,7 +47,6 @@ static int audio_read_wrapper(float *dst, size_t count);
 #ifdef ENABLE_TUI
 static int get_active_decoder(void);
 static void decoder_changer(int index);
-static int get_active_decoder();
 #endif
 
 static FILE *_wav;

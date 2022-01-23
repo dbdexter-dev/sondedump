@@ -27,7 +27,7 @@ char
 }
 
 time_t
-my_timegm(struct tm *tm)
+my_timegm(const struct tm *tm)
 {
 	time_t time;
 

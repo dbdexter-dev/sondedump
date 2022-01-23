@@ -132,10 +132,10 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 					dst->type = PTU;
 
 					dst->data.ptu.calibrated = 1;
-					dst->data.ptu.calib_percent = 100.0f;
-					dst->data.ptu.temp = ptu->temp / 100.0f;
-					dst->data.ptu.rh = ptu->rh / 100.0f;
-					dst->data.ptu.pressure = pressure / 100.0f;
+					dst->data.ptu.calib_percent = 100.0;
+					dst->data.ptu.temp = ptu->temp / 100.0;
+					dst->data.ptu.rh = ptu->rh / 100.0;
+					dst->data.ptu.pressure = pressure / 100.0;
 
 					self->state = PARSE_SUBFRAME_PTU_INFO;
 					break;
@@ -162,10 +162,10 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 					dst->type = PTU;
 
 					dst->data.ptu.calibrated = 1;
-					dst->data.ptu.calib_percent = 100.0f;
-					dst->data.ptu.temp = ptux->temp / 100.0f;
-					dst->data.ptu.rh = ptux->rh / 100.0f;
-					dst->data.ptu.pressure = pressure / 100.0f;
+					dst->data.ptu.calib_percent = 100.0;
+					dst->data.ptu.temp = ptux->temp / 100.0;
+					dst->data.ptu.rh = ptux->rh / 100.0;
+					dst->data.ptu.pressure = pressure / 100.0;
 
 					self->state = PARSE_SUBFRAME_PTU_INFO;
 					break;
