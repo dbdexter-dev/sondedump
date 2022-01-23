@@ -55,14 +55,14 @@ m20_frame_20_serial(char *dst, M20Frame_20 *frame)
 {
     uint32_t id = frame->sn[0];
     uint16_t idn = (frame->sn[1])/4;
-    //
+
 	sprintf(dst, "ME%01X%01X%01X%01X%01X%01X%01X", (id/16)&0xF, id&0xF, (idn/10000)%10, (idn/1000)%10, (idn/100)%10, (idn/10)%10, idn%10);
 }
 
 time_t m20_frame_20_time(M20Frame_20* f) {
 	const uint32_t ms = f->time[0] << 16 | f->time[1] << 8 | f->time[2];
-	uint32_t mso = ms ;
-	mso *= 1000 ; 
+	uint32_t mso = ms;
+	mso *= 1000;
 	const uint16_t week = f->week[0] << 8 | f->week[1];
 
 	return gps_time_to_utc(week, mso);

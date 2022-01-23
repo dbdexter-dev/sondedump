@@ -15,6 +15,7 @@ float m10_frame_9f_dlat(M10Frame_9f* f);
 float m10_frame_9f_dlon(M10Frame_9f* f);
 float m10_frame_9f_dalt(M10Frame_9f* f);
 
+time_t m20_frame_20_time(M20Frame_20* f);
 void m20_frame_20_serial(char *dst, M20Frame_20 *frame);
 
 float m20_frame_20_lat(M20Frame_20* f);

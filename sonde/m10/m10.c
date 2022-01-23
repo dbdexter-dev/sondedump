@@ -21,8 +21,8 @@ static FILE *debug;
 #endif
 
 enum state { READ_PRE, READ,
-             PARSE_M10_INFO, PARSE_M10_GPS_POS, PARSE_M10_GPS_TIME, PARSE_M10_PTU,PARSE_M10_END,
-             PARSE_M20_INFO, PARSE_M20_GPS_POS, PARSE_M20_GPS_TIME, PARSE_M20_PTU,PARSE_M20_END };
+			 PARSE_M10_INFO, PARSE_M10_GPS_POS, PARSE_M10_GPS_TIME, PARSE_M10_PTU,PARSE_M10_END,
+			 PARSE_M20_INFO, PARSE_M20_GPS_POS, PARSE_M20_GPS_TIME, PARSE_M20_PTU,PARSE_M20_END };
 
 M10Decoder*
 m10_decoder_init(int samplerate)
@@ -58,8 +58,8 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 	float lat, lon, alt;
 	float speed, heading, climb;
 	float dx, dy, dz;
-	M10Frame_9f *data_frame;
-	M20Frame_20 *data_frame_20;
+	M10Frame_9f *data_frame_9f = (M10Frame_9f*)&self->frame[0];
+	M20Frame_20 *data_frame_20 = (M20Frame_20*)&self->frame[0];
 
 	switch (self->state) {
 		case READ_PRE:
@@ -124,10 +124,8 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 
 		/* M10 frame decoding {{{ */
 		case PARSE_M10_INFO:
-			data_frame = (M10Frame_9f*)&self->frame[0];
-
 			dst->type = INFO;
-			m10_frame_9f_serial(self->serial, data_frame);
+			m10_frame_9f_serial(self->serial, data_frame_9f);
 			dst->data.info.sonde_serial = self->serial;
 			dst->data.info.seq = 0;
 
@@ -135,8 +133,7 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 			break;
 
 		case PARSE_M10_GPS_TIME:
-			data_frame = (M10Frame_9f*)&self->frame[0];
-			time = m10_frame_9f_time(data_frame);
+			time = m10_frame_9f_time(data_frame_9f);
 
 			dst->type = DATETIME;
 			dst->data.datetime.datetime = time;
@@ -145,14 +142,13 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 			break;
 
 		case PARSE_M10_GPS_POS:
-			data_frame = (M10Frame_9f*)&self->frame[0];
-			lat = m10_frame_9f_lat(data_frame);
-			lon = m10_frame_9f_lon(data_frame);
-			alt = m10_frame_9f_alt(data_frame);
+			lat = m10_frame_9f_lat(data_frame_9f);
+			lon = m10_frame_9f_lon(data_frame_9f);
+			alt = m10_frame_9f_alt(data_frame_9f);
 
-			dx = m10_frame_9f_dlat(data_frame);
-			dy = m10_frame_9f_dlon(data_frame);
-			dz = m10_frame_9f_dalt(data_frame);
+			dx = m10_frame_9f_dlat(data_frame_9f);
+			dy = m10_frame_9f_dlon(data_frame_9f);
+			dz = m10_frame_9f_dalt(data_frame_9f);
 
 			climb = dz;
 			speed = sqrtf(dx*dx + dy*dy);
@@ -175,15 +171,14 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 			/* TODO */
 			self->state = PARSE_M10_END;
 			break;
-        case PARSE_M10_END:
-            dst->type = FRAME_END;
-            self->state  = READ_PRE;
-            break;
+		case PARSE_M10_END:
+			dst->type = FRAME_END;
+			self->state  = READ_PRE;
+			break;
 		/* }}} */
 		/* M10 frame decoding {{{ */
 		case PARSE_M20_INFO:
-			data_frame_20 = (M20Frame_20*)&self->frame[0];
-		    //fprintf(stdout, "len %02X\n",self->frame[0].len) ;
+			//fprintf(stdout, "len %02X\n",self->frame[0].len) ;
 			dst->type = INFO;
 			m20_frame_20_serial(self->serial, data_frame_20);
 			dst->data.info.sonde_serial = self->serial;
@@ -191,10 +186,9 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 
 			self->state = PARSE_M20_GPS_TIME;
 			break;
-			
+
 		case PARSE_M20_GPS_TIME:
-			data_frame = (M20Frame_20*)&self->frame[0];
-			time = m20_frame_20_time(data_frame);
+			time = m20_frame_20_time(data_frame_20);
 
 			dst->type = DATETIME;
 			dst->data.datetime.datetime = time;
@@ -203,14 +197,13 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 			break;
 
 		case PARSE_M20_GPS_POS:
-			data_frame = (M20Frame_20*)&self->frame[0];
-			lat = m20_frame_20_lat(data_frame);
-			lon = m20_frame_20_lon(data_frame);
-			alt = m20_frame_20_alt(data_frame);
+			lat = m20_frame_20_lat(data_frame_20);
+			lon = m20_frame_20_lon(data_frame_20);
+			alt = m20_frame_20_alt(data_frame_20);
 
-			dx = m20_frame_20_dlat(data_frame);
-			dy = m20_frame_20_dlon(data_frame);
-			dz = m20_frame_20_dalt(data_frame);
+			dx = m20_frame_20_dlat(data_frame_20);
+			dy = m20_frame_20_dlon(data_frame_20);
+			dz = m20_frame_20_dalt(data_frame_20);
 
 			climb = dz;
 			speed = sqrtf(dx*dx + dy*dy);
@@ -228,16 +221,16 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 			self->state = PARSE_M20_PTU;
 
 			break;
-			
+
 		case PARSE_M20_PTU:
 			/* TODO */
 			self->state = PARSE_M20_END;
 			break;
-			
-        case PARSE_M20_END:
-            dst->type = FRAME_END;
-            self->state  = READ_PRE;
-            break;
+
+		case PARSE_M20_END:
+			dst->type = FRAME_END;
+			self->state  = READ_PRE;
+			break;
 		default:
 			dst->type = EMPTY;
 			self->state = READ_PRE;

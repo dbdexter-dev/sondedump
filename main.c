@@ -52,7 +52,7 @@ static int _interrupted;
 
 static enum { AUTO=0, RS41, DFM09, M10, IMS100, END} _active_decoder;
 static int _decoder_changed;
-const char *_decoder_names[] = {"Auto", "RS41", "DFM", "M10", "iMS100"};
+const char *_decoder_names[] = {"Auto", "RS41", "DFM", "M10/M20", "iMS100"};
 const int _decoder_count = LEN(_decoder_names);
 
 static struct option longopts[] = {
