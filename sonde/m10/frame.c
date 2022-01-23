@@ -33,6 +33,25 @@ m10_frame_correct(M10Frame *frame)
 	return (crc == expected) ? 0 : -1;
 }
 
+int
+m20_frame_correct(M10Frame *frame)
+{
+	uint8_t *raw_frame = (uint8_t*)&frame->len;
+
+	const uint16_t expected = frame->data[66] << 8 | frame->data[67];
+
+	uint16_t crc;
+
+	crc = 0;
+
+	for (; raw_frame < (frame->data + 66); raw_frame++) {
+
+		crc = m10_crc_step(crc, *raw_frame);
+	}
+
+	return (crc == expected) ? 0 : -1;
+}
+
 static uint16_t
 m10_crc_step(uint16_t c, uint8_t b)
 {
