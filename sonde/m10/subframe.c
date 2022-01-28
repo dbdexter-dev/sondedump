@@ -54,7 +54,7 @@ void
 m20_frame_20_serial(char *dst, M20Frame_20 *frame)
 {
     uint32_t id = frame->sn[0];
-    uint16_t idn = (frame->sn[1])/4;
+    uint16_t idn = ((frame->sn[2]<<8)|frame->sn[1])/4;
     //
 	sprintf(dst, "ME%01X%01X%01X%01X%01X%01X%01X", (id/16)&0xF, id&0xF, (idn/10000)%10, (idn/1000)%10, (idn/100)%10, (idn/10)%10, idn%10);
 }
