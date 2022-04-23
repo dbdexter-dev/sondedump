@@ -44,6 +44,7 @@ set(LIBRARY_SOURCES
 	demod/dsp/timing.c demod/dsp/timing.h
 	demod/dsp/agc.c demod/dsp/agc.h
 	demod/gfsk.c demod/gfsk.h
+	demod/afsk.c demod/afsk.h
 
 	decode/manchester.c decode/manchester.h
 	decode/framer.c decode/framer.h

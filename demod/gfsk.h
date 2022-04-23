@@ -9,7 +9,7 @@
 #include "dsp/timing.h"
 
 #define GFSK_FILTER_ORDER 24
-#define SYM_ZETA 0.707
+#define GFSK_SYM_ZETA 0.707
 #define BUFLEN 1024
 #define MIN_SAMPLES_PER_SYMBOL 8
 
@@ -24,7 +24,7 @@ typedef struct {
 } GFSKDemod;
 
 /**
- * Initialize the GFSK decoder
+ * Initialize a GFSK decoder
  *
  * @param samplerate expected input sample rate
  * @param symrate expected output symbol rate
@@ -32,7 +32,7 @@ typedef struct {
 int gfsk_init(GFSKDemod *g, int samplerate, int symrate);
 
 /**
- * Deinitialize the GFSK decoder
+ * Deinitialize a GFSK decoder
  */
 void gfsk_deinit(GFSKDemod *g);
 

@@ -87,7 +87,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	switch (self->state) {
 		case READ:
 			/* Read a new frame */
-			switch (read_frame_gfsk(&self->f, raw_frame, &self->offset, IMS100_FRAME_LEN, src, len)) {
+			switch (framer_read(&self->f, raw_frame, &self->offset, IMS100_FRAME_LEN, src, len)) {
 				case PROCEED:
 					return PROCEED;
 				case PARSED:
