@@ -69,6 +69,8 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 	int32_t pressure;
 	struct tm datetime;
 	time_t now;
+	int seq;
+	int hour, min, sec;
 
 	IMET4Subframe_GPS *gps;
 	IMET4Subframe_GPSX *gpsx;
@@ -193,33 +195,27 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 			switch (self->subframe->type) {
 				case IMET4_SFTYPE_PTU:
 					ptu = (IMET4Subframe_PTU*)self->subframe;
-
 					dst->type = INFO;
-
-					/* Compute serial from start-up time */
-					sprintf(self->serial, "iMET4-%04X", imet4_serial(ptu->seq, self->time));
-					dst->data.info.sonde_serial = self->serial;
-					dst->data.info.board_model = "";
-					dst->data.info.board_serial = "";
-
-					dst->data.info.seq = ptu->seq;
+					seq = ptu->seq;
 					break;
 				case IMET4_SFTYPE_PTUX:
 					ptux = (IMET4Subframe_PTUX*)self->subframe;
-
 					dst->type = INFO;
-
-					/* Compute serial from start-up time */
-					sprintf(self->serial, "iMET4-%04X", imet4_serial(ptux->seq, self->time));
-					dst->data.info.sonde_serial = self->serial;
-					dst->data.info.board_model = "";
-					dst->data.info.board_serial = "";
-
-					dst->data.info.seq = ptux->seq;
+					seq = ptux->seq;
 					break;
 				default:
+					dst->type = EMPTY;
+					seq = 0;
 					break;
 			}
+			/* Compute serial from start-up time */
+			sprintf(self->serial, "iMET4-%04X", imet4_serial(seq, self->time));
+			dst->data.info.sonde_serial = self->serial;
+			dst->data.info.board_model = "";
+			dst->data.info.board_serial = "";
+
+			dst->data.info.seq = seq;
+
 			self->state = PARSE_SUBFRAME;
 			break;
 		case PARSE_SUBFRAME_GPS_TIME:
@@ -229,44 +225,41 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 
 					dst->type = DATETIME;
 
-					now = time(NULL);
-					datetime = *gmtime(&now);
-					// Handle 0Z crossing
-					if (abs(gps->hour - datetime.tm_hour) >= 12) {
-						now += (gps->hour < datetime.tm_hour) ? 86400 : -86400;
-						datetime = *gmtime(&now);
-					}
+					hour = gps->hour;
+					min = gps->min;
+					sec = gps->sec;
+					break;
 
-					datetime.tm_hour = gps->hour;
-					datetime.tm_min = gps->min;
-					datetime.tm_sec = gps->sec;
-
-					dst->data.datetime.datetime = my_timegm(&datetime);
-					self->time = dst->data.datetime.datetime;
 					break;
 				case IMET4_SFTYPE_GPSX:
 					gpsx = (IMET4Subframe_GPSX*)self->subframe;
 
 					dst->type = DATETIME;
 
-					now = time(NULL);
-					datetime = *gmtime(&now);
-					// Handle 0Z crossing
-					if (abs(gpsx->hour - datetime.tm_hour) >= 12) {
-						now += (gpsx->hour < datetime.tm_hour) ? 86400 : -86400;
-						datetime = *gmtime(&now);
-					}
-
-					datetime.tm_hour = gpsx->hour;
-					datetime.tm_min = gpsx->min;
-					datetime.tm_sec = gpsx->sec;
-
-					dst->data.datetime.datetime = my_timegm(&datetime);
-					self->time = dst->data.datetime.datetime;
+					hour = gpsx->hour;
+					min = gpsx->min;
+					sec = gpsx->sec;
 					break;
 				default:
+					dst->type = EMPTY;
+					hour = min = sec = 0;
 					break;
 			}
+
+			now = time(NULL);
+			datetime = *gmtime(&now);
+			// Handle 0Z crossing
+			if (abs(hour - datetime.tm_hour) >= 12) {
+				now += (gps->hour < datetime.tm_hour) ? 86400 : -86400;
+				datetime = *gmtime(&now);
+			}
+
+			datetime.tm_hour = hour;
+			datetime.tm_min = min;
+			datetime.tm_sec = sec;
+
+			dst->data.datetime.datetime = my_timegm(&datetime);
+			self->time = dst->data.datetime.datetime;
 
 			self->state = PARSE_SUBFRAME;
 			break;
