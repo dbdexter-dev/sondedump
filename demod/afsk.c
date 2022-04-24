@@ -1,6 +1,7 @@
 #include <math.h>
 #include <string.h>
 #include "afsk.h"
+#include "utils.h"
 
 #ifndef NDEBUG
 //#define AFSK_DEBUG
@@ -34,7 +35,11 @@ afsk_init(AFSKDemod *d, int samplerate, int symrate, float f_mark, float f_space
 	d->p_space = 0;
 	d->idx = 0;
 	d->len = 1.0 / sym_freq;
+#ifndef _MSC_VER
 	d->mark_sum = d->space_sum = 0;
+#else
+	d->mark_sum = d->space_sum = _FCbuild(0, 0);
+#endif
 	d->src_offset = 0;
 
 	d->mark_history = malloc(sizeof(*d->mark_history) * d->len);
@@ -59,15 +64,21 @@ afsk_deinit(AFSKDemod *d)
 ParserStatus
 afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, const float *src, size_t len)
 {
-	float complex out;
 	float symbol;
 	uint8_t tmp;
 	int phase;
 
 	float p_mark = d->p_mark;
 	float p_space = d->p_space;
+#ifndef _MSC_VER
+	float complex out;
 	float complex mark_sum = d->mark_sum;
 	float complex space_sum = d->space_sum;
+#else
+	_Fcomplex mark_sum = d->mark_sum;
+	_Fcomplex space_sum = d->space_sum;
+	_Fcomplex out;
+#endif
 
 	/* Normalize bit offset */
 	dst += *bit_offset/8;
@@ -95,6 +106,7 @@ afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, c
 		symbol = src[d->src_offset++];
 		symbol = agc_apply(&d->agc, symbol) / d->len;
 
+#ifndef _MSC_VER
 		/* Calculate mark mix output, update boxcar average over symbol period,
 		 * and store the new output in the boxcar history */
 		out = symbol * cexpf(-I * p_mark);
@@ -106,15 +118,32 @@ afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, c
 		space_sum += out - d->space_history[d->idx];
 		d->space_history[d->idx] = out;
 
+#else
+		/* Thank you, MSVC :( */
+		_Fcomplex mark_phasor = _FCbuild(0, -p_mark);
+		_Fcomplex space_phasor = _FCbuild(0, -p_space);
+		_Fcomplex cplx_symbol = _FCbuild(symbol, 0);
+
+		out = _FCmulcc(cplx_symbol, cexpf(mark_phasor));
+		mark_sum = _FCbuild(crealf(mark_sum) + crealf(out) - crealf(d->mark_history[d->idx]),
+		                    cimagf(mark_sum) + cimagf(out) - cimagf(d->mark_history[d->idx]));
+		d->mark_history[d->idx] = out;
+
+		out = _FCmulcc(cplx_symbol, cexpf(space_phasor));
+		space_sum = _FCbuild(crealf(space_sum) + crealf(out) - crealf(d->space_history[d->idx]),
+		                    cimagf(space_sum) + cimagf(out) - cimagf(d->space_history[d->idx]));
+		d->space_history[d->idx] = out;
+#endif
+
+		/* Compute bit output signal */
+		symbol = cabsf(mark_sum) - cabsf(space_sum);
+
 		/* Update history buffer index */
 		d->idx = (d->idx + 1) % d->len;
 
 		/* Update mark and space phase */
 		p_mark = fmod(p_mark + d->f_mark, 2*M_PI);
 		p_space = fmod(p_space + d->f_space, 2*M_PI);
-
-		/* Compute bit output signal */
-		symbol = cabsf(mark_sum) - cabsf(space_sum);
 
 		/* Apply filter */
 		filter_fwd_sample(&d->lpf, symbol);

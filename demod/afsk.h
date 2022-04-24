@@ -17,8 +17,13 @@ typedef struct {
 	float f_mark, f_space;
 	float p_mark, p_space;
 
+#ifndef _MSC_VER
 	float complex *mark_history, *space_history;
 	float complex mark_sum, space_sum;
+#else
+	_Fcomplex *mark_history, *space_history;
+	_Fcomplex mark_sum, space_sum;
+#endif
 
 	size_t idx, len, src_offset;
 
