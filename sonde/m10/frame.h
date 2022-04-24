@@ -19,4 +19,6 @@ void m10_frame_descramble(M10Frame *frame);
  */
 int m10_frame_correct(M10Frame *frame);
 
+int m20_frame_correct(M10Frame *frame);
+
 #endif

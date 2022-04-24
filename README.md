@@ -18,7 +18,7 @@ Compatibility matrix:
 | Manufacturer | Model    | GPS                | Temperature        | Humidity           |
 |--------------|----------|--------------------|--------------------|--------------------|
 | Vaisala      | RS41-SG  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Meteomodem   | M10      | :heavy_check_mark: |                    |                    |
+| Meteomodem   | M10/M20  | :heavy_check_mark: |                    |                    |
 | GRAW         | DFM06/09 | :heavy_check_mark: | :heavy_check_mark: |                    |
 | Meisei       | iMS-100  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 
