@@ -158,7 +158,7 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 			/* FALLTHROUGH */
 		case READ:
 			/* Read a new frame */
-			switch (read_frame_gfsk(&self->f, raw_frame, &self->offset, RS41_FRAME_LEN, src, len)) {
+			switch (framer_read(&self->f, raw_frame, &self->offset, RS41_FRAME_LEN, src, len)) {
 				case PROCEED:
 					return PROCEED;
 				case PARSED:

@@ -5,6 +5,12 @@
 #include "gfsk.h"
 #include "utils.h"
 
+#define OUTPUT_GFSK
+
+#ifdef OUTPUT_GFSK
+static FILE *debug;
+#endif
+
 int
 gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 {
@@ -22,9 +28,12 @@ gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 	if (filter_init_lpf(&g->lpf, GFSK_FILTER_ORDER, sym_freq, num_phases)) return 1;
 
 	/* Initialize symbol timing recovery */
-	timing_init(&g->timing, sym_freq / num_phases, SYM_ZETA, sym_freq/num_phases/250);
+	timing_init(&g->timing, sym_freq / num_phases, GFSK_SYM_ZETA, sym_freq/num_phases/100);
 
 	g->src_offset = 0;
+#ifdef OUTPUT_GFSK
+	if (!debug) debug = fopen("/tmp/gfsk.data", "wb");
+#endif
 
 	return 0;
 }
@@ -33,6 +42,12 @@ void
 gfsk_deinit(GFSKDemod *g)
 {
 	filter_deinit(&g->lpf);
+#ifdef OUTPUT_GFSK
+	if (debug) {
+		fclose(debug);
+		debug = NULL;
+	}
+#endif
 }
 
 ParserStatus
@@ -68,11 +83,18 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const f
 				case 1:
 					/* Half-way slot */
 					g->interm = filter_get(&g->lpf, phase);
+#ifdef OUTPUT_GFSK
+					fprintf(debug, "%f,0\n", g->interm);
+#endif
 					break;
 				case 2:
 					/* Correct slot: update time estimate */
 					symbol = filter_get(&g->lpf, phase);
 					retime(&g->timing, g->interm, symbol);
+
+#ifdef OUTPUT_GFSK
+					fprintf(debug, "%f,%f\n", symbol, symbol);
+#endif
 
 					/* Slice sample to get bit value */
 					tmp = (tmp << 1) | (symbol > 0 ? 1 : 0);
@@ -86,6 +108,9 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const f
 					}
 					break;
 				default:
+#ifdef OUTPUT_GFSK
+					fprintf(debug, "%f,0\n", filter_get(&g->lpf, phase));
+#endif
 					break;
 
 			}

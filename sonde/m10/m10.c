@@ -72,7 +72,7 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 			/* FALLTHROUGH */
 		case READ:
 			/* Read a new frame */
-			switch (read_frame_gfsk(&self->f, raw_frame, &self->offset, M10_FRAME_LEN, src, len)) {
+			switch (framer_read(&self->f, raw_frame, &self->offset, M10_FRAME_LEN, src, len)) {
 				case PROCEED:
 					return PROCEED;
 				case PARSED:

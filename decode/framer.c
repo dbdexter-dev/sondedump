@@ -1,12 +1,26 @@
 #include "bitops.h"
 #include "framer.h"
 
+static ParserStatus framer_demod_internal(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len);
+
 enum { READ, REALIGN } state;
 
 int
 framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword, int synclen)
 {
-	gfsk_init(&f->gfsk, samplerate, baudrate);
+	f->type = GFSK;
+	gfsk_init(&f->demod.gfsk, samplerate, baudrate);
+	correlator_init(&f->corr, syncword, synclen);
+	f->state = READ;
+
+	return 0;
+}
+
+int
+framer_init_afsk(Framer *f, int samplerate, int baudrate, float f_mark, float f_space, uint64_t syncword, int synclen)
+{
+	f->type = AFSK;
+	afsk_init(&f->demod.afsk, samplerate, baudrate, f_mark, f_space);
 	correlator_init(&f->corr, syncword, synclen);
 	f->state = READ;
 
@@ -16,17 +30,17 @@ framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword, int
 void
 framer_deinit(Framer *f)
 {
-	gfsk_deinit(&f->gfsk);
+	gfsk_deinit(&f->demod.gfsk);
 }
 
 ParserStatus
-read_frame_gfsk(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len)
+framer_read(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len)
 {
 	int i;
 
 	switch (f->state) {
 		case READ:
-			switch (gfsk_demod(&f->gfsk, dst, bit_offset, framelen, src, len)) {
+			switch (framer_demod_internal(f, dst, bit_offset, framelen, src, len)) {
 				case PROCEED:
 					return PROCEED;
 				case PARSED:
@@ -42,7 +56,7 @@ read_frame_gfsk(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, co
 			/* FALLTHROUGH */
 		case REALIGN:
 			/* Read more bits to get a full frame worth */
-			switch (gfsk_demod(&f->gfsk, dst, &f->offset, framelen + f->sync_offset, src, len)) {
+			switch (framer_demod_internal(f, dst, &f->offset, framelen + f->sync_offset, src, len)) {
 				case PROCEED:
 					return PROCEED;
 				case PARSED:
@@ -64,4 +78,17 @@ read_frame_gfsk(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, co
 	}
 
 	return PROCEED;
+}
+
+static ParserStatus
+framer_demod_internal(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len)
+{
+	switch (f->type) {
+		case GFSK:
+			return gfsk_demod(&f->demod.gfsk, dst, bit_offset, framelen, src, len);
+		case AFSK:
+			return afsk_demod(&f->demod.afsk, dst, bit_offset, framelen, src, len);
+		default:
+			return PROCEED;
+	}
 }

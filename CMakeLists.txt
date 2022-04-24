@@ -44,6 +44,7 @@ set(LIBRARY_SOURCES
 	demod/dsp/timing.c demod/dsp/timing.h
 	demod/dsp/agc.c demod/dsp/agc.h
 	demod/gfsk.c demod/gfsk.h
+	demod/afsk.c demod/afsk.h
 
 	decode/manchester.c decode/manchester.h
 	decode/framer.c decode/framer.h
@@ -72,8 +73,14 @@ set(LIBRARY_SOURCES
 	sonde/m10/subframe.c sonde/m10/subframe.h
 	sonde/m10/protocol.h
 
+	sonde/imet4/imet4.c
+	sonde/imet4/frame.c sonde/imet4/frame.h
+	sonde/imet4/subframe.c sonde/imet4/subframe.h
+	sonde/imet4/protocol.h
+
 	include/dfm09.h
 	include/m10.h
+	include/imet4.h
 	include/ims100.h
 	include/rs41.h
 	include/data.h

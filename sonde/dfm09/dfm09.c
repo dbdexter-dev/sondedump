@@ -81,7 +81,7 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	switch (self->state) {
 		case READ:
 			/* Read a new frame */
-			switch (read_frame_gfsk(&self->f, raw_frame, &self->offset, DFM09_FRAME_LEN, src, len)) {
+			switch (framer_read(&self->f, raw_frame, &self->offset, DFM09_FRAME_LEN, src, len)) {
 				case PROCEED:
 					return PROCEED;
 				case PARSED:

@@ -3,10 +3,20 @@
 
 #include <stdint.h>
 #include "correlator/correlator.h"
+#include "demod/afsk.h"
 #include "demod/gfsk.h"
 
+typedef enum {
+	GFSK,
+	AFSK
+} DemodType;
+
 typedef struct {
-	GFSKDemod gfsk;
+	union {
+		AFSKDemod afsk;
+		GFSKDemod gfsk;
+	} demod;
+	DemodType type;
 	Correlator corr;
 
 	int state;
@@ -26,6 +36,8 @@ typedef struct {
  * @return 0 on success, nonzero otherwise
  */
 int framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword, int synclen);
+
+int framer_init_afsk(Framer *f, int samplerate, int baudrate, float f_mark, float f_space, uint64_t syncword, int synclen);
 
 
 /**
@@ -50,6 +62,6 @@ void framer_deinit(Framer *f);
  * @return PROCEED if the src buffer has been fully processed
  *         PARSED  if a frame has been decoded into *dst
  */
-ParserStatus read_frame_gfsk(Framer *framer, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len);
+ParserStatus framer_read(Framer *framer, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len);
 
 #endif
