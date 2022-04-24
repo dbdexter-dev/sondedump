@@ -11,7 +11,7 @@ imet4_frame_descramble(IMET4Frame *frame)
 	raw_frame = frame->data;
 
 	/* Reorder bits in the frame and remove start/stop bits */
-	for (i=0; i < (int)sizeof(frame->data); i++) {
+	for (i=0; i < IMET4_FRAME_LEN/8; i++) {
 
 		bitcpy(&byte, raw_frame, i * 10 + 1, 8);
 

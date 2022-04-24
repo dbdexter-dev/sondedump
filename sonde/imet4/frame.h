@@ -5,5 +5,4 @@
 
 void imet4_frame_descramble(IMET4Frame *frame);
 
-
 #endif
