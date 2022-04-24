@@ -1,16 +1,11 @@
 #include <stdio.h>
-#include "xdata.h"
+#include "physics.h"
 #include "utils.h"
-
-#define FLOWRATE 30     /* Time taken for the pump to force 100mL of air through the sensor, in seconds */
+#include "xdata.h"
 
 /* https://www.en-sci.com/wp-content/uploads/2020/02/Ozonesonde-Flight-Preparation-Manual.pdf */
 /* https://www.vaisala.com/sites/default/files/documents/Ozone%20Sounding%20with%20Vaisala%20Radiosonde%20RS41%20User%27s%20Guide%20M211486EN-C.pdf */
 
-static float o3CorrectionFactor(float pressure);
-
-static const float _cfPressure[] = {3, 5, 7, 10, 15, 20, 30, 50, 70, 100, 150, 200};
-static const float _cfFactor[]   = {1.24, 1.124, 1.087, 1.066, 1.048, 1.041, 1.029, 1.018, 1.013, 1.007, 1.002, 1};
 static char xdata_str[128];
 
 char*
@@ -28,15 +23,14 @@ xdata_decode(float curPressure, const char *asciiData, int len)
 			case XDATA_ENSCI_OZONE:
 				{
 					unsigned int r_pumpTemp, r_o3Current, r_battVoltage, r_pumpCurrent, r_extVoltage;
-					float pumpTemp, o3Current, o3Pressure, o3PPB;
+					float pumpTemp, o3Current, o3PPB;
 
 					if (sscanf(asciiData, "%04X%05X%02X%03X%02X", &r_pumpTemp, &r_o3Current, &r_battVoltage, &r_pumpCurrent, &r_extVoltage) == 5) {
 						asciiData += 16;
 						pumpTemp = (r_pumpTemp & 0x8000 ? -1 : 1) * 0.001 * (r_pumpTemp & 0x7FFF) + 273.15;
 						o3Current = r_o3Current * 1e-5;
 
-						o3Pressure = 4.307e-3 * o3Current * pumpTemp * FLOWRATE * o3CorrectionFactor(curPressure);
-						o3PPB = o3Pressure * 1000.0 / curPressure;
+						o3PPB = o3_concentration(curPressure, pumpTemp, o3Current);
 						dst += sprintf(dst, "O3=%.2fppb ", o3PPB);
 
 					} else {
@@ -52,13 +46,4 @@ xdata_decode(float curPressure, const char *asciiData, int len)
 	}
 
 	return xdata_str;
-}
-
-static float
-o3CorrectionFactor(float pressure)
-{
-	for (int i=0; i<(int)LEN(_cfFactor); i++) {
-		if (pressure < _cfPressure[i]) return _cfFactor[i];
-	}
-	return 1;
 }

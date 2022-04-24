@@ -21,12 +21,3 @@ imet4_subframe_len(IMET4Subframe *sf)
 
 	return 0;
 }
-
-uint16_t
-imet4_subframe_serial(int seq, time_t time)
-{
-	/* Roughly estimate the start-up time */
-	time -= seq / 2;
-
-	return crc16_aug_ccitt((uint8_t*)&time, 4);
-}

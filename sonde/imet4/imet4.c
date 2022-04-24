@@ -185,6 +185,10 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 
 					self->state = PARSE_SUBFRAME_GPS_TIME;
 					break;
+				case IMET4_SFTYPE_XDATA:
+					/* TODO */
+					break;
+
 				default:
 					dst->type = EMPTY;
 					break;
