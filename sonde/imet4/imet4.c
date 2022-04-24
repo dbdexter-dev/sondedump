@@ -213,7 +213,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 					break;
 			}
 			/* Compute serial from start-up time */
-			sprintf(self->serial, "iMET4-%04X", imet4_serial(seq, self->time));
+			sprintf(self->serial, "iMet-%04X", imet4_serial(seq, self->time));
 			dst->data.info.sonde_serial = self->serial;
 			dst->data.info.board_model = "";
 			dst->data.info.board_serial = "";

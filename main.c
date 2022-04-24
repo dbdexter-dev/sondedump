@@ -51,9 +51,9 @@ static FILE *_wav;
 static int _bps;
 static int _interrupted;
 
-static enum { AUTO=0, RS41, DFM09, M10, IMS100, IMET4, END} _active_decoder;
+static enum { AUTO=0, DFM09, IMET4, IMS100, M10, RS41, END} _active_decoder;
 static int _decoder_changed;
-const char *_decoder_names[] = {"Auto", "RS41", "DFM", "M10", "iMS100", "iMET4"};
+const char *_decoder_names[] = {"Auto", "DFM", "iMet", "iMS100", "M10", "RS41"};
 const int _decoder_count = LEN(_decoder_names);
 
 static struct option longopts[] = {
