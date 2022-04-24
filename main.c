@@ -9,6 +9,7 @@
 #include <string.h>
 #include <time.h>
 #include <include/dfm09.h>
+#include <include/imet4.h>
 #include <include/ims100.h>
 #include <include/m10.h>
 #include <include/rs41.h>
@@ -50,9 +51,9 @@ static FILE *_wav;
 static int _bps;
 static int _interrupted;
 
-static enum { AUTO=0, RS41, DFM09, M10, IMS100, END} _active_decoder;
+static enum { AUTO=0, RS41, DFM09, M10, IMS100, IMET4, END} _active_decoder;
 static int _decoder_changed;
-const char *_decoder_names[] = {"Auto", "RS41", "DFM", "M10", "iMS100"};
+const char *_decoder_names[] = {"Auto", "RS41", "DFM", "M10", "iMS100", "iMET4"};
 const int _decoder_count = LEN(_decoder_names);
 
 static struct option longopts[] = {
@@ -94,6 +95,7 @@ main(int argc, char *argv[])
 	DFM09Decoder *dfm09decoder;
 	IMS100Decoder *ims100decoder;
 	M10Decoder *m10decoder;
+	IMET4Decoder *imet4decoder;
 
 	memset(&printable, 0, sizeof(PrintableData));
 
@@ -195,7 +197,7 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Could not open input file\n");
 		return 1;
 	}
-	read_wrapper = &wav_read_wrapper;
+	read_wrapper = wav_read_wrapper;
 	if (wav_parse(_wav, &samplerate, &_bps)) {
 		fprintf(stderr, "Could not recognize input file type\n");
 		fprintf(stderr, "Will assume raw, mono, 32 bit float, 48kHz\n");
@@ -243,6 +245,7 @@ main(int argc, char *argv[])
 	dfm09decoder = dfm09_decoder_init(samplerate);
 	ims100decoder = ims100_decoder_init(samplerate);
 	m10decoder = m10_decoder_init(samplerate);
+	imet4decoder = imet4_decoder_init(samplerate);
 
 	/* Initialize decoder pointer to "no decoder" */
 	decode = NULL;
@@ -282,6 +285,10 @@ main(int argc, char *argv[])
 					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&ims100_decode;
 					decoder = ims100decoder;
 					break;
+				case IMET4:
+					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&imet4_decode;
+					decoder = imet4decoder;
+					break;
 				case AUTO:
 					while (rs41_decode(rs41decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED)
 						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = RS41;
@@ -291,6 +298,8 @@ main(int argc, char *argv[])
 						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = IMS100;
 					while (dfm09_decode(dfm09decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED)
 						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = DFM09;
+					while (imet4_decode(imet4decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED)
+						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = IMET4;
 					_decoder_changed = 1;
 
 					/* Indicate decoder changed */
@@ -380,6 +389,7 @@ main(int argc, char *argv[])
 	ims100_decoder_deinit(ims100decoder);
 	m10_decoder_deinit(m10decoder);
 	dfm09_decoder_deinit(dfm09decoder);
+	imet4_decoder_deinit(imet4decoder);
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO
 	if (input_from_audio) {
@@ -439,6 +449,7 @@ usage(const char *pname)
 			"                                dfm: GRAW DFM06/09\n"
 			"                                m10: MeteoModem M10\n"
 			"                                ims100: Meisei iMS-100\n"
+			"                                imet4: InterMet iMet-4\n"
 	        "\n"
 	        "   -h, --help                   Print this help screen\n"
 	        "   -v, --version                Print version info\n"
