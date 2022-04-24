@@ -5,7 +5,9 @@
 #include "gfsk.h"
 #include "utils.h"
 
-#define OUTPUT_GFSK
+#ifndef NDEBUG
+//#define OUTPUT_GFSK
+#endif
 
 #ifdef OUTPUT_GFSK
 static FILE *debug;

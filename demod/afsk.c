@@ -2,7 +2,9 @@
 #include <string.h>
 #include "afsk.h"
 
+#ifndef NDEBUG
 //#define AFSK_DEBUG
+#endif
 
 #ifdef AFSK_DEBUG
 #include <stdio.h>

@@ -254,7 +254,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 			datetime = *gmtime(&now);
 			// Handle 0Z crossing
 			if (abs(hour - datetime.tm_hour) >= 12) {
-				now += (gps->hour < datetime.tm_hour) ? 86400 : -86400;
+				now += (hour < datetime.tm_hour) ? 86400 : -86400;
 				datetime = *gmtime(&now);
 			}
 

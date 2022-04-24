@@ -4,7 +4,6 @@
 #include "filter.h"
 #include "utils.h"
 
-static float sinc_coeff(float cutoff, int stage_no, unsigned num_taps, float osf);
 static float rc_coeff(float cutoff, int stage_no, unsigned num_taps, float osf, float alpha);
 
 int
@@ -65,33 +64,6 @@ filter_get(Filter *flt, int phase)
 	}
 
 	return result;
-}
-
-static float
-sinc_coeff(float cutoff, int stage_no, unsigned taps, float osf)
-{
-	const float norm = 2.0/5.0;
-	float sinc_coeff, hamming_coeff;
-	float t;
-	int order;
-
-	order = (taps - 1) / 2;
-
-	if (order == stage_no) {
-		return norm;
-	}
-
-	t = abs(order - stage_no) / osf;
-
-	/* Sinc coefficient */
-	sinc_coeff = sinf(2*M_PI*t*cutoff)/(2*M_PI*t*cutoff);
-
-	/* Hamming windowing function */
-	hamming_coeff = 0.42
-		- 0.5*cosf(2*M_PI*stage_no/(taps-1))
-		+ 0.08*cosf(4*M_PI*stage_no/(taps-1));
-
-	return norm * sinc_coeff * hamming_coeff;
 }
 
 static float

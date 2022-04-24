@@ -31,7 +31,7 @@ int rs_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t first_root, i
  * @param roots roots of the generator to use
  * @param root_count number of roots in *roots
  */
-int bch_init(RSDecoder *d, int n, int k, unsigned gen_poly, uint8_t *roots, int root_count);
+int bch_init(RSDecoder *d, int n, int k, unsigned gen_poly, const uint8_t *roots, int root_count);
 
 /**
  * Deinitialize the Reed-Solomon decoder

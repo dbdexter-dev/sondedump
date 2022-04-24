@@ -37,12 +37,15 @@ static void fill_printable_data(PrintableData *to_print, SondeData *data);
 static int printf_data(const char *fmt, PrintableData *data);
 static int wav_read_wrapper(float *dst, size_t count);
 static int raw_read_wrapper(float *dst, size_t count);
-static int audio_read_wrapper(float *dst, size_t count);
 static void sigint_handler(int val);
 static int ascii_to_decoder(const char *ascii);
-static int get_active_decoder(void);
+
+#ifdef ENABLE_AUDIO
+static int audio_read_wrapper(float *dst, size_t count);
+#endif
 
 #ifdef ENABLE_TUI
+static int get_active_decoder(void);
 static void decoder_changer(int index);
 static int get_active_decoder();
 #endif
@@ -53,7 +56,7 @@ static int _interrupted;
 
 static enum { AUTO=0, DFM09, IMET4, IMS100, M10, RS41, END} _active_decoder;
 static int _decoder_changed;
-const char *_decoder_names[] = {"Auto", "DFM", "iMet", "iMS100", "M10/M20", "RS41"};
+const char *_decoder_names[] = {"Auto", "DFM", "iMet-4", "iMS100", "M10/M20", "RS41"};
 const int _decoder_count = LEN(_decoder_names);
 
 static struct option longopts[] = {
@@ -421,12 +424,14 @@ raw_read_wrapper(float *dst, size_t count)
 	return 1;
 }
 
+#ifdef ENABLE_AUDIO
 static int
 audio_read_wrapper(float *dst, size_t count)
 {
 	if (_interrupted) return 0;
 	return audio_read(dst, count);
 }
+#endif
 
 
 static void

@@ -8,7 +8,6 @@
 
 static void update_alpha_beta(Timing *t, float damp, float bw);
 static float gardner_err(float prev, float interm, float cur);
-static float mm_err(float prev, float cur);
 static void update_estimate(Timing *t, float err);
 
 void
@@ -60,12 +59,6 @@ static float
 gardner_err(float prev, float interm, float curr)
 {
 	return (curr*prev < 0) ? (curr - prev) * interm : 0;
-}
-
-static float
-mm_err(float prev, float cur)
-{
-	return sgn(prev)*cur - sgn(cur)*prev;
 }
 
 static void
