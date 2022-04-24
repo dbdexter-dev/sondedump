@@ -112,11 +112,13 @@ main_loop(void *args)
 				handle_resize();
 				break;
 			case KEY_LEFT:
+			case '<':
 				memset(&tui.data, 0, sizeof(tui.data));
 				decoder_changer(tui.get_active_decoder() - 1);
 				tui.data_changed = 1;
 				break;
 			case KEY_RIGHT:
+			case '>':
 				memset(&tui.data, 0, sizeof(tui.data));
 				decoder_changer(tui.get_active_decoder() + 1);
 				tui.data_changed = 1;
@@ -151,7 +153,7 @@ main_loop(void *args)
 static void
 handle_resize(void)
 {
-	const int width = 50;
+	const int width = 55;
 	const int height = INFO_COUNT + 3 + 3;
 	int rows, cols;
 	werase(stdscr);
@@ -200,7 +202,7 @@ redraw(void)
 
 	getmaxyx(tui.win, rows, cols);
 	start_row = (rows - INFO_COUNT - 4) / 2;
-	start_col = cols / 2 - 1;
+	start_col = cols / 2 + 1;
 
 	werase(tui.win);
 	wborder(tui.win,
@@ -273,23 +275,23 @@ redraw(void)
 static void
 draw_tabs(WINDOW *win, int selected)
 {
-	float elemWidth;
-	int i;
+	int i, elem_idx;
 	int cols;
 
 	werase(win);
 	cols = getmaxx(win);
-	elemWidth = (float)cols / _decoder_count;
 	wborder(tui.tabs,
 			0, 0, 0, ' ',
 			0, 0, ACS_VLINE, ACS_VLINE);
 
-	for (i=0; i<_decoder_count; i++) {
-		if (i != 0) mvwprintw(win, 1, i * elemWidth, "|");
+	mvwprintw(win, 1, 2, "<");
+	mvwprintw(win, 1, cols - 3, ">");
 
-		if (i == selected) wattron(win, A_STANDOUT);
-		mvwprintw(win, 1, i * elemWidth + roundf((elemWidth - strlen(_decoder_names[i])) / 2), "%s",_decoder_names[i]);
-		if (i == selected) wattroff(win, A_STANDOUT);
+	for (i=-1; i<2; i++) {
+		elem_idx = (selected + i + _decoder_count) % _decoder_count;
+		if (i == 0) wattron(win, A_STANDOUT);
+		mvwprintw(win, 1, cols/2 + i * cols/4 - roundf(strlen(_decoder_names[elem_idx]) / 2.0f), "%s", _decoder_names[elem_idx]);
+		if (i == 0) wattroff(win, A_STANDOUT);
 	}
 
 	wrefresh(win);
