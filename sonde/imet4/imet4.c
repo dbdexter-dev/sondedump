@@ -11,15 +11,19 @@
 #include "frame.h"
 #include "subframe.h"
 
+static uint16_t imet4_serial(int seq, time_t time);
+
 struct imet4decoder {
 	Framer f;
 	IMET4Frame frame[2];
 	IMET4Subframe *subframe;
 	int state;
+	uint32_t time;
 	size_t offset, frame_offset;
+	char serial[16];
 };
 
-enum { READ_PRE, READ, PARSE_SUBFRAME, PARSE_SUBFRAME_GPS_TIME };
+enum { READ_PRE, READ, PARSE_SUBFRAME, PARSE_SUBFRAME_PTU_INFO, PARSE_SUBFRAME_GPS_TIME };
 
 #ifndef NDEBUG
 static FILE *debug;
@@ -36,6 +40,8 @@ imet4_decoder_init(int samplerate)
 
 	d->state = READ;
 	d->offset = 0;
+	d->serial[0] = 0;
+	d->time = 0;
 
 #ifndef NDEBUG
 	debug = fopen("/tmp/imet4frames.data", "wb");
@@ -128,6 +134,8 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 					dst->data.ptu.temp = ptu->temp / 100.0f;
 					dst->data.ptu.rh = ptu->rh / 100.0f;
 					dst->data.ptu.pressure = pressure / 100.0f;
+
+					self->state = PARSE_SUBFRAME_PTU_INFO;
 					break;
 				case IMET4_SFTYPE_GPS:
 					gps = (IMET4Subframe_GPS*)self->subframe;
@@ -141,6 +149,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 					dst->data.pos.speed = 0;
 					dst->data.pos.heading = 0;
 					dst->data.pos.climb = 0;
+
 					self->state = PARSE_SUBFRAME_GPS_TIME;
 					break;
 				case IMET4_SFTYPE_PTUX:
@@ -155,6 +164,8 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 					dst->data.ptu.temp = ptux->temp / 100.0f;
 					dst->data.ptu.rh = ptux->rh / 100.0f;
 					dst->data.ptu.pressure = pressure / 100.0f;
+
+					self->state = PARSE_SUBFRAME_PTU_INFO;
 					break;
 				case IMET4_SFTYPE_GPSX:
 					gpsx = (IMET4Subframe_GPSX*)self->subframe;
@@ -178,6 +189,39 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 			}
 			/* }}} */
 			break;
+		case PARSE_SUBFRAME_PTU_INFO:
+			switch (self->subframe->type) {
+				case IMET4_SFTYPE_PTU:
+					ptu = (IMET4Subframe_PTU*)self->subframe;
+
+					dst->type = INFO;
+
+					/* Compute serial from start-up time */
+					sprintf(self->serial, "iMET4-%04X", imet4_serial(ptu->seq, self->time));
+					dst->data.info.sonde_serial = self->serial;
+					dst->data.info.board_model = "";
+					dst->data.info.board_serial = "";
+
+					dst->data.info.seq = ptu->seq;
+					break;
+				case IMET4_SFTYPE_PTUX:
+					ptux = (IMET4Subframe_PTUX*)self->subframe;
+
+					dst->type = INFO;
+
+					/* Compute serial from start-up time */
+					sprintf(self->serial, "iMET4-%04X", imet4_serial(ptux->seq, self->time));
+					dst->data.info.sonde_serial = self->serial;
+					dst->data.info.board_model = "";
+					dst->data.info.board_serial = "";
+
+					dst->data.info.seq = ptux->seq;
+					break;
+				default:
+					break;
+			}
+			self->state = PARSE_SUBFRAME;
+			break;
 		case PARSE_SUBFRAME_GPS_TIME:
 			switch (self->subframe->type) {
 				case IMET4_SFTYPE_GPS:
@@ -187,12 +231,18 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 
 					now = time(NULL);
 					datetime = *gmtime(&now);
+					// Handle 0Z crossing
+					if (abs(gps->hour - datetime.tm_hour) >= 12) {
+						now += (gps->hour < datetime.tm_hour) ? 86400 : -86400;
+						datetime = *gmtime(&now);
+					}
+
 					datetime.tm_hour = gps->hour;
 					datetime.tm_min = gps->min;
 					datetime.tm_sec = gps->sec;
 
 					dst->data.datetime.datetime = my_timegm(&datetime);
-					self->state = PARSE_SUBFRAME;
+					self->time = dst->data.datetime.datetime;
 					break;
 				case IMET4_SFTYPE_GPSX:
 					gpsx = (IMET4Subframe_GPSX*)self->subframe;
@@ -201,12 +251,18 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 
 					now = time(NULL);
 					datetime = *gmtime(&now);
+					// Handle 0Z crossing
+					if (abs(gpsx->hour - datetime.tm_hour) >= 12) {
+						now += (gpsx->hour < datetime.tm_hour) ? 86400 : -86400;
+						datetime = *gmtime(&now);
+					}
+
 					datetime.tm_hour = gpsx->hour;
 					datetime.tm_min = gpsx->min;
 					datetime.tm_sec = gpsx->sec;
 
 					dst->data.datetime.datetime = my_timegm(&datetime);
-					self->state = PARSE_SUBFRAME;
+					self->time = dst->data.datetime.datetime;
 					break;
 				default:
 					break;
@@ -219,4 +275,13 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 
 	return PARSED;
+}
+
+static uint16_t
+imet4_serial(int seq, time_t time)
+{
+	/* Roughly estimate the start-up time */
+	time -= seq;
+
+	return crc16_aug_ccitt((uint8_t*)&time, 4);
 }

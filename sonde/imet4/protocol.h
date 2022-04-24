@@ -33,7 +33,7 @@ PACK(typedef struct {
 PACK(typedef struct {
 	uint8_t soh;
 	uint8_t type;
-	uint16_t pkt_num;
+	uint16_t seq;
 	uint8_t pressure[3];
 	int16_t temp;
 	int16_t rh;
@@ -43,7 +43,7 @@ PACK(typedef struct {
 PACK(typedef struct {
 	uint8_t soh;
 	uint8_t type;
-	uint16_t pkt_num;
+	uint16_t seq;
 	uint8_t pressure[3];
 	int16_t temp;
 	int16_t rh;
