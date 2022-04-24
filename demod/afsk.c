@@ -91,6 +91,7 @@ afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, c
 			return PROCEED;
 		}
 		symbol = src[d->src_offset++];
+		symbol = agc_apply(&d->agc, symbol) / d->len;
 
 		/* Calculate mark mix output, update boxcar average over symbol period,
 		 * and store the new output in the boxcar history */
@@ -114,11 +115,10 @@ afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, c
 		symbol = cabsf(mark_sum) - cabsf(space_sum);
 
 		/* Apply filter */
-		symbol = agc_apply(&d->agc, symbol);
 		filter_fwd_sample(&d->lpf, symbol);
 
 #ifdef AFSK_DEBUG
-		//fprintf(debug, "%f,%f\n", *(src-1), symbol);
+		fprintf(debug, "%f,%f\n", src[d->src_offset-1], symbol);
 #endif
 
 		/* Recover symbol timing */
@@ -129,7 +129,7 @@ afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, c
 					d->interm = filter_get(&d->lpf, phase);
 					symbol = filter_get(&d->lpf, phase);
 #ifdef AFSK_DEBUG
-					fprintf(debug, "%f,%f\n", symbol, 0.0);
+					//fprintf(debug, "%f,%f\n", symbol, 0.0);
 #endif
 					break;
 				case 2:
@@ -137,7 +137,7 @@ afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, c
 					symbol = filter_get(&d->lpf, phase);
 					retime(&d->timing, d->interm, symbol);
 #ifdef AFSK_DEBUG
-					fprintf(debug, "%f,%f\n", symbol, symbol);
+					//fprintf(debug, "%f,%f\n", symbol, symbol);
 #endif
 
 					/* Slice sample to get bit value */
@@ -154,7 +154,7 @@ afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, c
 				default:
 					symbol = filter_get(&d->lpf, phase);
 #ifdef AFSK_DEBUG
-					fprintf(debug, "%f,%f\n", symbol, 0.0);
+					//fprintf(debug, "%f,%f\n", symbol, 0.0);
 #endif
 					break;
 

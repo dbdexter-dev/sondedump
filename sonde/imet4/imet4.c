@@ -66,7 +66,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 					break;
 			}
 
-			//imet4_frame_descramble(self->frame);
+			imet4_frame_descramble(self->frame);
 
 #ifndef NDEBUG
 			fwrite(raw_frame, IMET4_FRAME_LEN/8, 1, debug);
