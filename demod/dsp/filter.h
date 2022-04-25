@@ -51,6 +51,4 @@ float filter_get(Filter *flt, int phase);
  */
 void filter_deinit(Filter *flt);
 
-
-
 #endif
