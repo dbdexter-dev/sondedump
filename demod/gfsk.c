@@ -86,7 +86,7 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const f
 					/* Half-way slot */
 					g->interm = filter_get(&g->lpf, phase);
 #ifdef OUTPUT_GFSK
-					fprintf(debug, "%f,0\n", g->interm);
+					fprintf(debug, "%f,0.000\n", g->interm);
 #endif
 					break;
 				case 2:
@@ -111,7 +111,7 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const f
 					break;
 				default:
 #ifdef OUTPUT_GFSK
-					fprintf(debug, "%f,0\n", filter_get(&g->lpf, phase));
+					fprintf(debug, "%f,0.000\n", filter_get(&g->lpf, phase));
 #endif
 					break;
 

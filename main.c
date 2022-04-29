@@ -51,11 +51,12 @@ static void decoder_changer(int index);
 
 static FILE *_wav;
 static int _bps;
-static int _interrupted;
+static volatile int _interrupted;
 
 static enum { AUTO=0, DFM09, IMET4, IMS100, M10, RS41, END} _active_decoder;
 static int _decoder_changed;
-const char *_decoder_names[] = {"Auto", "DFM", "iMet-4", "iMS100", "M10/M20", "RS41"};
+const char *_decoder_names[] = {"Auto", "DFM", "iMet-4", "iMS-100", "M10/M20", "RS41"};
+const char *_decoder_argvs[] = {"auto", "dfm", "imet4", "ims100", "m10", "rs41"};
 const int _decoder_count = LEN(_decoder_names);
 
 static struct option longopts[] = {
@@ -451,7 +452,7 @@ usage(const char *pname)
 			"                                auto: Autodetect\n"
 			"                                rs41: Vaisala RS41-SG(P,M)\n"
 			"                                dfm: GRAW DFM06/09\n"
-			"                                m10: MeteoModem M10\n"
+			"                                m10: MeteoModem M10/M20\n"
 			"                                ims100: Meisei iMS-100\n"
 			"                                imet4: InterMet iMet-4\n"
 	        "\n"
@@ -626,9 +627,8 @@ ascii_to_decoder(const char *ascii)
 {
 	size_t i;
 
-	for (i=0; i<LEN(_decoder_names); i++) {
-		if (!strcasecmp(ascii, _decoder_names[i])) return i;
-
+	for (i=0; i<LEN(_decoder_argvs); i++) {
+		if (!strcasecmp(ascii, _decoder_argvs[i])) return i;
 	}
 	return -1;
 }
