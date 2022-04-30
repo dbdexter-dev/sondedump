@@ -8,11 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <include/dfm09.h>
-#include <include/imet4.h>
-#include <include/ims100.h>
-#include <include/m10.h>
-#include <include/rs41.h>
+#include "decode.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
 #include "io/gpx.h"
@@ -31,9 +27,14 @@
 
 #define SHORTOPTS "a:c:f:g:hk:l:o:r:t:v"
 
+/* UI types */
+enum ui {
+	UI_TEXT,
+	UI_TUI,
+};
+
 static void usage(const char *progname);
 static void version(void);
-static void fill_printable_data(PrintableData *to_print, SondeData *data);
 static int printf_data(const char *fmt, PrintableData *data);
 static int wav_read_wrapper(float *dst, size_t count);
 static int raw_read_wrapper(float *dst, size_t count);
@@ -44,22 +45,19 @@ static int ascii_to_decoder(const char *ascii);
 static int audio_read_wrapper(float *dst, size_t count);
 #endif
 
-#ifdef ENABLE_TUI
-static int get_active_decoder(void);
-static void decoder_changer(int index);
-#endif
+volatile int _interrupted;
 
 static FILE *_wav;
 static int _bps;
-static int _interrupted;
 
-static enum { AUTO=0, DFM09, IMET4, IMS100, M10, RS41, END} _active_decoder;
-static int _decoder_changed;
-const char *_decoder_names[] = {"Auto", "DFM", "iMet-4", "iMS100", "M10/M20", "RS41"};
+const char *_decoder_names[] = {"Auto", "DFM", "iMet-4", "iMS-100", "M10/M20", "RS41"};
+const char *_decoder_argvs[] = {"auto", "dfm", "imet4", "ims100", "m10", "rs41"};
 const int _decoder_count = LEN(_decoder_names);
 
 static struct option longopts[] = {
+#ifdef ENABLE_AUDIO
 	{ "audio-device", 1, NULL, 'a' },
+#endif
 	{ "fmt",          1, NULL, 'f' },
 	{ "csv",          1, NULL, 'c' },
 	{ "decoders",     1, NULL, 'd' },
@@ -78,28 +76,17 @@ static struct option longopts[] = {
 int
 main(int argc, char *argv[])
 {
-	PrintableData printable;
-	SondeData data;
+	PrintableData *printable;
 	KMLFile kml, live_kml;
 	GPXFile gpx;
 	int samplerate;
 	int (*read_wrapper)(float *dst, size_t count);
 
-	ParserStatus (*decode)(void*, SondeData*, const float*, size_t);
-	void *decoder;
-
 	int c;
-	int has_data;
+	int slot = -1;
 	FILE *csv_fd = NULL;
 
 	float srcbuf[BUFLEN];
-	RS41Decoder *rs41decoder;
-	DFM09Decoder *dfm09decoder;
-	IMS100Decoder *ims100decoder;
-	M10Decoder *m10decoder;
-	IMET4Decoder *imet4decoder;
-
-	memset(&printable, 0, sizeof(PrintableData));
 
 	/* Command-line changeable parameters {{{ */
 	char *output_fmt = "[%f] %t'C %r%%    %l %o %am    %sm/s %h' %cm/s";
@@ -108,11 +95,12 @@ main(int argc, char *argv[])
 	const char *gpx_fname = NULL;
 	const char *csv_fname = NULL;
 	const char *input_fname = NULL;
+	enum ui ui = UI_TEXT;
 	int receiver_location_set = 0;
+	int active_decoder = 0;
 	float receiver_lat = 0, receiver_lon = 0, receiver_alt = 0;
-	int tui_enabled = 0;
 #ifdef ENABLE_TUI
-	tui_enabled = 1;
+	ui = UI_TUI;
 #endif
 #ifdef ENABLE_AUDIO
 	int input_from_audio = 0;
@@ -140,8 +128,8 @@ main(int argc, char *argv[])
 				live_kml_fname = optarg;
 				break;
 			case 't':
-				_active_decoder = ascii_to_decoder(optarg);
-				if (_active_decoder < 0) {
+				active_decoder = ascii_to_decoder(optarg);
+				if (active_decoder < 0) {
 					fprintf(stderr, "Unsupported type: %s\n", optarg);
 					usage(argv[0]);
 					return 1;
@@ -157,9 +145,7 @@ main(int argc, char *argv[])
 				break;
 			case 'f':
 				output_fmt = optarg;
-#ifdef ENABLE_TUI
-				tui_enabled = 0;
-#endif
+				ui = UI_TEXT;
 				break;
 			case 'h':
 				usage(argv[0]);
@@ -232,31 +218,23 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Error creating GPX file %s\n", gpx_fname);
 		return 1;
 	}
+
+	/* Initialize decoder */
+	decoder_init(samplerate);
+	set_active_decoder(active_decoder);
+
 #ifdef ENABLE_TUI
 	/* Enable TUI */
-	if (tui_enabled) {
-		tui_init(-1, &decoder_changer, &get_active_decoder);
+	if (ui == UI_TUI) {
+		tui_init(-1);
 		if (receiver_location_set) {
 			tui_set_ground_location(receiver_lat, receiver_lon, receiver_alt);
 		}
 	}
 #endif
 
-	/* Initialize decoders */
-	rs41decoder = rs41_decoder_init(samplerate);
-	dfm09decoder = dfm09_decoder_init(samplerate);
-	ims100decoder = ims100_decoder_init(samplerate);
-	m10decoder = m10_decoder_init(samplerate);
-	imet4decoder = imet4_decoder_init(samplerate);
-
-	/* Initialize decoder pointer to "no decoder" */
-	decode = NULL;
-	decoder = NULL;
-	_decoder_changed = 1;
-
 	/* Catch SIGINT to exit the loop */
 	_interrupted = 0;
-	has_data = 0;
 	signal(SIGINT, sigint_handler);
 
 	/* Process decoded frames */
@@ -264,118 +242,43 @@ main(int argc, char *argv[])
 		/* Read new samples */
 		if (read_wrapper(srcbuf, LEN(srcbuf)) <= 0) break;
 
-		/* Update decoder pointers if necessary */
-		if (_decoder_changed) {
-			/* Reset displayed info */
-			memset(&printable, 0, sizeof(printable));
-			_decoder_changed = 0;
-
-			switch (_active_decoder) {
-				case RS41:
-					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&rs41_decode;
-					decoder = rs41decoder;
-					break;
-				case DFM09:
-					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&dfm09_decode;
-					decoder = dfm09decoder;
-					break;
-				case M10:
-					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&m10_decode;
-					decoder = m10decoder;
-					break;
-				case IMS100:
-					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&ims100_decode;
-					decoder = ims100decoder;
-					break;
-				case IMET4:
-					decode = (ParserStatus(*)(void*, SondeData*, const float*, size_t))&imet4_decode;
-					decoder = imet4decoder;
-					break;
-				case AUTO:
-					while (rs41_decode(rs41decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED)
-						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = RS41;
-					while (m10_decode(m10decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED)
-						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = M10;
-					while (ims100_decode(ims100decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED)
-						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = IMS100;
-					while (dfm09_decode(dfm09decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED)
-						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = DFM09;
-					while (imet4_decode(imet4decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED)
-						if (data.type != EMPTY && data.type != FRAME_END) _active_decoder = IMET4;
-					_decoder_changed = 1;
-
-					/* Indicate decoder changed */
-					if (_active_decoder != AUTO && !tui_enabled) {
-						printf("Sonde detected: %s\n", _decoder_names[(int)_active_decoder]);
-					}
-					break;
-				default:
-					break;
+		/* Send them to decoder */
+		while (decode(srcbuf, LEN(srcbuf)) != PROCEED) {
+			/* If no new data, immediately go to next iteration */
+			if (slot == get_slot()) {
+				continue;
 			}
-		}
+			slot = get_slot();
 
-		/* Decode samples into frames */
-		while (decoder && decode(decoder, &data, srcbuf, LEN(srcbuf)) != PROCEED) {
+			printable = get_data();
+			if (ui == UI_TEXT) {
+				/* Print new data */
+				printf_data(output_fmt, printable);
+			}
 
-			/* !PROCEED = PARSED, aka data has been updated: parse new info */
-			fill_printable_data(&printable, &data);
+			/* If we are also calibrated enough, and CSV output is enabled, append
+			 * the new datapoint to the file */
+			if (csv_fd && printable->calibrated) {
+				fprintf(csv_fd, "%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
+						printable->temp, printable->rh, printable->pressure,
+						printable->alt, printable->lat, printable->lon,
+						printable->speed, printable->heading, printable->climb);
+			}
 
-			/* Extra handling for special data types */
-			switch (data.type) {
-				case FRAME_END:
-					/* If pressure is not provided by the radiosonde, estimate
-					 * it from the altitude data */
-					if (!isnormal(printable.pressure) || printable.pressure < 0) {
-						printable.pressure = altitude_to_pressure(printable.alt);
-					}
-
-					/* If we got new data between the last FRAME_END and this
-					 * one, update the info being displayed */
-					if (has_data) {
-						if (!tui_enabled) {
-							printf_data(output_fmt, &printable);
-						}
-#ifdef ENABLE_TUI
-						else {
-							tui_update(&printable);
-						}
-#endif
-					}
-
-					/* If we are also calibrated enough, and CSV output is
-					 * enabled, append the new datapoint to the file */
-					if (csv_fd && printable.calibrated) {
-						fprintf(csv_fd, "%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
-								printable.temp, printable.rh, printable.pressure,
-								printable.alt, printable.lat, printable.lon,
-								printable.speed, printable.heading, printable.climb);
-					}
-
-					has_data = 0;
-					break;
-				case POSITION:
-					/* Add position to whichever files are open */
-					if (kml_fname) {
-						kml_start_track(&kml, printable.serial);
-						kml_add_trackpoint(&kml, printable.lat, printable.lon, printable.alt);
-					}
-					if (live_kml_fname) {
-						kml_start_track(&live_kml, printable.serial);
-						kml_add_trackpoint(&live_kml, printable.lat, printable.lon, printable.alt);
-					}
-					if (gpx_fname) {
-						gpx_start_track(&gpx, printable.serial);
-						gpx_add_trackpoint(&gpx,
-								printable.lat, printable.lon, printable.alt,
-								printable.speed, printable.heading, printable.utc_time);
-					}
-					has_data = 1;
-					break;
-				case EMPTY:
-					break;
-				default:
-					has_data = 1;
-					break;
+			/* Add position to whichever files are open */
+			if (kml_fname) {
+				kml_start_track(&kml, printable->serial);
+				kml_add_trackpoint(&kml, printable->lat, printable->lon, printable->alt);
+			}
+			if (live_kml_fname) {
+				kml_start_track(&live_kml, printable->serial);
+				kml_add_trackpoint(&live_kml, printable->lat, printable->lon, printable->alt);
+			}
+			if (gpx_fname) {
+				gpx_start_track(&gpx, printable->serial);
+				gpx_add_trackpoint(&gpx,
+						printable->lat, printable->lon, printable->alt,
+						printable->speed, printable->heading, printable->utc_time);
 			}
 		}
 	}
@@ -386,12 +289,6 @@ main(int argc, char *argv[])
 	if (gpx_fname) gpx_close(&gpx);
 	if (csv_fd) fclose(csv_fd);
 
-	/* Deinitialize all decoders */
-	rs41_decoder_deinit(rs41decoder);
-	ims100_decoder_deinit(ims100decoder);
-	m10_decoder_deinit(m10decoder);
-	dfm09_decoder_deinit(dfm09decoder);
-	imet4_decoder_deinit(imet4decoder);
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO
 	if (input_from_audio) {
@@ -399,10 +296,12 @@ main(int argc, char *argv[])
 	}
 #endif
 #ifdef ENABLE_TUI
-	if (tui_enabled) {
+	if (ui == UI_TUI) {
 		tui_deinit();
 	}
 #endif
+	/* Deinit decoder */
+	decoder_deinit();
 
 	return 0;
 }
@@ -451,7 +350,7 @@ usage(const char *pname)
 			"                                auto: Autodetect\n"
 			"                                rs41: Vaisala RS41-SG(P,M)\n"
 			"                                dfm: GRAW DFM06/09\n"
-			"                                m10: MeteoModem M10\n"
+			"                                m10: MeteoModem M10/M20\n"
 			"                                ims100: Meisei iMS-100\n"
 			"                                imet4: InterMet iMet-4\n"
 	        "\n"
@@ -498,44 +397,6 @@ version(void)
 			"\n");
 }
 
-
-static void
-fill_printable_data(PrintableData *to_print, SondeData *data)
-{
-	switch (data->type) {
-		case EMPTY:
-		case FRAME_END:
-		case UNKNOWN:
-		case SOURCE_END:
-			break;
-		case DATETIME:
-			to_print->utc_time = data->data.datetime.datetime;
-			break;
-		case INFO:
-			strncpy(to_print->serial, data->data.info.sonde_serial, LEN(to_print->serial)-1);
-			to_print->seq = data->data.info.seq;
-			to_print->shutdown_timer = data->data.info.burstkill_status;
-			break;
-		case PTU:
-			to_print->temp = data->data.ptu.temp;
-			to_print->rh = data->data.ptu.rh;
-			to_print->pressure  = data->data.ptu.pressure;
-			to_print->calibrated = data->data.ptu.calibrated;
-			to_print->calib_percent = data->data.ptu.calib_percent;
-			break;
-		case POSITION:
-			to_print->lat = data->data.pos.lat;
-			to_print->lon = data->data.pos.lon;
-			to_print->alt = data->data.pos.alt;
-			to_print->speed = data->data.pos.speed;
-			to_print->heading = data->data.pos.heading;
-			to_print->climb = data->data.pos.climb;
-			break;
-		case XDATA:
-			strcpy(to_print->xdata, data->data.xdata.data);
-			break;
-	}
-}
 
 static int
 printf_data(const char *fmt, PrintableData *data)
@@ -626,26 +487,9 @@ ascii_to_decoder(const char *ascii)
 {
 	size_t i;
 
-	for (i=0; i<LEN(_decoder_names); i++) {
-		if (!strcasecmp(ascii, _decoder_names[i])) return i;
-
+	for (i=0; i<LEN(_decoder_argvs); i++) {
+		if (!strcasecmp(ascii, _decoder_argvs[i])) return i;
 	}
 	return -1;
 }
-
-#ifdef ENABLE_TUI
-static void
-decoder_changer(int decoder)
-{
-	_active_decoder = (decoder + END) % END;
-	_decoder_changed = 1;
-}
-
-static int
-get_active_decoder(void)
-{
-	return _active_decoder;
-}
-
-#endif
 /* }}} */

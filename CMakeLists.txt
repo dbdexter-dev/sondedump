@@ -106,10 +106,11 @@ set(EXEC_SOURCES
 	io/kml.c io/kml.h
 	io/wavfile.c io/wavfile.h
 
+	decode.c decode.h
 	main.c
 )
 
-set(COMMON_INC_DIRS ${PROJECT_SOURCE_DIR})
+set(INC_DIRS ${PROJECT_SOURCE_DIR})
 
 if (MSVC)
 	set(EXEC_SOURCES ${EXEC_SOURCES}
@@ -124,7 +125,7 @@ endif()
 
 # Find Curses/Ncurses
 find_package(Curses)
-if (ENABLE_TUI AND CURSES_LIBRARIES)
+if (ENABLE_TUI AND CURSES_FOUND)
 	# Portable threads
 	find_package(Threads REQUIRED)
 
@@ -137,7 +138,7 @@ endif()
 
 # Find PortAudio
 find_package(Portaudio)
-if(ENABLE_AUDIO AND PORTAUDIO_LIBRARIES)
+if(ENABLE_AUDIO AND PORTAUDIO_FOUND)
 	add_definitions(-DENABLE_AUDIO)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${AUDIO_SOURCES})
 else()
@@ -145,19 +146,23 @@ else()
 	set(PORTAUDIO_INCLUDE_DIRS "")
 endif()
 
-
 # Main library target
 add_library(radiosonde STATIC ${LIBRARY_SOURCES})
-target_include_directories(radiosonde PUBLIC ${COMMON_INC_DIRS})
+target_include_directories(radiosonde PUBLIC ${INC_DIRS})
 target_link_libraries(radiosonde PUBLIC ${MATH_LIBRARY})
 
 # Main executable target
 add_executable(sondedump ${EXEC_SOURCES})
-target_include_directories(sondedump PRIVATE ${COMMON_INC_DIRS}
-	${PORTAUDIO_INCLUDE_DIRS} ${CURSES_INCLUDE_DIRS})
+target_include_directories(sondedump PRIVATE ${INC_DIRS}
+	${PORTAUDIO_INCLUDE_DIRS}
+	${CURSES_INCLUDE_DIRS}
+)
 target_link_libraries(sondedump PRIVATE radiosonde
 	${CMAKE_THREAD_LIBS_INIT}
-	${MATH_LIBRARY} ${PORTAUDIO_LIBRARIES} ${CURSES_LIBRARIES})
+	${MATH_LIBRARY}
+	${PORTAUDIO_LIBRARIES}
+	${CURSES_LIBRARIES}
+)
 
 # Install targets
 install(TARGETS sondedump DESTINATION bin)
