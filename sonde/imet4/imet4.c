@@ -9,6 +9,7 @@
 #include "decode/manchester.h"
 #include "protocol.h"
 #include "frame.h"
+#include "gps/ecef.h"
 #include "subframe.h"
 
 static uint16_t imet4_serial(int seq, time_t time);
@@ -21,9 +22,12 @@ struct imet4decoder {
 	uint32_t time;
 	size_t offset, frame_offset;
 	char serial[16];
+
+	uint32_t prev_time;
+	float prev_x, prev_y, prev_z;
 };
 
-enum { READ_PRE, READ, PARSE_SUBFRAME, PARSE_SUBFRAME_PTU_INFO, PARSE_SUBFRAME_GPS_TIME };
+enum { READ_PRE, READ, PARSE_SUBFRAME, PARSE_SUBFRAME_PTU_INFO, PARSE_SUBFRAME_GPS_POS };
 
 #ifndef NDEBUG
 static FILE *debug;
@@ -71,6 +75,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 	time_t now;
 	int seq;
 	int hour, min, sec;
+	float x, y, z, dt;
 
 	IMET4Subframe_GPS *gps;
 	IMET4Subframe_GPSX *gpsx;
@@ -140,19 +145,49 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 					self->state = PARSE_SUBFRAME_PTU_INFO;
 					break;
 				case IMET4_SFTYPE_GPS:
-					gps = (IMET4Subframe_GPS*)self->subframe;
+				case IMET4_SFTYPE_GPSX:
 
-					dst->type = POSITION;
+					switch (self->subframe->type) {
+						case IMET4_SFTYPE_GPS:
+							gps = (IMET4Subframe_GPS*)self->subframe;
 
-					dst->data.pos.lat = gps->lat;
-					dst->data.pos.lon = gps->lon;
-					dst->data.pos.alt = gps->alt - 5000.0;
+							hour = gps->hour;
+							min = gps->min;
+							sec = gps->sec;
+							break;
 
-					dst->data.pos.speed = 0;
-					dst->data.pos.heading = 0;
-					dst->data.pos.climb = 0;
+							break;
+						case IMET4_SFTYPE_GPSX:
+							gpsx = (IMET4Subframe_GPSX*)self->subframe;
 
-					self->state = PARSE_SUBFRAME_GPS_TIME;
+							hour = gpsx->hour;
+							min = gpsx->min;
+							sec = gpsx->sec;
+							break;
+						default:
+							dst->type = EMPTY;
+							hour = min = sec = 0;
+							break;
+					}
+
+					dst->type = DATETIME;
+
+					now = time(NULL);
+					datetime = *gmtime(&now);
+					// Handle 0Z crossing
+					if (abs(hour - datetime.tm_hour) >= 12) {
+						now += (hour < datetime.tm_hour) ? 86400 : -86400;
+						datetime = *gmtime(&now);
+					}
+
+					datetime.tm_hour = hour;
+					datetime.tm_min = min;
+					datetime.tm_sec = sec;
+
+					dst->data.datetime.datetime = my_timegm(&datetime);
+					self->time = dst->data.datetime.datetime;
+					self->state = PARSE_SUBFRAME_GPS_POS;
+					break;
 					break;
 				case IMET4_SFTYPE_PTUX:
 					ptux = (IMET4Subframe_PTUX*)self->subframe;
@@ -168,22 +203,6 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 					dst->data.ptu.pressure = pressure / 100.0;
 
 					self->state = PARSE_SUBFRAME_PTU_INFO;
-					break;
-				case IMET4_SFTYPE_GPSX:
-					gpsx = (IMET4Subframe_GPSX*)self->subframe;
-
-					dst->type = POSITION;
-
-					dst->data.pos.lat = gpsx->lat;
-					dst->data.pos.lon = gpsx->lon;
-					dst->data.pos.alt = gpsx->alt + 5000.0;
-
-					dst->data.pos.speed = sqrtf(gpsx->dlat*gpsx->dlat + gpsx->dlon*gpsx->dlon);
-					dst->data.pos.heading = atan2f(gpsx->dlat, gpsx->dlon) * 180.0/M_PI;
-					if (dst->data.pos.heading < 0) dst->data.pos.heading += 360;
-					dst->data.pos.climb = gpsx->climb;
-
-					self->state = PARSE_SUBFRAME_GPS_TIME;
 					break;
 				case IMET4_SFTYPE_XDATA:
 					/* TODO */
@@ -222,48 +241,43 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 
 			self->state = PARSE_SUBFRAME;
 			break;
-		case PARSE_SUBFRAME_GPS_TIME:
+		case PARSE_SUBFRAME_GPS_POS:
 			switch (self->subframe->type) {
 				case IMET4_SFTYPE_GPS:
 					gps = (IMET4Subframe_GPS*)self->subframe;
 
-					dst->type = DATETIME;
-
-					hour = gps->hour;
-					min = gps->min;
-					sec = gps->sec;
-					break;
-
+					dst->data.pos.lat = gps->lat;
+					dst->data.pos.lon = gps->lon;
+					dst->data.pos.alt = gps->alt - 5000.0;
 					break;
 				case IMET4_SFTYPE_GPSX:
 					gpsx = (IMET4Subframe_GPSX*)self->subframe;
 
-					dst->type = DATETIME;
-
-					hour = gpsx->hour;
-					min = gpsx->min;
-					sec = gpsx->sec;
+					dst->data.pos.lat = gpsx->lat;
+					dst->data.pos.lon = gpsx->lon;
+					dst->data.pos.alt = gpsx->alt - 5000.0;
 					break;
 				default:
 					dst->type = EMPTY;
-					hour = min = sec = 0;
+
 					break;
 			}
 
-			now = time(NULL);
-			datetime = *gmtime(&now);
-			// Handle 0Z crossing
-			if (abs(hour - datetime.tm_hour) >= 12) {
-				now += (hour < datetime.tm_hour) ? 86400 : -86400;
-				datetime = *gmtime(&now);
-			}
+			dst->type = POSITION;
 
-			datetime.tm_hour = hour;
-			datetime.tm_min = min;
-			datetime.tm_sec = sec;
+			dt = self->time - self->prev_time;
+			self->prev_time = self->time;
 
-			dst->data.datetime.datetime = my_timegm(&datetime);
-			self->time = dst->data.datetime.datetime;
+			/* Convert to ECEF coordinates to compute speed vector */
+			lla_to_ecef(&x, &y, &z, dst->data.pos.lat, dst->data.pos.lon, dst->data.pos.alt);
+			ecef_to_spd_hdg(&dst->data.pos.speed, &dst->data.pos.heading, &dst->data.pos.climb,
+							dst->data.pos.lat, dst->data.pos.lon,
+							(x - self->prev_x)/dt, (y - self->prev_y)/dt, (z - self->prev_z)/dt);
+
+			/* Update last known x/y/z */
+			self->prev_x = x;
+			self->prev_y = y;
+			self->prev_z = z;
 
 			self->state = PARSE_SUBFRAME;
 			break;

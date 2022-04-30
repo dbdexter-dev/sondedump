@@ -68,7 +68,7 @@ lla_to_ecef(float *x, float *y, float *z, float lat, float lon, float alt)
 	/* Compute x, y, z */
 	*x = (n + alt) * cosf(lat) * cosf(lon);
 	*y = (n + alt) * cosf(lat) * sinf(lon);
-	*z = ((WGS84_B * WGS84_B) / (WGS84_A * WGS84_A) * n + alt) * sinf(lat);
+	*z = (1 - WGS84_E_SQR) * (n + alt) * sinf(lat);
 
 	return 0;
 }
