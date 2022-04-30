@@ -78,7 +78,7 @@ main(int argc, char *argv[])
 {
 	PrintableData *printable;
 	KMLFile kml, live_kml;
-	GPXFile gpx;
+	GPXFile gpx = {.offset = 0};
 	int samplerate;
 	int (*read_wrapper)(float *dst, size_t count);
 

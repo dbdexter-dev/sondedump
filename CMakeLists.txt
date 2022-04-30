@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 option(ENABLE_TUI "Enable Ncurses TUI (requires ncurses)" ON)
 option(ENABLE_AUDIO "Enable audio input (requires portaudio)" ON)
+option(FULL_OPTIMIZE "Enable platform-specific optimizaions" OFF)
 option(UNINSTALL_TARGET "Generate uninstall target" ON)
 
 project(sondedump
@@ -25,6 +26,9 @@ else()
 	set(CMAKE_C_STANDARD 99)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -pipe -Wall -Wextra -pedantic -Wimplicit-fallthrough")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ftree-vectorize")
+	if (FULL_OPTIMIZE)
+		set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=native -flto")
+	endif()
 endif()
 
 # ARM architectures need -mfpu=auto in order to enable NEON when available,

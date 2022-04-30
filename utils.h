@@ -33,6 +33,13 @@
 #define PACK( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
 #endif
 
+/* Portable always_inline */
+#ifdef __GNUC__
+#define FORCE_INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER
+#define FORCE_INLINE __forceinline
+#endif
+
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define LEN(x) (sizeof(x)/sizeof(x[0]))

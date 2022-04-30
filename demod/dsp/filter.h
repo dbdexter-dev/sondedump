@@ -33,7 +33,6 @@ int filter_init_lpf(Filter *flt, int order, float cutoff, int num_phases);
  */
 void filter_fwd_sample(Filter *flt, float sample);
 
-
 /**
  * Get the output of a filter
  *
