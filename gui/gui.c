@@ -2,6 +2,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 #include <pthread.h>
+#include "decode.h"
 #include "gui.h"
 #include "utils.h"
 #include "nuklear/nuklear.h"
@@ -39,11 +40,13 @@ gui_main(void *args)
 	(void)args;
 
 	struct nk_context *ctx;
-	const enum nk_panel_flags win_flags = NK_WINDOW_TITLE;
+	const enum nk_panel_flags win_flags = 0;
 	SDL_Window *win;
 	SDL_GLContext glContext;
 	SDL_Event evt;
 	int width, height;
+	int last_slot = get_slot();
+	char title[64];
 
 	/* Initialize SDL2 */
 	SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
@@ -55,7 +58,7 @@ gui_main(void *args)
 
 	win = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 	                       WINDOW_WIDTH, WINDOW_HEIGHT,
-	                       SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
+	                       SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
 
 	glContext = SDL_GL_CreateContext(win);
 	SDL_GetWindowSize(win, &width, &height);
@@ -90,6 +93,12 @@ gui_main(void *args)
 			nk_sdl_handle_event(&evt);
 		}
 		nk_input_end(ctx);
+
+		if (last_slot != get_slot()) {
+			last_slot = get_slot();
+			sprintf(title, WINDOW_TITLE " - %s", get_data()->serial);
+			SDL_SetWindowTitle(win, title);
+		}
 
 		/* Compose GUI */
 		if (nk_begin(ctx, WINDOW_TITLE, nk_rect(0, 0, width, height), win_flags)) {

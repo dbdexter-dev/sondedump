@@ -149,6 +149,7 @@ decode(const float *srcbuf, size_t len)
 							}
 
 							/* Swap buffers */
+							printable[(printable_active_slot + 1) % LEN(printable)] = printable[printable_active_slot];
 							printable_active_slot = (printable_active_slot + 1) % LEN(printable);
 							has_data = 0;
 						}
