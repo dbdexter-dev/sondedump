@@ -23,6 +23,9 @@
 #ifdef ENABLE_TUI
 #include "tui/tui.h"
 #endif
+#ifdef ENABLE_GUI
+#include "gui/gui.h"
+#endif
 #ifdef ENABLE_AUDIO
 #include "io/audio.h"
 #endif
@@ -30,6 +33,12 @@
 #define BUFLEN 1024
 
 #define SHORTOPTS "a:c:f:g:hk:l:o:r:t:v"
+
+enum ui {
+	UI_TEXT,
+	UI_TUI,
+	UI_GUI
+};
 
 static void usage(const char *progname);
 static void version(void);
@@ -44,7 +53,7 @@ static int ascii_to_decoder(const char *ascii);
 static int audio_read_wrapper(float *dst, size_t count);
 #endif
 
-#ifdef ENABLE_TUI
+#if defined(ENABLE_TUI) || defined(ENABLE_GUI)
 static int get_active_decoder(void);
 static void decoder_changer(int index);
 #endif
@@ -72,6 +81,7 @@ static struct option longopts[] = {
 	{ "location",     1, NULL, 'r' },
 	{ "type",         1, NULL, 't' },
 	{ "version",      0, NULL, 'v' },
+	{ "gui",          0, NULL, 'u' },
 	{ NULL,           0, NULL,  0  }
 };
 
@@ -109,11 +119,11 @@ main(int argc, char *argv[])
 	const char *gpx_fname = NULL;
 	const char *csv_fname = NULL;
 	const char *input_fname = NULL;
+	enum ui ui = UI_TEXT;
 	int receiver_location_set = 0;
 	float receiver_lat = 0, receiver_lon = 0, receiver_alt = 0;
-	int tui_enabled = 0;
 #ifdef ENABLE_TUI
-	tui_enabled = 1;
+	ui = UI_TEXT;
 #endif
 #ifdef ENABLE_AUDIO
 	int input_from_audio = 0;
@@ -158,9 +168,7 @@ main(int argc, char *argv[])
 				break;
 			case 'f':
 				output_fmt = optarg;
-#ifdef ENABLE_TUI
-				tui_enabled = 0;
-#endif
+				ui = UI_TEXT;
 				break;
 			case 'h':
 				usage(argv[0]);
@@ -168,6 +176,11 @@ main(int argc, char *argv[])
 			case 'v':
 				version();
 				return 0;
+#ifdef ENABLE_GUI
+			case 'u':
+				ui = UI_GUI;
+				break;
+#endif
 			default:
 				usage(argv[0]);
 				return 1;
@@ -235,11 +248,16 @@ main(int argc, char *argv[])
 	}
 #ifdef ENABLE_TUI
 	/* Enable TUI */
-	if (tui_enabled) {
+	if (ui == UI_TUI) {
 		tui_init(-1, &decoder_changer, &get_active_decoder);
 		if (receiver_location_set) {
 			tui_set_ground_location(receiver_lat, receiver_lon, receiver_alt);
 		}
+	}
+#endif
+#ifdef ENABLE_GUI
+	if (ui == UI_GUI) {
+		gui_init();
 	}
 #endif
 
@@ -306,7 +324,7 @@ main(int argc, char *argv[])
 					_decoder_changed = 1;
 
 					/* Indicate decoder changed */
-					if (_active_decoder != AUTO && !tui_enabled) {
+					if (_active_decoder != AUTO && ui == UI_TEXT) {
 						printf("Sonde detected: %s\n", _decoder_names[(int)_active_decoder]);
 					}
 					break;
@@ -333,7 +351,7 @@ main(int argc, char *argv[])
 					/* If we got new data between the last FRAME_END and this
 					 * one, update the info being displayed */
 					if (has_data) {
-						if (!tui_enabled) {
+						if (ui == UI_TEXT) {
 							printf_data(output_fmt, &printable);
 						}
 #ifdef ENABLE_TUI
@@ -400,8 +418,13 @@ main(int argc, char *argv[])
 	}
 #endif
 #ifdef ENABLE_TUI
-	if (tui_enabled) {
+	if (ui == UI_TUI) {
 		tui_deinit();
+	}
+#endif
+#ifdef ENABLE_GUI
+	if (ui == UI_GUI) {
+		gui_deinit();
 	}
 #endif
 
@@ -620,6 +643,9 @@ sigint_handler(int val)
 {
 	(void)val;
 	_interrupted = 1;
+#ifdef ENABLE_GUI
+	gui_deinit();
+#endif
 }
 
 static int
@@ -633,7 +659,7 @@ ascii_to_decoder(const char *ascii)
 	return -1;
 }
 
-#ifdef ENABLE_TUI
+#if defined(ENABLE_TUI) || defined(ENABLE_GUI)
 static void
 decoder_changer(int decoder)
 {
