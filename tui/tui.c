@@ -100,23 +100,23 @@ main_loop(void *args)
 			case KEY_LEFT:
 			case '<':
 				set_active_decoder(get_active_decoder() - 1);
-				tui.last_slot = 1;
+				tui.last_slot = -1;
 				break;
 			case KEY_RIGHT:
 			case '>':
 				set_active_decoder(get_active_decoder() + 1);
-				tui.last_slot = 1;
+				tui.last_slot = -1;
 				break;
 			case '\t':
 				if (tui.receiver_location_set) {
 					tui.pos_type = (tui.pos_type + 1) % POS_TYPE_COUNT;
-					tui.last_slot = 1;
+					tui.last_slot = -1;
 				}
 				break;
 			case KEY_BTAB:
 				if (tui.receiver_location_set) {
 					tui.pos_type = (tui.pos_type - 1 + POS_TYPE_COUNT) % POS_TYPE_COUNT;
-					tui.last_slot = 1;
+					tui.last_slot = -1;
 				}
 				break;
 			default:
