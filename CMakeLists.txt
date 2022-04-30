@@ -106,6 +106,9 @@ set(GUI_SOURCES
 	gui/nuklear/nuklear.c gui/nuklear/nuklear.h
 	gui/nuklear/nuklear_sdl_gl3.h
 
+	gui/widgets/data.c gui/widgets/data.h
+	gui/widgets/menubar.c gui/widgets/menubar.h
+
 	gui/gui.c gui/gui.h
 )
 
@@ -114,10 +117,11 @@ set(EXEC_SOURCES
 	io/kml.c io/kml.h
 	io/wavfile.c io/wavfile.h
 
+	decode.c decode.h
 	main.c
 )
 
-set(COMMON_INC_DIRS ${PROJECT_SOURCE_DIR})
+set(INC_DIRS ${PROJECT_SOURCE_DIR})
 
 if (MSVC)
 	set(EXEC_SOURCES ${EXEC_SOURCES}
@@ -171,6 +175,7 @@ if (ENABLE_GUI AND OPENGL_FOUND AND SDL2_FOUND AND GLEW_FOUND)
 	)
 	add_definitions(-DENABLE_GUI)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${GUI_SOURCES})
+	set(INC_DIRS ${INC_DIRS} gui/)
 else()
 	set(SDL2_LIBRARIES "")
 	set(SDL2_INCLUDE_DIRS "")
@@ -186,12 +191,12 @@ endif()
 
 # Main library target
 add_library(radiosonde STATIC ${LIBRARY_SOURCES})
-target_include_directories(radiosonde PUBLIC ${COMMON_INC_DIRS})
+target_include_directories(radiosonde PUBLIC ${INC_DIRS})
 target_link_libraries(radiosonde PUBLIC ${MATH_LIBRARY})
 
 # Main executable target
 add_executable(sondedump ${EXEC_SOURCES})
-target_include_directories(sondedump PRIVATE ${COMMON_INC_DIRS}
+target_include_directories(sondedump PRIVATE ${INC_DIRS}
 	${PORTAUDIO_INCLUDE_DIRS}
 	${CURSES_INCLUDE_DIRS}
 	${SDL2_INCLUDE_DIRS}

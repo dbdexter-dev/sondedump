@@ -6,6 +6,8 @@
 #include "utils.h"
 #include "nuklear/nuklear.h"
 #include "nuklear/nuklear_sdl_gl3.h"
+#include "widgets/data.h"
+#include "widgets/menubar.h"
 
 #define MAX_VERTEX_MEMORY (512 * 1024)
 #define MAX_ELEMENT_MEMORY (128 * 1024)
@@ -13,12 +15,12 @@
 static void *gui_main(void *args);
 
 static pthread_t _tid;
-static int _running;
+extern volatile int _interrupted;
 
 void
 gui_init(void)
 {
-	_running = 1;
+	_interrupted = 0;
 	pthread_create(&_tid, NULL, gui_main, NULL);
 }
 
@@ -27,8 +29,8 @@ gui_deinit(void)
 {
 	void *retval;
 
-	_running = 0;
-	pthread_join(_tid, &retval);
+	_interrupted = 1;
+	if (_tid) pthread_join(_tid, &retval);
 }
 
 static void*
@@ -37,6 +39,7 @@ gui_main(void *args)
 	(void)args;
 
 	struct nk_context *ctx;
+	const enum nk_panel_flags win_flags = NK_WINDOW_TITLE;
 	SDL_Window *win;
 	SDL_GLContext glContext;
 	SDL_Event evt;
@@ -73,23 +76,26 @@ gui_main(void *args)
 	}
 
 
-	while (_running) {
+	while (!_interrupted) {
 		/* Handle inputs */
 		nk_input_begin(ctx);
 		while (SDL_PollEvent(&evt)) {
 			switch (evt.type) {
 				case SDL_QUIT:
-					_running = 0;
 					goto cleanup;
 					break;
 				default:
 					break;
 			}
+			nk_sdl_handle_event(&evt);
 		}
 		nk_input_end(ctx);
 
 		/* Compose GUI */
-		if (nk_begin(ctx, WINDOW_TITLE, nk_rect(0, 0, width, height), 0)) {
+		if (nk_begin(ctx, WINDOW_TITLE, nk_rect(0, 0, width, height), win_flags)) {
+			widget_menubar(ctx, width, height);
+			widget_data(ctx, width, height);
+
 			nk_end(ctx);
 		}
 
@@ -103,6 +109,7 @@ gui_main(void *args)
 	}
 
 cleanup:
+	_interrupted = 1;
 	nk_sdl_shutdown();
 	SDL_GL_DeleteContext(glContext);
 	SDL_DestroyWindow(win);
