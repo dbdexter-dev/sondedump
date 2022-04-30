@@ -16,12 +16,14 @@
 static void *gui_main(void *args);
 
 static pthread_t _tid;
+static enum graph active_visualization;
 extern volatile int _interrupted;
 
 void
 gui_init(void)
 {
 	_interrupted = 0;
+	active_visualization = GUI_TIMESERIES;
 	pthread_create(&_tid, NULL, gui_main, NULL);
 }
 
@@ -32,6 +34,18 @@ gui_deinit(void)
 
 	_interrupted = 1;
 	if (_tid) pthread_join(_tid, &retval);
+}
+
+enum graph
+gui_get_graph(void)
+{
+	return active_visualization;
+}
+
+void
+gui_set_graph(enum graph visual)
+{
+	active_visualization = visual;
 }
 
 static void*
@@ -102,8 +116,13 @@ gui_main(void *args)
 
 		/* Compose GUI */
 		if (nk_begin(ctx, WINDOW_TITLE, nk_rect(0, 0, width, height), win_flags)) {
+			/* Menu bar */
 			widget_menubar(ctx, width, height);
+
+			/* Raw data */
 			widget_data(ctx, width, height);
+
+			/* Tabbed pane */
 
 			nk_end(ctx);
 		}
