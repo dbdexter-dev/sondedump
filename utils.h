@@ -36,7 +36,7 @@
 /* Portable always_inline */
 #ifdef __GNUC__
 #define FORCE_INLINE __attribute__((always_inline))
-#elif defined(_MSC_VER
+#elif defined(_MSC_VER)
 #define FORCE_INLINE __forceinline
 #endif
 
