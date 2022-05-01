@@ -37,6 +37,20 @@ if (is_arm EQUAL "0")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -mcpu=native -mfpu=auto")
 endif()
 
+# Rules to embed font as binary, with stable symbol names
+if (ENABLE_GUI)
+	add_custom_command(
+		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/roboto_medium.o
+		COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/fonts/Roboto-Medium.ttf .
+		COMMAND ld -r -b binary -o ${CMAKE_CURRENT_BINARY_DIR}/roboto_medium.o Roboto-Medium.ttf
+		COMMAND rm Roboto-Medium.ttf
+		MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/fonts/Roboto-Medium.ttf
+	)
+	set(FONT_OBJS
+		roboto_medium.o
+	)
+endif()
+
 
 set(LIBRARY_SOURCES
 	decode/correlator/correlator.c decode/correlator/correlator.h
@@ -106,10 +120,10 @@ set(GUI_SOURCES
 	gui/nuklear/nuklear.c gui/nuklear/nuklear.h
 	gui/nuklear/nuklear_sdl_gl3.h
 
-	gui/widgets/data.c gui/widgets/data.h
-	gui/widgets/menubar.c gui/widgets/menubar.h
-
+	gui/style.c gui/style.h
 	gui/gui.c gui/gui.h
+
+	gui/widgets/data.c gui/widgets/data.h
 )
 
 set(EXEC_SOURCES
@@ -195,7 +209,11 @@ target_include_directories(radiosonde PUBLIC ${INC_DIRS})
 target_link_libraries(radiosonde PUBLIC ${MATH_LIBRARY})
 
 # Main executable target
-add_executable(sondedump ${EXEC_SOURCES})
+if (ENABLE_GUI)
+	add_executable(sondedump ${FONT_OBJS} ${EXEC_SOURCES})
+else()
+	add_executable(sondedump ${EXEC_SOURCES})
+endif()
 target_include_directories(sondedump PRIVATE ${INC_DIRS}
 	${PORTAUDIO_INCLUDE_DIRS}
 	${CURSES_INCLUDE_DIRS}

@@ -174,6 +174,8 @@ get_active_decoder(void)
 void
 set_active_decoder(enum decoder decoder)
 {
+	if (decoder == active_decoder) return;
+
 	/* Signal that pointers are okay again */
 	active_decoder = (decoder + END) % END;
 	memset(printable, 0, sizeof(printable));

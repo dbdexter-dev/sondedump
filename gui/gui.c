@@ -7,8 +7,8 @@
 #include "utils.h"
 #include "nuklear/nuklear.h"
 #include "nuklear/nuklear_sdl_gl3.h"
+#include "style.h"
 #include "widgets/data.h"
-#include "widgets/menubar.h"
 
 #define MAX_VERTEX_MEMORY (512 * 1024)
 #define MAX_ELEMENT_MEMORY (128 * 1024)
@@ -54,7 +54,7 @@ gui_main(void *args)
 	(void)args;
 
 	struct nk_context *ctx;
-	const enum nk_panel_flags win_flags = 0;
+	const enum nk_panel_flags win_flags = NK_WINDOW_NO_SCROLLBAR;
 	SDL_Window *win;
 	SDL_GLContext glContext;
 	SDL_Event evt;
@@ -84,14 +84,8 @@ gui_main(void *args)
 
 	/* Initialize nuklear */
 	ctx = nk_sdl_init(win);
-
-	/* Load fonts */
-	{
-		struct nk_font_atlas *atlas;
-		nk_sdl_font_stash_begin(&atlas);
-		nk_sdl_font_stash_end();
-	}
-
+	gui_load_fonts(ctx);
+	gui_set_style_default(ctx);
 
 	while (!_interrupted) {
 		/* Handle inputs */
@@ -116,13 +110,8 @@ gui_main(void *args)
 
 		/* Compose GUI */
 		if (nk_begin(ctx, WINDOW_TITLE, nk_rect(0, 0, width, height), win_flags)) {
-			/* Menu bar */
-			widget_menubar(ctx, width, height);
-
 			/* Raw data */
 			widget_data(ctx, width, height);
-
-			/* Tabbed pane */
 
 			nk_end(ctx);
 		}
