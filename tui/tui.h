@@ -11,7 +11,7 @@
  *        changes the active decoder
  * @param active_decoder index of the decoder currently active
  */
-void tui_init(int update_interval, void (*decoder_changer)(int index), int (*get_active_decoder)(void));
+void tui_init(int update_interval);
 
 /**
  * Deinitialize the text user interface

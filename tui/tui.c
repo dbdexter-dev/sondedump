@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "gps/ecef.h"
+#include "decode.h"
 #include "physics.h"
 #include "tui.h"
 #include "utils.h"
@@ -31,19 +32,15 @@ static pthread_t _tid;
 static struct {
 	WINDOW *win;
 	WINDOW *tabs;
-	PrintableData data;
-	int data_changed;
+	int last_slot;
 	int receiver_location_set;
 	float lat, lon, alt;
 	enum { ABSOLUTE=0, RELATIVE, POS_TYPE_COUNT } pos_type;
-
-	int (*get_active_decoder)(void);
-	void (*decoder_changer)(int index);
 } tui;
 
 
 void
-tui_init(int update_interval, void (*decoder_changer)(int index), int (*get_active_decoder)(void))
+tui_init(int update_interval)
 {
 	update_interval = (update_interval > 0 ? update_interval : DEFAULT_UPD_INTERVAL);
 
@@ -59,14 +56,10 @@ tui_init(int update_interval, void (*decoder_changer)(int index), int (*get_acti
 
 	tui.pos_type = ABSOLUTE;
 	tui.receiver_location_set = 0;
-	tui.data_changed = 1;
-	tui.get_active_decoder = get_active_decoder;
-	tui.decoder_changer = decoder_changer;
+	tui.last_slot = -1;
 
 	init_windows(update_interval);
 	keypad(tui.win, 1);
-
-	memset(&tui.data, 0, sizeof(tui.data));
 
 	_running = 1;
 	pthread_create(&_tid, NULL, main_loop, NULL);
@@ -91,22 +84,11 @@ tui_set_ground_location(float lat, float lon, float alt)
 }
 
 
-int
-tui_update(const PrintableData *data)
-{
-	tui.data = *data;
-	tui.data_changed = 1;
-
-	return 0;
-}
-
 /* Static functions {{{ */
 static void*
 main_loop(void *args)
 {
 	int ch;
-	void (*decoder_changer)(int index) = tui.decoder_changer;
-	int (*get_active_decoder)(void) = tui.get_active_decoder;
 
 	(void)args;
 
@@ -117,36 +99,34 @@ main_loop(void *args)
 				break;
 			case KEY_LEFT:
 			case '<':
-				memset(&tui.data, 0, sizeof(tui.data));
-				decoder_changer(get_active_decoder() - 1);
-				tui.data_changed = 1;
+				set_active_decoder(get_active_decoder() - 1);
+				tui.last_slot = -1;
 				break;
 			case KEY_RIGHT:
 			case '>':
-				memset(&tui.data, 0, sizeof(tui.data));
-				decoder_changer(get_active_decoder() + 1);
-				tui.data_changed = 1;
+				set_active_decoder(get_active_decoder() + 1);
+				tui.last_slot = -1;
 				break;
 			case '\t':
 				if (tui.receiver_location_set) {
 					tui.pos_type = (tui.pos_type + 1) % POS_TYPE_COUNT;
-					tui.data_changed = 1;
+					tui.last_slot = -1;
 				}
 				break;
 			case KEY_BTAB:
 				if (tui.receiver_location_set) {
 					tui.pos_type = (tui.pos_type - 1 + POS_TYPE_COUNT) % POS_TYPE_COUNT;
-					tui.data_changed = 1;
+					tui.last_slot = -1;
 				}
 				break;
 			default:
 				break;
 		}
 
-		if (tui.data_changed) {
+		if (tui.last_slot != get_slot()) {
+			tui.last_slot = get_slot();
 			redraw();
 			mvwprintw(tui.win, 1, 1, "*");
-			tui.data_changed = 0;
 		} else {
 			mvwprintw(tui.win, 1, 1, " ");
 		}
@@ -189,17 +169,18 @@ redraw(void)
 	int start_row, start_col;
 	char time[64], shutdown_timer[32];
 	float az, el, slant;
+	PrintableData *data = get_data();
 
 	/* Draw tabs at top of the TUI */
-	draw_tabs(tui.tabs, tui.get_active_decoder());
+	draw_tabs(tui.tabs, get_active_decoder());
 
 	/* Format data to be printable */
-	strftime(time, LEN(time), "%a %b %d %Y %H:%M:%S", gmtime(&tui.data.utc_time));
-	if (tui.data.shutdown_timer > 0) {
+	strftime(time, LEN(time), "%a %b %d %Y %H:%M:%S", gmtime(&data->utc_time));
+	if (data->shutdown_timer > 0) {
 		sprintf(shutdown_timer, "%d:%02d:%02d",
-				tui.data.shutdown_timer/3600,
-				tui.data.shutdown_timer/60%60,
-				tui.data.shutdown_timer%60
+				data->shutdown_timer/3600,
+				data->shutdown_timer/60%60,
+				data->shutdown_timer%60
 				);
 	} else {
 		shutdown_timer[0] = 0;
@@ -215,9 +196,9 @@ redraw(void)
 			0, 0, 0, 0);
 
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Serial no.:"),
-			"Serial no.: %s", tui.data.serial);
+			"Serial no.: %s", data->serial);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Frame no.:"),
-			"Frame no.: %d", tui.data.seq);
+			"Frame no.: %d", data->seq);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Onboard time:"),
 			"Onboard time: %s", time);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Shutdown in:"),
@@ -227,15 +208,15 @@ redraw(void)
 	switch (tui.pos_type) {
 		case ABSOLUTE:
 			mvwprintw(tui.win, start_row++, start_col - sizeof("Latitude:"),
-					"Latitude: %.5f%c", fabs(tui.data.lat), tui.data.lat >= 0 ? 'N' : 'S');
+					"Latitude: %.5f%c", fabs(data->lat), data->lat >= 0 ? 'N' : 'S');
 			mvwprintw(tui.win, start_row++, start_col - sizeof("Longitude:"),
-					"Longitude: %.5f%c", fabs(tui.data.lon), tui.data.lon >= 0 ? 'E' : 'W');
+					"Longitude: %.5f%c", fabs(data->lon), data->lon >= 0 ? 'E' : 'W');
 			mvwprintw(tui.win, start_row++, start_col - sizeof("Altitude:"),
-					"Altitude: %.0fm", tui.data.alt);
+					"Altitude: %.0fm", data->alt);
 			break;
 		case RELATIVE:
 			lla_to_aes(&az, &el, &slant,
-			           tui.data.lat, tui.data.lon, tui.data.alt,
+			           data->lat, data->lon, data->alt,
 			           tui.lat, tui.lon, tui.alt);
 
 			mvwprintw(tui.win, start_row++, start_col - sizeof("Azimuth:"),
@@ -251,27 +232,27 @@ redraw(void)
 	}
 
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Speed:"),
-			"Speed: %.1fm/s", tui.data.speed);
+			"Speed: %.1fm/s", data->speed);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Heading:"),
-			"Heading: %.0f'", tui.data.heading);
+			"Heading: %.0f'", data->heading);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Climb:"),
-			"Climb: %+.1fm/s", tui.data.climb);
+			"Climb: %+.1fm/s", data->climb);
 	start_row++;
 
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Calibration:"),
-			"Calibration: %.0f%%", floorf(tui.data.calib_percent));
+			"Calibration: %.0f%%", floorf(data->calib_percent));
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Temperature:"),
-			"Temperature: %.1f'C", tui.data.temp);
+			"Temperature: %.1f'C", data->temp);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Rel. humidity:"),
-			"Rel. humidity: %.0f%%", tui.data.rh);
+			"Rel. humidity: %.0f%%", data->rh);
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Dew point:"),
-			"Dew point: %.1f'C", dewpt(tui.data.temp, tui.data.rh));
+			"Dew point: %.1f'C", dewpt(data->temp, data->rh));
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Pressure:"),
-			"Pressure: %.1fhPa", tui.data.pressure);
+			"Pressure: %.1fhPa", data->pressure);
 
 	start_row++;
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Aux. data:"),
-			"Aux. data: %s", tui.data.xdata);
+			"Aux. data: %s", data->xdata);
 	start_row++;
 
 	wrefresh(tui.win);
