@@ -33,6 +33,15 @@ enum ui {
 	UI_TUI,
 };
 
+/* Sample input types */
+enum input {
+	INPUT_WAV,
+	INPUT_RAW,
+#ifdef ENABLE_AUDIO
+	INPUT_AUDIO
+#endif
+};
+
 static void usage(const char *progname);
 static void version(void);
 static int printf_data(const char *fmt, PrintableData *data);
@@ -67,6 +76,9 @@ static struct option longopts[] = {
 	{ "output",       1, NULL, 'o' },
 	{ "location",     1, NULL, 'r' },
 	{ "type",         1, NULL, 't' },
+#ifdef ENABLE_TUI
+	{ "tui",          0, NULL, 'T' },
+#endif
 	{ "version",      0, NULL, 'v' },
 	{ NULL,           0, NULL,  0  }
 };
@@ -94,12 +106,16 @@ main(int argc, char *argv[])
 	const char *gpx_fname = NULL;
 	const char *csv_fname = NULL;
 	const char *input_fname = NULL;
+	enum input input_type = INPUT_WAV;
 	enum ui ui = UI_TEXT;
 	int receiver_location_set = 0;
 	int active_decoder = 0;
 	float receiver_lat = 0, receiver_lon = 0, receiver_alt = 0;
 #ifdef ENABLE_TUI
 	ui = UI_TUI;
+#endif
+#ifdef ENABLE_AUDIO
+	input_type = INPUT_AUDIO;
 #endif
 #ifdef ENABLE_AUDIO
 	int input_from_audio = 0;
@@ -134,6 +150,11 @@ main(int argc, char *argv[])
 					return 1;
 				}
 				break;
+#ifdef ENABLE_TUI
+			case 'T':
+				ui = UI_TUI;
+				break;
+#endif
 			case 'r':
 				if (sscanf(optarg, "%f,%f,%f", &receiver_lat, &receiver_lon, &receiver_alt) < 3) {
 					fprintf(stderr, "Invalid receiver coordinates\n");
@@ -159,6 +180,7 @@ main(int argc, char *argv[])
 		}
 	}
 
+	/* Check if input is from file */
 	if (argc - optind < 1) {
 #ifdef ENABLE_AUDIO
 		samplerate = audio_init(audio_device);
@@ -175,26 +197,34 @@ main(int argc, char *argv[])
 	/* }}} */
 
 	/* Open input */
-#ifdef ENABLE_AUDIO
-	if (input_from_audio) {
-		read_wrapper = audio_read_wrapper;
-	} else {
-#endif
-	if (!(_wav = fopen(input_fname, "rb"))) {
-		fprintf(stderr, "Could not open input file\n");
-		return 1;
-	}
-	read_wrapper = wav_read_wrapper;
-	if (wav_parse(_wav, &samplerate, &_bps)) {
-		fprintf(stderr, "Could not recognize input file type\n");
-		fprintf(stderr, "Will assume raw, mono, 32 bit float, 48kHz\n");
-		samplerate = 48000;
+	switch (input_type) {
+		case INPUT_WAV:
+		case INPUT_RAW:
+			if (!(_wav = fopen(input_fname, "rb"))) {
+				fprintf(stderr, "[ERROR] Could not open input file\n");
+				return 1;
+			}
 
-		read_wrapper = &raw_read_wrapper;
-	}
+			if (wav_parse(_wav, &samplerate, &_bps)) {
+				fprintf(stderr, "Could not recognize input file type\n");
+				fprintf(stderr, "Will assume raw, mono, 32 bit float, 48kHz\n");
+				samplerate = 48000;
+
+				read_wrapper = &raw_read_wrapper;
+			} else {
+				read_wrapper = &wav_read_wrapper;
+			}
+			break;
 #ifdef ENABLE_AUDIO
-	}   /* if (input_from_audio) {} else { */
+		case INPUT_AUDIO:
+			read_wrapper = audio_read_wrapper;
+			break;
 #endif
+		default:
+			fprintf(stderr, "[ERROR] Unknown input type\n");
+			return 1;
+	}
+
 
 	/* Open CSV output */
 	if (csv_fname) {
