@@ -62,179 +62,179 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 	M20Frame_20 *data_frame_20 = (M20Frame_20*)&self->frame[0];
 
 	switch (self->state) {
-		case READ_PRE:
-			/* Copy residual bits from the previous frame */
-			if (self->offset) {
-				self->frame[0] = self->frame[2];
-				self->frame[1] = self->frame[3];
-			}
-			self->state = READ;
-			/* FALLTHROUGH */
-		case READ:
-			/* Read a new frame */
-			switch (framer_read(&self->f, raw_frame, &self->offset, M10_FRAME_LEN, src, len)) {
-				case PROCEED:
-					return PROCEED;
-				case PARSED:
-					break;
-			}
+	case READ_PRE:
+		/* Copy residual bits from the previous frame */
+		if (self->offset) {
+			self->frame[0] = self->frame[2];
+			self->frame[1] = self->frame[3];
+		}
+		self->state = READ;
+		/* FALLTHROUGH */
+	case READ:
+		/* Read a new frame */
+		switch (framer_read(&self->f, raw_frame, &self->offset, M10_FRAME_LEN, src, len)) {
+		case PROCEED:
+			return PROCEED;
+		case PARSED:
+			break;
+		}
 
-			/* Manchester decode, then massage bits into shape */
-			manchester_decode(raw_frame, raw_frame, M10_FRAME_LEN);
-			m10_frame_descramble(self->frame);
+		/* Manchester decode, then massage bits into shape */
+		manchester_decode(raw_frame, raw_frame, M10_FRAME_LEN);
+		m10_frame_descramble(self->frame);
 
 #ifndef NDEBUG
-			if (debug) {
-				if (self->frame[0].sync_mark[0] == 0x00
-				 && self->frame[0].sync_mark[1] == 0x00
-				 && self->frame[0].sync_mark[2] == 0x88) {
-					fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
-					fflush(debug);
-				}
+		if (debug) {
+			if (self->frame[0].sync_mark[0] == 0x00
+			 && self->frame[0].sync_mark[1] == 0x00
+			 && self->frame[0].sync_mark[2] == 0x88) {
+				fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
+				fflush(debug);
 			}
+		}
 #endif
-			switch (self->frame[0].type) {
-				case M10_FTYPE_DATA:
-					/* If corrupted, don't decode */
-					if (m10_frame_correct(self->frame) < 0) {
-						dst->type = EMPTY;
-						return PARSED;
-					}
-					/* M10 GPS + PTU data */
-					self->state = PARSE_M10_INFO;
-					break;
-				case M20_FTYPE_DATA:
-					/* If corrupted, don't decode */
-					if (m20_frame_correct(self->frame) < 0) {
-						dst->type = EMPTY;
-						return PARSED;
-					}
-					//m20_frame_correct(self->frame);
-					/* M20 GPS + PTU data */
-					self->state = PARSE_M20_INFO;
-					break;
-				default:
-					/* Unknown frame type */
-					self->state = READ_PRE;
-					dst->type = EMPTY;
-					return PARSED;
+		switch (self->frame[0].type) {
+		case M10_FTYPE_DATA:
+			/* If corrupted, don't decode */
+			if (m10_frame_correct(self->frame) < 0) {
+				dst->type = EMPTY;
+				return PARSED;
 			}
-
+			/* M10 GPS + PTU data */
+			self->state = PARSE_M10_INFO;
 			break;
-
-		/* M10 frame decoding {{{ */
-		case PARSE_M10_INFO:
-			dst->type = INFO;
-			m10_frame_9f_serial(self->serial, data_frame_9f);
-			dst->data.info.sonde_serial = self->serial;
-			dst->data.info.seq = 0;
-
-			self->state = PARSE_M10_GPS_TIME;
-			break;
-
-		case PARSE_M10_GPS_TIME:
-			time = m10_frame_9f_time(data_frame_9f);
-
-			dst->type = DATETIME;
-			dst->data.datetime.datetime = time;
-
-			self->state = PARSE_M10_GPS_POS;
-			break;
-
-		case PARSE_M10_GPS_POS:
-			lat = m10_frame_9f_lat(data_frame_9f);
-			lon = m10_frame_9f_lon(data_frame_9f);
-			alt = m10_frame_9f_alt(data_frame_9f);
-
-			dx = m10_frame_9f_dlat(data_frame_9f);
-			dy = m10_frame_9f_dlon(data_frame_9f);
-			dz = m10_frame_9f_dalt(data_frame_9f);
-
-			climb = dz;
-			speed = sqrtf(dx*dx + dy*dy);
-			heading = atan2f(dy, dx) * 180.0 / M_PI;
-			if (heading < 0) heading += 360;
-
-			dst->type = POSITION;
-			dst->data.pos.lat = lat;
-			dst->data.pos.lon = lon;
-			dst->data.pos.alt = alt;
-			dst->data.pos.speed = speed;
-			dst->data.pos.heading = heading;
-			dst->data.pos.climb = climb;
-
-			self->state = PARSE_M10_PTU;
-
-			break;
-
-		case PARSE_M10_PTU:
-			/* TODO */
-			self->state = PARSE_M10_END;
-			break;
-		case PARSE_M10_END:
-			dst->type = FRAME_END;
-			self->state  = READ_PRE;
-			break;
-		/* }}} */
-		/* M10 frame decoding {{{ */
-		case PARSE_M20_INFO:
-			//fprintf(stdout, "len %02X\n",self->frame[0].len) ;
-			dst->type = INFO;
-			m20_frame_20_serial(self->serial, data_frame_20);
-			dst->data.info.sonde_serial = self->serial;
-			dst->data.info.seq = 0;
-
-			self->state = PARSE_M20_GPS_TIME;
-			break;
-
-		case PARSE_M20_GPS_TIME:
-			time = m20_frame_20_time(data_frame_20);
-
-			dst->type = DATETIME;
-			dst->data.datetime.datetime = time;
-
-			self->state = PARSE_M20_GPS_POS;
-			break;
-
-		case PARSE_M20_GPS_POS:
-			lat = m20_frame_20_lat(data_frame_20);
-			lon = m20_frame_20_lon(data_frame_20);
-			alt = m20_frame_20_alt(data_frame_20);
-
-			dx = m20_frame_20_dlat(data_frame_20);
-			dy = m20_frame_20_dlon(data_frame_20);
-			dz = m20_frame_20_dalt(data_frame_20);
-
-			climb = dz;
-			speed = sqrtf(dx*dx + dy*dy);
-			heading = atan2f(dy, dx) * 180.0 / M_PI;
-			if (heading < 0) heading += 360;
-
-			dst->type = POSITION;
-			dst->data.pos.lat = lat;
-			dst->data.pos.lon = lon;
-			dst->data.pos.alt = alt;
-			dst->data.pos.speed = speed;
-			dst->data.pos.heading = heading;
-			dst->data.pos.climb = climb;
-
-			self->state = PARSE_M20_PTU;
-
-			break;
-
-		case PARSE_M20_PTU:
-			/* TODO */
-			self->state = PARSE_M20_END;
-			break;
-
-		case PARSE_M20_END:
-			dst->type = FRAME_END;
-			self->state  = READ_PRE;
+		case M20_FTYPE_DATA:
+			/* If corrupted, don't decode */
+			if (m20_frame_correct(self->frame) < 0) {
+				dst->type = EMPTY;
+				return PARSED;
+			}
+			//m20_frame_correct(self->frame);
+			/* M20 GPS + PTU data */
+			self->state = PARSE_M20_INFO;
 			break;
 		default:
-			dst->type = EMPTY;
+			/* Unknown frame type */
 			self->state = READ_PRE;
-			break;
+			dst->type = EMPTY;
+			return PARSED;
+		}
+
+		break;
+
+	/* M10 frame decoding {{{ */
+	case PARSE_M10_INFO:
+		dst->type = INFO;
+		m10_frame_9f_serial(self->serial, data_frame_9f);
+		dst->data.info.sonde_serial = self->serial;
+		dst->data.info.seq = 0;
+
+		self->state = PARSE_M10_GPS_TIME;
+		break;
+
+	case PARSE_M10_GPS_TIME:
+		time = m10_frame_9f_time(data_frame_9f);
+
+		dst->type = DATETIME;
+		dst->data.datetime.datetime = time;
+
+		self->state = PARSE_M10_GPS_POS;
+		break;
+
+	case PARSE_M10_GPS_POS:
+		lat = m10_frame_9f_lat(data_frame_9f);
+		lon = m10_frame_9f_lon(data_frame_9f);
+		alt = m10_frame_9f_alt(data_frame_9f);
+
+		dx = m10_frame_9f_dlat(data_frame_9f);
+		dy = m10_frame_9f_dlon(data_frame_9f);
+		dz = m10_frame_9f_dalt(data_frame_9f);
+
+		climb = dz;
+		speed = sqrtf(dx*dx + dy*dy);
+		heading = atan2f(dy, dx) * 180.0 / M_PI;
+		if (heading < 0) heading += 360;
+
+		dst->type = POSITION;
+		dst->data.pos.lat = lat;
+		dst->data.pos.lon = lon;
+		dst->data.pos.alt = alt;
+		dst->data.pos.speed = speed;
+		dst->data.pos.heading = heading;
+		dst->data.pos.climb = climb;
+
+		self->state = PARSE_M10_PTU;
+
+		break;
+
+	case PARSE_M10_PTU:
+		/* TODO */
+		self->state = PARSE_M10_END;
+		break;
+	case PARSE_M10_END:
+		dst->type = FRAME_END;
+		self->state  = READ_PRE;
+		break;
+	/* }}} */
+	/* M10 frame decoding {{{ */
+	case PARSE_M20_INFO:
+		//fprintf(stdout, "len %02X\n",self->frame[0].len) ;
+		dst->type = INFO;
+		m20_frame_20_serial(self->serial, data_frame_20);
+		dst->data.info.sonde_serial = self->serial;
+		dst->data.info.seq = 0;
+
+		self->state = PARSE_M20_GPS_TIME;
+		break;
+
+	case PARSE_M20_GPS_TIME:
+		time = m20_frame_20_time(data_frame_20);
+
+		dst->type = DATETIME;
+		dst->data.datetime.datetime = time;
+
+		self->state = PARSE_M20_GPS_POS;
+		break;
+
+	case PARSE_M20_GPS_POS:
+		lat = m20_frame_20_lat(data_frame_20);
+		lon = m20_frame_20_lon(data_frame_20);
+		alt = m20_frame_20_alt(data_frame_20);
+
+		dx = m20_frame_20_dlat(data_frame_20);
+		dy = m20_frame_20_dlon(data_frame_20);
+		dz = m20_frame_20_dalt(data_frame_20);
+
+		climb = dz;
+		speed = sqrtf(dx*dx + dy*dy);
+		heading = atan2f(dy, dx) * 180.0 / M_PI;
+		if (heading < 0) heading += 360;
+
+		dst->type = POSITION;
+		dst->data.pos.lat = lat;
+		dst->data.pos.lon = lon;
+		dst->data.pos.alt = alt;
+		dst->data.pos.speed = speed;
+		dst->data.pos.heading = heading;
+		dst->data.pos.climb = climb;
+
+		self->state = PARSE_M20_PTU;
+
+		break;
+
+	case PARSE_M20_PTU:
+		/* TODO */
+		self->state = PARSE_M20_END;
+		break;
+
+	case PARSE_M20_END:
+		dst->type = FRAME_END;
+		self->state  = READ_PRE;
+		break;
+	default:
+		dst->type = EMPTY;
+		self->state = READ_PRE;
+		break;
 	}
 
 	return PARSED;

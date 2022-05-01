@@ -94,33 +94,33 @@ main_loop(void *args)
 
 	while (_running) {
 		switch (ch = wgetch(tui.win)) {
-			case KEY_RESIZE:
-				handle_resize();
-				break;
-			case KEY_LEFT:
-			case '<':
-				set_active_decoder(get_active_decoder() - 1);
+		case KEY_RESIZE:
+			handle_resize();
+			break;
+		case KEY_LEFT:
+		case '<':
+			set_active_decoder(get_active_decoder() - 1);
+			tui.last_slot = -1;
+			break;
+		case KEY_RIGHT:
+		case '>':
+			set_active_decoder(get_active_decoder() + 1);
+			tui.last_slot = -1;
+			break;
+		case '\t':
+			if (tui.receiver_location_set) {
+				tui.pos_type = (tui.pos_type + 1) % POS_TYPE_COUNT;
 				tui.last_slot = -1;
-				break;
-			case KEY_RIGHT:
-			case '>':
-				set_active_decoder(get_active_decoder() + 1);
+			}
+			break;
+		case KEY_BTAB:
+			if (tui.receiver_location_set) {
+				tui.pos_type = (tui.pos_type - 1 + POS_TYPE_COUNT) % POS_TYPE_COUNT;
 				tui.last_slot = -1;
-				break;
-			case '\t':
-				if (tui.receiver_location_set) {
-					tui.pos_type = (tui.pos_type + 1) % POS_TYPE_COUNT;
-					tui.last_slot = -1;
-				}
-				break;
-			case KEY_BTAB:
-				if (tui.receiver_location_set) {
-					tui.pos_type = (tui.pos_type - 1 + POS_TYPE_COUNT) % POS_TYPE_COUNT;
-					tui.last_slot = -1;
-				}
-				break;
-			default:
-				break;
+			}
+			break;
+		default:
+			break;
 		}
 
 		if (tui.last_slot != get_slot()) {
@@ -206,29 +206,29 @@ redraw(void)
 	start_row++;
 
 	switch (tui.pos_type) {
-		case ABSOLUTE:
-			mvwprintw(tui.win, start_row++, start_col - sizeof("Latitude:"),
-					"Latitude: %.5f%c", fabs(data->lat), data->lat >= 0 ? 'N' : 'S');
-			mvwprintw(tui.win, start_row++, start_col - sizeof("Longitude:"),
-					"Longitude: %.5f%c", fabs(data->lon), data->lon >= 0 ? 'E' : 'W');
-			mvwprintw(tui.win, start_row++, start_col - sizeof("Altitude:"),
-					"Altitude: %.0fm", data->alt);
-			break;
-		case RELATIVE:
-			lla_to_aes(&az, &el, &slant,
-			           data->lat, data->lon, data->alt,
-			           tui.lat, tui.lon, tui.alt);
+	case ABSOLUTE:
+		mvwprintw(tui.win, start_row++, start_col - sizeof("Latitude:"),
+				"Latitude: %.5f%c", fabs(data->lat), data->lat >= 0 ? 'N' : 'S');
+		mvwprintw(tui.win, start_row++, start_col - sizeof("Longitude:"),
+				"Longitude: %.5f%c", fabs(data->lon), data->lon >= 0 ? 'E' : 'W');
+		mvwprintw(tui.win, start_row++, start_col - sizeof("Altitude:"),
+				"Altitude: %.0fm", data->alt);
+		break;
+	case RELATIVE:
+		lla_to_aes(&az, &el, &slant,
+				   data->lat, data->lon, data->alt,
+				   tui.lat, tui.lon, tui.alt);
 
-			mvwprintw(tui.win, start_row++, start_col - sizeof("Azimuth:"),
-					"Azimuth: %.1f'", az);
-			mvwprintw(tui.win, start_row++, start_col - sizeof("Elevation:"),
-					"Elevation: %.2f'", el);
-			mvwprintw(tui.win, start_row++, start_col - sizeof("Slant range:"),
-					"Slant range: %.2fkm", slant / 1000.0);
-			break;
-		default:
-			tui.pos_type = ABSOLUTE;
-			break;
+		mvwprintw(tui.win, start_row++, start_col - sizeof("Azimuth:"),
+				"Azimuth: %.1f'", az);
+		mvwprintw(tui.win, start_row++, start_col - sizeof("Elevation:"),
+				"Elevation: %.2f'", el);
+		mvwprintw(tui.win, start_row++, start_col - sizeof("Slant range:"),
+				"Slant range: %.2fkm", slant / 1000.0);
+		break;
+	default:
+		tui.pos_type = ABSOLUTE;
+		break;
 	}
 
 	mvwprintw(tui.win, start_row++, start_col - sizeof("Speed:"),

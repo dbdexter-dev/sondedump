@@ -126,57 +126,56 @@ main(int argc, char *argv[])
 	while ((c = getopt_long(argc, argv, SHORTOPTS, longopts, NULL)) != -1) {
 		switch (c) {
 #ifdef ENABLE_AUDIO
-			case 'a':
-				audio_device = atoi(optarg);
-				break;
+		case 'a':
+			audio_device = atoi(optarg);
+			break;
 #endif
-			case 'c':
-				csv_fname = optarg;
-				break;
-			case 'g':
-				gpx_fname = optarg;
-				break;
-			case 'k':
-				kml_fname = optarg;
-				break;
-			case 'l':
-				live_kml_fname = optarg;
-				break;
-			case 't':
-				active_decoder = ascii_to_decoder(optarg);
-				if (active_decoder < 0) {
-					fprintf(stderr, "Unsupported type: %s\n", optarg);
-					usage(argv[0]);
-					return 1;
-				}
-				break;
-#ifdef ENABLE_TUI
-			case 'T':
-				ui = UI_TUI;
-				break;
-#endif
-			case 'r':
-				if (sscanf(optarg, "%f,%f,%f", &receiver_lat, &receiver_lon, &receiver_alt) < 3) {
-					fprintf(stderr, "Invalid receiver coordinates\n");
-					usage(argv[0]);
-					return 1;
-				}
-				receiver_location_set = 1;
-				break;
-			case 'f':
-				output_fmt = optarg;
-				ui = UI_TEXT;
-				break;
-			case 'h':
-				usage(argv[0]);
-				return 0;
-			case 'v':
-				version();
-				return 0;
-			default:
+		case 'c':
+			csv_fname = optarg;
+			break;
+		case 'g':
+			gpx_fname = optarg;
+			break;
+		case 'k':
+			kml_fname = optarg;
+			break;
+		case 'l':
+			live_kml_fname = optarg;
+			break;
+		case 't':
+			active_decoder = ascii_to_decoder(optarg);
+			if (active_decoder < 0) {
+				fprintf(stderr, "Unsupported type: %s\n", optarg);
 				usage(argv[0]);
 				return 1;
-
+			}
+			break;
+#ifdef ENABLE_TUI
+		case 'T':
+			ui = UI_TUI;
+			break;
+#endif
+		case 'r':
+			if (sscanf(optarg, "%f,%f,%f", &receiver_lat, &receiver_lon, &receiver_alt) < 3) {
+				fprintf(stderr, "Invalid receiver coordinates\n");
+				usage(argv[0]);
+				return 1;
+			}
+			receiver_location_set = 1;
+			break;
+		case 'f':
+			output_fmt = optarg;
+			ui = UI_TEXT;
+			break;
+		case 'h':
+			usage(argv[0]);
+			return 0;
+		case 'v':
+			version();
+			return 0;
+		default:
+			usage(argv[0]);
+			return 1;
 		}
 	}
 
@@ -198,31 +197,31 @@ main(int argc, char *argv[])
 
 	/* Open input */
 	switch (input_type) {
-		case INPUT_WAV:
-		case INPUT_RAW:
-			if (!(_wav = fopen(input_fname, "rb"))) {
-				fprintf(stderr, "[ERROR] Could not open input file\n");
-				return 1;
-			}
-
-			if (wav_parse(_wav, &samplerate, &_bps)) {
-				fprintf(stderr, "Could not recognize input file type\n");
-				fprintf(stderr, "Will assume raw, mono, 32 bit float, 48kHz\n");
-				samplerate = 48000;
-
-				read_wrapper = &raw_read_wrapper;
-			} else {
-				read_wrapper = &wav_read_wrapper;
-			}
-			break;
-#ifdef ENABLE_AUDIO
-		case INPUT_AUDIO:
-			read_wrapper = audio_read_wrapper;
-			break;
-#endif
-		default:
-			fprintf(stderr, "[ERROR] Unknown input type\n");
+	case INPUT_WAV:
+	case INPUT_RAW:
+		if (!(_wav = fopen(input_fname, "rb"))) {
+			fprintf(stderr, "[ERROR] Could not open input file\n");
 			return 1;
+		}
+
+		if (wav_parse(_wav, &samplerate, &_bps)) {
+			fprintf(stderr, "Could not recognize input file type\n");
+			fprintf(stderr, "Will assume raw, mono, 32 bit float, 48kHz\n");
+			samplerate = 48000;
+
+			read_wrapper = &raw_read_wrapper;
+		} else {
+			read_wrapper = &wav_read_wrapper;
+		}
+		break;
+#ifdef ENABLE_AUDIO
+	case INPUT_AUDIO:
+		read_wrapper = audio_read_wrapper;
+		break;
+#endif
+	default:
+		fprintf(stderr, "[ERROR] Unknown input type\n");
+		return 1;
 	}
 
 
@@ -441,60 +440,60 @@ printf_data(const char *fmt, PrintableData *data)
 		} else if (escape_seq) {
 			escape_seq = 0;
 			switch (fmt[i]) {
-				case 'a':
-					printf("%6.0f", data->alt);
-					break;
-				case 'b':
-					if (data->shutdown_timer > 0) {
-						printf("%d:%02d:%02d",
-								data->shutdown_timer/3600,
-								data->shutdown_timer/60%60,
-								data->shutdown_timer%60
-								);
-					} else {
-						printf("(disabled)");
-					}
-					break;
-				case 'c':
-					printf("%+5.1f", data->climb);
-					break;
-				case 'd':
-					printf("%6.1f", dewpt(data->temp, data->rh));
-					break;
-				case 'f':
-					printf("%5d", data->seq);
-					break;
-				case 'h':
-					printf("%3.0f", data->heading);
-					break;
-				case 'l':
-					printf("%8.5f%c", fabs(data->lat), (data->lat >= 0 ? 'N' : 'S'));
-					break;
-				case 'o':
-					printf("%8.5f%c", fabs(data->lon), (data->lon >= 0 ? 'E' : 'W'));
-					break;
-				case 'p':
-					printf("%4.1f", isnormal(data->pressure) ? data->pressure : altitude_to_pressure(data->alt) );
-					break;
-				case 'r':
-					printf("%3.0f", data->rh);
-					break;
-				case 's':
-					printf("%4.1f", data->speed);
-					break;
-				case 'S':
-					printf("%s", data->serial);
-					break;
-				case 't':
-					printf("%5.1f", data->temp);
-					break;
-				case 'T':
-					strftime(time, LEN(time), "%a %b %d %Y %H:%M:%S", gmtime(&data->utc_time));
-					printf("%s", time);
-					break;
-				default:
-					putchar(fmt[i]);
-					break;
+			case 'a':
+				printf("%6.0f", data->alt);
+				break;
+			case 'b':
+				if (data->shutdown_timer > 0) {
+					printf("%d:%02d:%02d",
+							data->shutdown_timer/3600,
+							data->shutdown_timer/60%60,
+							data->shutdown_timer%60
+							);
+				} else {
+					printf("(disabled)");
+				}
+				break;
+			case 'c':
+				printf("%+5.1f", data->climb);
+				break;
+			case 'd':
+				printf("%6.1f", dewpt(data->temp, data->rh));
+				break;
+			case 'f':
+				printf("%5d", data->seq);
+				break;
+			case 'h':
+				printf("%3.0f", data->heading);
+				break;
+			case 'l':
+				printf("%8.5f%c", fabs(data->lat), (data->lat >= 0 ? 'N' : 'S'));
+				break;
+			case 'o':
+				printf("%8.5f%c", fabs(data->lon), (data->lon >= 0 ? 'E' : 'W'));
+				break;
+			case 'p':
+				printf("%4.1f", isnormal(data->pressure) ? data->pressure : altitude_to_pressure(data->alt) );
+				break;
+			case 'r':
+				printf("%3.0f", data->rh);
+				break;
+			case 's':
+				printf("%4.1f", data->speed);
+				break;
+			case 'S':
+				printf("%s", data->serial);
+				break;
+			case 't':
+				printf("%5.1f", data->temp);
+				break;
+			case 'T':
+				strftime(time, LEN(time), "%a %b %d %Y %H:%M:%S", gmtime(&data->utc_time));
+				printf("%s", time);
+				break;
+			default:
+				putchar(fmt[i]);
+				break;
 			}
 		} else {
 			putchar(fmt[i]);

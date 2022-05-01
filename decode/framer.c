@@ -39,42 +39,42 @@ framer_read(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const 
 	int i;
 
 	switch (f->state) {
-		case READ:
-			switch (framer_demod_internal(f, dst, bit_offset, framelen, src, len)) {
-				case PROCEED:
-					return PROCEED;
-				case PARSED:
-					break;
+	case READ:
+		switch (framer_demod_internal(f, dst, bit_offset, framelen, src, len)) {
+		case PROCEED:
+			return PROCEED;
+		case PARSED:
+			break;
+		}
+
+		/* Find offset of the sync marker */
+		f->sync_offset = correlate(&f->corr, &f->inverted, dst, framelen/8);
+		f->offset = framelen;
+		*bit_offset = f->sync_offset;
+
+		f->state = REALIGN;
+		/* FALLTHROUGH */
+	case REALIGN:
+		/* Read more bits to get a full frame worth */
+		switch (framer_demod_internal(f, dst, &f->offset, framelen + f->sync_offset, src, len)) {
+		case PROCEED:
+			return PROCEED;
+		case PARSED:
+			break;
+		}
+
+		/* Realign frame to the beginning of the buffer */
+		if (f->sync_offset) bitcpy(dst, dst, f->sync_offset, framelen);
+
+		/* Undo inversion */
+		if (f->inverted) {
+			for (i=0; i < ((int)framelen - 7)/8 + 1; i++) {
+				dst[i] ^= 0xFF;
 			}
+		}
 
-			/* Find offset of the sync marker */
-			f->sync_offset = correlate(&f->corr, &f->inverted, dst, framelen/8);
-			f->offset = framelen;
-			*bit_offset = f->sync_offset;
-
-			f->state = REALIGN;
-			/* FALLTHROUGH */
-		case REALIGN:
-			/* Read more bits to get a full frame worth */
-			switch (framer_demod_internal(f, dst, &f->offset, framelen + f->sync_offset, src, len)) {
-				case PROCEED:
-					return PROCEED;
-				case PARSED:
-					break;
-			}
-
-			/* Realign frame to the beginning of the buffer */
-			if (f->sync_offset) bitcpy(dst, dst, f->sync_offset, framelen);
-
-			/* Undo inversion */
-			if (f->inverted) {
-				for (i=0; i < ((int)framelen - 7)/8 + 1; i++) {
-					dst[i] ^= 0xFF;
-				}
-			}
-
-			f->state = READ;
-			return PARSED;
+		f->state = READ;
+		return PARSED;
 	}
 
 	return PROCEED;
@@ -84,11 +84,11 @@ static ParserStatus
 framer_demod_internal(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len)
 {
 	switch (f->type) {
-		case GFSK:
-			return gfsk_demod(&f->demod.gfsk, dst, bit_offset, framelen, src, len);
-		case AFSK:
-			return afsk_demod(&f->demod.afsk, dst, bit_offset, framelen, src, len);
-		default:
-			return PROCEED;
+	case GFSK:
+		return gfsk_demod(&f->demod.gfsk, dst, bit_offset, framelen, src, len);
+	case AFSK:
+		return afsk_demod(&f->demod.afsk, dst, bit_offset, framelen, src, len);
+	default:
+		return PROCEED;
 	}
 }

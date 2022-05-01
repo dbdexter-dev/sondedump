@@ -66,44 +66,44 @@ wav_read(float *dst, int bps, size_t count, FILE *fd)
 
 		/* Convert samples */
 		switch (bps) {
-			case 8:
-				if (_num_channels == 1) {
-					for (i=0; i<copy_count; i++) {
-						*dst++ = _buffer.bytes[_offset++] - 127;
-					}
-				} else {
-					for (i=0; i<copy_count; i++) {
-						*dst++ = _buffer.bytes[_offset] - 127;
-						_offset += _num_channels;
-					}
+		case 8:
+			if (_num_channels == 1) {
+				for (i=0; i<copy_count; i++) {
+					*dst++ = _buffer.bytes[_offset++] - 127;
 				}
-				break;
-			case 16:
-				if (_num_channels == 1) {
-					for (i=0; i<copy_count; i++) {
-						*dst++ = _buffer.words[_offset++];
-					}
-				} else {
-					for (i=0; i<copy_count; i++) {
-						*dst++ = _buffer.words[_offset];
-						_offset += _num_channels;
-					}
+			} else {
+				for (i=0; i<copy_count; i++) {
+					*dst++ = _buffer.bytes[_offset] - 127;
+					_offset += _num_channels;
 				}
-				break;
-			case 32:
-				if (_num_channels == 1) {
-					for (i=0; i<copy_count; i++) {
-						*dst++ = _buffer.floats[_offset++];
-					}
-				} else {
-					for (i=0; i<copy_count; i++) {
-						*dst++ = _buffer.floats[_offset];
-						_offset += _num_channels;
-					}
+			}
+			break;
+		case 16:
+			if (_num_channels == 1) {
+				for (i=0; i<copy_count; i++) {
+					*dst++ = _buffer.words[_offset++];
 				}
-				break;
-			default:
-				return 0;
+			} else {
+				for (i=0; i<copy_count; i++) {
+					*dst++ = _buffer.words[_offset];
+					_offset += _num_channels;
+				}
+			}
+			break;
+		case 32:
+			if (_num_channels == 1) {
+				for (i=0; i<copy_count; i++) {
+					*dst++ = _buffer.floats[_offset++];
+				}
+			} else {
+				for (i=0; i<copy_count; i++) {
+					*dst++ = _buffer.floats[_offset];
+					_offset += _num_channels;
+				}
+			}
+			break;
+		default:
+			return 0;
 		}
 
 		count -= copy_count;

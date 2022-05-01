@@ -82,38 +82,38 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const f
 		/* Recover symbol value */
 		for (phase = 0; phase < g->lpf.num_phases; phase++)  {
 			switch (advance_timeslot(&g->timing)) {
-				case 1:
-					/* Half-way slot */
-					g->interm = filter_get(&g->lpf, phase);
+			case 1:
+				/* Half-way slot */
+				g->interm = filter_get(&g->lpf, phase);
 #ifdef OUTPUT_GFSK
-					fprintf(debug, "%f,0.000\n", g->interm);
+				fprintf(debug, "%f,0.000\n", g->interm);
 #endif
-					break;
-				case 2:
-					/* Correct slot: update time estimate */
-					symbol = filter_get(&g->lpf, phase);
-					retime(&g->timing, g->interm, symbol);
+				break;
+			case 2:
+				/* Correct slot: update time estimate */
+				symbol = filter_get(&g->lpf, phase);
+				retime(&g->timing, g->interm, symbol);
 
 #ifdef OUTPUT_GFSK
-					fprintf(debug, "%f,%f\n", symbol, symbol);
+				fprintf(debug, "%f,%f\n", symbol, symbol);
 #endif
 
-					/* Slice sample to get bit value */
-					tmp = (tmp << 1) | (symbol > 0 ? 1 : 0);
-					(*bit_offset)++;
-					count--;
+				/* Slice sample to get bit value */
+				tmp = (tmp << 1) | (symbol > 0 ? 1 : 0);
+				(*bit_offset)++;
+				count--;
 
-					/* If a byte boundary is crossed, write to dst */
-					if (!(*bit_offset % 8)) {
-						*dst++ = tmp;
-						tmp = 0;
-					}
-					break;
-				default:
+				/* If a byte boundary is crossed, write to dst */
+				if (!(*bit_offset % 8)) {
+					*dst++ = tmp;
+					tmp = 0;
+				}
+				break;
+			default:
 #ifdef OUTPUT_GFSK
-					fprintf(debug, "%f,0.000\n", filter_get(&g->lpf, phase));
+				fprintf(debug, "%f,0.000\n", filter_get(&g->lpf, phase));
 #endif
-					break;
+				break;
 
 			}
 		}
