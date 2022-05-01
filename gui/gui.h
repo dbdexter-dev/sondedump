@@ -15,6 +15,7 @@ enum graph {
 
 void gui_init(void);
 void gui_deinit(void);
+void gui_force_update(void);
 
 enum graph gui_get_graph(void);
 void       gui_set_graph(enum graph visual);

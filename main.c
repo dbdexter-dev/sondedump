@@ -259,6 +259,11 @@ main(int argc, char *argv[])
 
 		/* Send them to decoder */
 		while (decode(srcbuf, LEN(srcbuf)) != PROCEED) {
+#ifdef ENABLE_GUI
+			if (ui == UI_GUI) {
+				gui_force_update();
+			}
+#endif
 			/* If no new data, immediately go to next iteration */
 			if (slot == get_slot()) {
 				continue;

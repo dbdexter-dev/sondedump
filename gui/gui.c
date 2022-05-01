@@ -62,6 +62,7 @@ gui_main(void *args)
 	int width, height;
 	int last_slot = get_slot();
 	char title[64];
+	int pollcount;
 
 	/* Initialize SDL2 */
 	SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
@@ -88,19 +89,34 @@ gui_main(void *args)
 	gui_load_fonts(ctx);
 	gui_set_style_default(ctx);
 
+	/* Force refresh */
+	pollcount = 1;
+
 	while (!_interrupted) {
 		/* Handle inputs */
 		nk_input_begin(ctx);
-		while (SDL_PollEvent(&evt)) {
+
+		/* When requested, bypass waitevent and go straight to event processing */
+		if (pollcount) {
+			pollcount--;
+			evt.type = SDL_USEREVENT;
+		} else {
+			SDL_WaitEvent(&evt);
+		}
+
+		do {
 			switch (evt.type) {
 				case SDL_QUIT:
 					goto cleanup;
 					break;
+				case SDL_USEREVENT:
+					break;
 				default:
+					pollcount = 1;
 					break;
 			}
 			nk_sdl_handle_event(&evt);
-		}
+		} while (SDL_PollEvent(&evt));
 		nk_input_end(ctx);
 
 		if (last_slot != get_slot()) {
@@ -136,4 +152,11 @@ cleanup:
 	SDL_DestroyWindow(win);
 	SDL_Quit();
 	return NULL;
+}
+
+void
+gui_force_update(void)
+{
+	SDL_Event empty = {.type = SDL_USEREVENT};
+	SDL_PushEvent(&empty);
 }
