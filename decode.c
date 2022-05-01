@@ -9,6 +9,8 @@
 #include "physics.h"
 #include "utils.h"
 
+#define CHUNKSIZE 1024
+
 static void fill_printable_data(PrintableData *to_print, SondeData *data);
 
 static ParserStatus (*active_decoder_decode)(void*, SondeData*, const float*, size_t);
@@ -26,6 +28,10 @@ static PrintableData printable[2];
 static int printable_active_slot;
 static int has_data, new_data;
 
+static float *temp, *rh, *hdg, *speed, *alt;
+static int reserved_count;
+static int sample_count;
+
 void
 decoder_init(int samplerate)
 {
@@ -40,6 +46,16 @@ decoder_init(int samplerate)
 	active_decoder_decode = NULL;
 	active_decoder_ctx = NULL;
 	active_decoder = AUTO;
+
+	/* Initialize historical data pointers */
+	temp = malloc(CHUNKSIZE * sizeof(*temp));
+	rh = malloc(CHUNKSIZE * sizeof(*rh));
+	hdg = malloc(CHUNKSIZE * sizeof(*hdg));
+	speed = malloc(CHUNKSIZE * sizeof(*speed));
+	alt = malloc(CHUNKSIZE * sizeof(*alt));
+	reserved_count = CHUNKSIZE;
+	sample_count = 0;
+
 
 	/* Initialize data double-buffer */
 	memset(printable, 0, sizeof(printable));
@@ -59,6 +75,14 @@ decoder_deinit(void)
 	m10_decoder_deinit(m10decoder);
 	dfm09_decoder_deinit(dfm09decoder);
 	imet4_decoder_deinit(imet4decoder);
+
+	/* Clear history buffers */
+	sample_count = 0;
+	free(temp);
+	free(rh);
+	free(hdg);
+	free(speed);
+	free(alt);
 }
 
 
@@ -66,6 +90,7 @@ ParserStatus
 decode(const float *srcbuf, size_t len)
 {
 	SondeData data;
+	PrintableData *l_printable = &printable[printable_active_slot];
 
 	data.type = EMPTY;
 
@@ -142,11 +167,29 @@ decode(const float *srcbuf, size_t len)
 						new_data = has_data;
 						if (has_data) {
 							/* Fudge the altitude if it's invalid */
-							if (!isnormal(printable[printable_active_slot].pressure)
-							 || printable[printable_active_slot].pressure < 0) {
-								printable[printable_active_slot].pressure
-									= altitude_to_pressure(printable[printable_active_slot].alt);
+							if (!isnormal(l_printable->pressure) || l_printable->pressure < 0) {
+								l_printable->pressure
+									= altitude_to_pressure(l_printable->alt);
 							}
+
+							if (l_printable->calibrated) {
+								temp[sample_count] = l_printable->temp;
+								rh[sample_count] = l_printable->rh;
+								hdg[sample_count] = l_printable->heading;
+								speed[sample_count] = l_printable->speed;
+								alt[sample_count] = l_printable->alt;
+								sample_count++;
+
+								if (sample_count > reserved_count) {
+									reserved_count += CHUNKSIZE;
+									temp = realloc(temp, reserved_count * sizeof(*temp));
+									rh = realloc(rh, reserved_count * sizeof(*rh));
+									hdg = realloc(hdg, reserved_count * sizeof(*hdg));
+									speed = realloc(speed, reserved_count * sizeof(*speed));
+									alt = realloc(alt, reserved_count * sizeof(*alt));
+								}
+							}
+
 
 							/* Swap buffers */
 							printable[(printable_active_slot + 1) % LEN(printable)] = printable[printable_active_slot];
@@ -193,6 +236,42 @@ int
 get_slot(void)
 {
 	return printable_active_slot;
+}
+
+int
+get_data_count(void)
+{
+	return sample_count;
+}
+
+float*
+get_temp_data(void)
+{
+	return temp;
+}
+
+float*
+get_rh_data(void)
+{
+	return rh;
+}
+
+float*
+get_hdg_data(void)
+{
+	return hdg;
+}
+
+float*
+get_speed_data(void)
+{
+	return speed;
+}
+
+float*
+get_alt_data(void)
+{
+	return alt;
 }
 
 static void

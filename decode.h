@@ -17,4 +17,12 @@ void         set_active_decoder(enum decoder decoder);
 PrintableData *get_data(void);
 int            get_slot(void);
 
+int    get_data_count(void);
+float *get_temp_data(void);
+float *get_rh_data(void);
+float *get_hdg_data(void);
+float *get_speed_data(void);
+float *get_alt_data(void);
+
+
 #endif

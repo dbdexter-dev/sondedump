@@ -22,8 +22,8 @@
     NK_COLOR(NK_COLOR_EDIT,                     38, 38, 38, 255)\
     NK_COLOR(NK_COLOR_EDIT_CURSOR,              175,175,175,255)\
     NK_COLOR(NK_COLOR_COMBO,                    45, 45, 45, 255)\
-    NK_COLOR(NK_COLOR_CHART,                    120,120,120,255)\
-    NK_COLOR(NK_COLOR_CHART_COLOR,              45, 45, 45, 255)\
+    NK_COLOR(NK_COLOR_CHART,                    23, 23, 23, 255)\
+    NK_COLOR(NK_COLOR_CHART_COLOR,              61,132,224, 255)\
     NK_COLOR(NK_COLOR_CHART_COLOR_HIGHLIGHT,    255, 0,  0, 255)\
     NK_COLOR(NK_COLOR_SCROLLBAR,                40, 40, 40, 255)\
     NK_COLOR(NK_COLOR_SCROLLBAR_CURSOR,         100,100,100,255)\

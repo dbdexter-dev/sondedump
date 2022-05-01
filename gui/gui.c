@@ -8,6 +8,7 @@
 #include "nuklear/nuklear.h"
 #include "nuklear/nuklear_sdl_gl3.h"
 #include "style.h"
+#include "widgets/chart.h"
 #include "widgets/data.h"
 
 #define MAX_VERTEX_MEMORY (512 * 1024)
@@ -112,6 +113,9 @@ gui_main(void *args)
 		if (nk_begin(ctx, WINDOW_TITLE, nk_rect(0, 0, width, height), win_flags)) {
 			/* Raw data */
 			widget_data(ctx, width, height);
+
+			/* Chart data */
+			widget_chart(ctx);
 
 			nk_end(ctx);
 		}

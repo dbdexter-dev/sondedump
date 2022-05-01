@@ -123,6 +123,7 @@ set(GUI_SOURCES
 	gui/style.c gui/style.h
 	gui/gui.c gui/gui.h
 
+	gui/widgets/chart.c gui/widgets/chart.h
 	gui/widgets/data.c gui/widgets/data.h
 )
 
@@ -186,6 +187,7 @@ if (ENABLE_GUI AND OPENGL_FOUND AND SDL2_FOUND AND GLEW_FOUND)
 		-DNK_INCLUDE_FONT_BAKING
 		-DNK_INCLUDE_DEFAULT_FONT
 		-DNK_INCLUDE_VERTEX_BUFFER_OUTPUT
+		-DNK_CHART_MAX_SLOT=8
 	)
 	add_definitions(-DENABLE_GUI)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${GUI_SOURCES})
