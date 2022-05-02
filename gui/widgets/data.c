@@ -27,7 +27,13 @@ widget_data(struct nk_context *ctx, int width, int height)
 	bounds = nk_layout_widget_bounds(ctx);
 	nk_layout_row_push(ctx, bounds.w - 40 - 4);
 	inner_bounds = nk_widget_bounds(ctx);
-	nk_combobox(ctx, _decoder_names, _decoder_count, &selected, DATA_ITEM_HEIGHT, nk_vec2(inner_bounds.w, _decoder_count * (bounds.h + 1)));
+	nk_combobox(ctx,
+	            _decoder_names,
+	            _decoder_count,
+	            &selected,
+	            DATA_ITEM_HEIGHT,
+	            nk_vec2(inner_bounds.w, _decoder_count * (bounds.h + 1))
+	);
 	set_active_decoder(selected);
 	nk_layout_row_end(ctx);
 

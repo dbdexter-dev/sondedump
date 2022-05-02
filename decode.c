@@ -172,7 +172,7 @@ decode(const float *srcbuf, size_t len)
 									= altitude_to_pressure(l_printable->alt);
 							}
 
-							if (l_printable->calibrated) {
+							if (l_printable->calibrated && isnormal(printable->alt)) {
 								temp[sample_count] = l_printable->temp;
 								rh[sample_count] = l_printable->rh;
 								hdg[sample_count] = l_printable->heading;
@@ -223,6 +223,7 @@ set_active_decoder(enum decoder decoder)
 	active_decoder = (decoder + END) % END;
 	memset(printable, 0, sizeof(printable));
 	decoder_changed = 1;
+	sample_count = 0;
 }
 
 PrintableData*

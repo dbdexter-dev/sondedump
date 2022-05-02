@@ -150,7 +150,9 @@ if (NOT WIN32)
 endif()
 
 # Find Curses/Ncurses
-find_package(Curses)
+if (ENABLE_TUI)
+	find_package(Curses)
+endif()
 if (ENABLE_TUI AND CURSES_FOUND)
 	# Portable threads
 	find_package(Threads REQUIRED)
@@ -163,7 +165,9 @@ else()
 endif()
 
 # Find PortAudio
-find_package(Portaudio)
+if (ENABLE_AUDIO)
+	find_package(Portaudio)
+endif()
 if(ENABLE_AUDIO AND PORTAUDIO_FOUND)
 	add_definitions(-DENABLE_AUDIO)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${AUDIO_SOURCES})
@@ -173,10 +177,12 @@ else()
 endif()
 
 # Find OpenGL and SDL2
-set(OpenGL_GL_PREFERENCE "GLVND")
-find_package(OpenGL)
-find_package(SDL2)
-find_package(GLEW)
+if (ENABLE_GUI)
+	set(OpenGL_GL_PREFERENCE "GLVND")
+	find_package(OpenGL)
+	find_package(SDL2)
+	find_package(GLEW)
+endif()
 if (ENABLE_GUI AND OPENGL_FOUND AND SDL2_FOUND AND GLEW_FOUND)
 	# Nuklear configuration, has to be consistent every time nuklear.h is included
 	add_definitions(
@@ -192,6 +198,7 @@ if (ENABLE_GUI AND OPENGL_FOUND AND SDL2_FOUND AND GLEW_FOUND)
 	add_definitions(-DENABLE_GUI)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${GUI_SOURCES})
 	set(INC_DIRS ${INC_DIRS} gui/)
+	set(OPENGL_GL OpenGL::GL)
 else()
 	set(SDL2_LIBRARIES "")
 	set(SDL2_INCLUDE_DIRS "")
@@ -202,6 +209,7 @@ else()
 	set(GLEW_INCLUDE_DIRS "")
 	set(GLEW_LIBRARIES "")
 	set(GLEW_LIBRARY_DIRS "")
+	set(OPENGL_GL "")
 endif()
 
 
@@ -230,7 +238,7 @@ target_link_libraries(sondedump PRIVATE radiosonde
 	${CURSES_LIBRARIES}
 	${SDL2_LIBRARIES}
 	${GLEW_LIBRARIES}
-	OpenGL::GL
+	${OPENGL_GL}
 )
 
 # Install targets

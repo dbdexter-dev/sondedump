@@ -3,8 +3,6 @@
 
 #include "nuklear/nuklear.h"
 
-#define CHART_HEIGHT 400
-
 void widget_chart(struct nk_context *ctx);
 
 #endif
