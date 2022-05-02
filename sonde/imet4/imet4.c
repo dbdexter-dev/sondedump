@@ -22,9 +22,9 @@ struct imet4decoder {
 	uint32_t time;
 	size_t offset, frame_offset;
 	char serial[16];
-
 	uint32_t prev_time;
 	float prev_x, prev_y, prev_z;
+	int compute_serial;
 };
 
 enum { READ_PRE, READ, PARSE_SUBFRAME, PARSE_SUBFRAME_PTU_INFO, PARSE_SUBFRAME_GPS_POS };
@@ -103,6 +103,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 #ifndef NDEBUG
 		fwrite(raw_frame, IMET4_FRAME_LEN/8, 1, debug);
 #endif
+		self->compute_serial = 0;
 		self->frame_offset = 0;
 		self->state = PARSE_SUBFRAME;
 		/* FALLTHROUGH */
@@ -171,6 +172,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 			}
 
 			dst->type = DATETIME;
+			self->compute_serial++;
 
 			now = time(NULL);
 			datetime = *gmtime(&now);
