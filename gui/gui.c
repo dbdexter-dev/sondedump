@@ -56,6 +56,7 @@ gui_main(void *args)
 
 	struct nk_context *ctx;
 	const enum nk_panel_flags win_flags = NK_WINDOW_NO_SCROLLBAR;
+	struct nk_rect bounds;
 	SDL_Window *win;
 	SDL_GLContext glContext;
 	SDL_Event evt;
@@ -127,10 +128,18 @@ gui_main(void *args)
 
 		/* Compose GUI */
 		if (nk_begin(ctx, WINDOW_TITLE, nk_rect(0, 0, width, height), win_flags)) {
+			/* Audio device selection */
+			widget_audio_dev_select(ctx);
+
 			/* Raw data */
 			widget_data(ctx, width, height);
 
-			/* Chart data */
+			/* Chart data: rest of the window, square, centered */
+			bounds = nk_layout_widget_bounds(ctx);
+			nk_layout_space_begin(ctx, NK_STATIC, 0, ~0);
+			height = nk_window_get_height(ctx) - bounds.y - 80;
+			nk_layout_space_push(ctx, nk_rect((nk_window_get_width(ctx) - height) / 2, 0, height, height));
+
 			widget_chart(ctx);
 
 			nk_end(ctx);

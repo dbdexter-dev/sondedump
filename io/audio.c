@@ -1,33 +1,31 @@
 #include <portaudio.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "audio.h"
 #include "utils.h"
 
 static PaError print_error(PaError err);
+static int audio_stop_stream(void);
 
 static const double _samplerates[] = {48000, 44100};
 static struct {
 	PaStream *stream;
 	float buffer[BUFFER_SIZE];
 	unsigned long idx;
+
+	const char **device_names;
+	int *device_idxs;
+	int device_count;
 } _state;
 
 int
-audio_init(int device_num)
+audio_init()
 {
-	int i;
-	int num_devices;
-	double samplerate;
-	const PaDeviceInfo *device_info;
-	PaStreamParameters input_params = {
-		.device = 0,
-		.channelCount = 1,
-		.sampleFormat = paFloat32,
-		.suggestedLatency = 0,
-		.hostApiSpecificStreamInfo = NULL
-	};
+	const PaDeviceInfo *dev_info;
 	PaError err;
+	int i;
+	int dev_count;
 
 	_state.idx = 0;
 
@@ -37,32 +35,60 @@ audio_init(int device_num)
 	}
 
 	/* Query devices */
-	if ((num_devices = Pa_GetDeviceCount()) < 0) {
-		fprintf(stderr, "[ERROR] Pa_GetDeviceCount returned %d\n", num_devices);
-		return num_devices;
+	if ((dev_count = Pa_GetDeviceCount()) < 0) {
+		fprintf(stderr, "[ERROR] Pa_GetDeviceCount returned %d\n", dev_count);
+		return dev_count;
 	}
 
-	while (device_num < 0 || device_num >= num_devices) {
-		/* List all devices */
-		printf("\n==============================\n");
-		printf("Please select an audio device:\n");
-		for (i=0; i<num_devices; i++) {
-			device_info = Pa_GetDeviceInfo(i);
-			if (device_info->maxInputChannels > 0) {
-				printf("%d) %s\n", i, device_info->name);
-			}
+	_state.device_count = 0;
+	_state.device_names = malloc(sizeof(*_state.device_names) * dev_count);
+	_state.device_idxs = malloc(sizeof(*_state.device_idxs) * dev_count);
+
+	/* Enumerate devices and collect their names */
+	for (i=0; i<dev_count; i++) {
+		dev_info = Pa_GetDeviceInfo(i);
+
+		if (dev_info->maxInputChannels > 0) {
+			_state.device_names[_state.device_count] = dev_info->name;
+			_state.device_idxs[_state.device_count] = i;
+			_state.device_count++;
 		}
-
-		/* Interactively ask for device number */
-		printf("Device index: ");
-		scanf("%d", &device_num);
 	}
+
+	_state.stream = NULL;
+
+	return 0;
+}
+
+int
+audio_open_device(int device_idx)
+{
+	const PaDeviceInfo *dev_info;
+	PaStreamParameters input_params = {
+		.device = 0,
+		.channelCount = 1,
+		.sampleFormat = paFloat32,
+		.suggestedLatency = 0,
+		.hostApiSpecificStreamInfo = NULL
+	};
+	int i, err;
+	double samplerate;
+
+	/* Make sure that any previous stream is stopped and deinitialized */
+	audio_stop_stream();
+
+	if (device_idx >= _state.device_count) {
+		return -2;
+	}
+
+	/* Translate device index to portaudio index */
+	device_idx = _state.device_idxs[device_idx];
 
 	/* Attempt to open the device as a mono input, zero channel output. Try a
 	 * bunch of different, known working sample rates */
-	device_info = Pa_GetDeviceInfo(device_num);
-	input_params.device = device_num;
-	input_params.suggestedLatency = device_info->defaultHighInputLatency;
+	dev_info = Pa_GetDeviceInfo(device_idx);
+	input_params.device = device_idx;
+	input_params.suggestedLatency = dev_info->defaultHighInputLatency;
 
 	samplerate = -1;
 	for (i=0; i<(int)LEN(_samplerates); i++) {
@@ -96,18 +122,19 @@ audio_init(int device_num)
 		return print_error(err);
 	}
 
-
 	return (int)samplerate;
 }
 
 int
 audio_deinit(void)
 {
-	/* Stop streaming audio, deinitialize stream, then deinitialize portaudio
-	 * itself. If we error here nobody cares cause we're closing shop anyway */
-	Pa_AbortStream(&_state.stream);
-	Pa_CloseStream(&_state.stream);
+	audio_stop_stream();
+
 	Pa_Terminate();
+
+	_state.device_count = 0;
+	free(_state.device_names);
+	free(_state.device_idxs);
 
 	return 0;
 }
@@ -115,9 +142,26 @@ audio_deinit(void)
 int
 audio_read(float *ptr, size_t count)
 {
+	/* If stream is not yet open, return immediately */
+	if (!_state.stream) {
+		return 1;
+	}
+
 	Pa_ReadStream(_state.stream, ptr, count);
 
 	return 1;
+}
+
+int
+audio_get_num_devices(void)
+{
+	return _state.device_count;
+}
+
+const char**
+audio_get_device_names(void)
+{
+	return _state.device_names;
 }
 
 /* Static functions {{{ */
@@ -127,4 +171,18 @@ print_error(PaError err)
 	fprintf(stderr, "Portaudio error: %s\n", Pa_GetErrorText(err));
 	return err;
 }
+
+static int
+audio_stop_stream(void)
+{
+	if (_state.stream) return 0;
+
+	/* Stop streaming audio and deinitialize stream */
+	Pa_AbortStream(&_state.stream);
+	Pa_CloseStream(&_state.stream);
+	_state.stream = NULL;
+
+	return 0;
+}
+
 /* }}} */

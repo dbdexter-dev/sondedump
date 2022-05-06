@@ -111,6 +111,9 @@ main(int argc, char *argv[])
 #ifdef ENABLE_AUDIO
 	int input_from_audio = 0;
 	int audio_device = -1;
+	int audio_device_count = 0;
+	const char **audio_device_names;
+	int i;
 #endif
 	/* }}} */
 	/* Parse command-line args {{{ */
@@ -173,10 +176,46 @@ main(int argc, char *argv[])
 
 	if (argc - optind < 1) {
 #ifdef ENABLE_AUDIO
-		samplerate = audio_init(audio_device);
-		if (samplerate < 0) return 1;
-		printf("Selected samplerate: %d\n", samplerate);
+		/* Initialize audio backend */
+		audio_init();
 		input_from_audio = 1;
+
+		switch (ui) {
+			case UI_TEXT:
+			case UI_TUI:
+				/* Ask the user for a device now */
+				audio_device_count = audio_get_num_devices();
+				audio_device_names = audio_get_device_names();
+				samplerate = -1;
+
+				/* If the audio device was not specified as a command-line arg */
+				if (audio_device < 0) {
+					/* Ask user dyamically for an audio device */
+					printf("\n==============================\n");
+					printf("Please select an audio device:\n");
+					for (i = 0; i < audio_device_count; i++) {
+						if (audio_device_names[i]) {
+							printf("%d) %s\n", i, audio_device_names[i]);
+						}
+					}
+
+					printf("Device index: ");
+					scanf("%d", &audio_device);
+
+				}
+
+				/* Open device */
+				samplerate = audio_open_device(audio_device);
+				if (samplerate < 0) {
+					return -1;
+				}
+				printf("Selected samplerate: %d\n", samplerate);
+				break;
+			case UI_GUI:
+				/* Defer device opening to the GUI */
+				samplerate = audio_open_device(0);
+				break;
+		}
 #else
 		fprintf(stderr, "No input file specified\n");
 		usage(argv[0]);

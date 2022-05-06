@@ -125,6 +125,7 @@ set(GUI_SOURCES
 
 	gui/widgets/chart.c gui/widgets/chart.h
 	gui/widgets/data.c gui/widgets/data.h
+	gui/widgets/audio_dev_select.c gui/widgets/audio_dev_select.h
 )
 
 set(EXEC_SOURCES

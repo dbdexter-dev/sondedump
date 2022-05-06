@@ -6,12 +6,26 @@
 #define BUFFER_SIZE 2048
 
 /**
- * Initialize a PortAudio audio input device
+ * Initialize Portaudio backend
  *
- * @param device_num index of the device to intiialize, 0 to prompt the user
- * @return sample rate
+ * @return 0 on success
  */
-int audio_init(int device_num);
+int audio_init(void);
+
+/**
+ * Open an audio device and start streaming audio from it
+ */
+int audio_open_device(int device_idx);
+
+/**
+ * Get number of devices
+ */
+int audio_get_num_devices(void);
+
+/**
+ * Get pointers to device names
+ */
+const char **audio_get_device_names(void);
 
 /**
  * Read data from the previously initialized device

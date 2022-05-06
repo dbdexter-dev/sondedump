@@ -22,10 +22,10 @@ widget_data(struct nk_context *ctx, int width, int height)
 
 	/* Sonde type selection */
 	nk_layout_row_begin(ctx, NK_STATIC, DATA_ITEM_HEIGHT, 2);
-	nk_layout_row_push(ctx, 40);
+	nk_layout_row_push(ctx, 80);
 	nk_label(ctx, "Type:", NK_TEXT_RIGHT);
 	bounds = nk_layout_widget_bounds(ctx);
-	nk_layout_row_push(ctx, bounds.w - 40 - 4);
+	nk_layout_row_push(ctx, bounds.w - 80 - 4);
 	inner_bounds = nk_widget_bounds(ctx);
 	nk_combobox(ctx,
 	            _decoder_names,
@@ -35,11 +35,15 @@ widget_data(struct nk_context *ctx, int width, int height)
 	            nk_vec2(inner_bounds.w, _decoder_count * (bounds.h + 1))
 	);
 	set_active_decoder(selected);
+
+	nk_layout_row_push(ctx, 80);
+	nk_label(ctx, "Calibration:", NK_TEXT_RIGHT);
+	nk_layout_row_push(ctx, bounds.w - 80 - 4);
+	nk_prog(ctx, printable->calib_percent, 100, nk_false);
 	nk_layout_row_end(ctx);
 
 	/* Calibration */
 	nk_layout_row_dynamic(ctx, DATA_ITEM_HEIGHT, 1);
-	nk_prog(ctx, printable->calib_percent, 100, nk_false);
 
 	nk_layout_row_dynamic(ctx, DATA_ITEM_HEIGHT, 2);
 
