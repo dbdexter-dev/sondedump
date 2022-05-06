@@ -28,20 +28,24 @@ widget_chart(struct nk_context *ctx)
 		nk_chart_add_slot_colored(ctx, NK_CHART_LINES, temp_color, ctx->style.chart.color, data_count, -100, 100);
 		for (i=0; i<data_end; i+=data_step) {
 			if (nk_chart_push_slot(ctx, data[(int)i], 1) & NK_CHART_HOVERING) {
-				// TODO show point being hovered as a popup
+				nk_tooltipf(ctx, "%.1f'C", data[(int)i]);
 			}
 		}
 
 		data = get_rh_data();
 		nk_chart_add_slot_colored(ctx, NK_CHART_LINES, rh_color, ctx->style.chart.color, data_count, 0, 100);
 		for (i=0; i<data_end; i+=data_step) {
-			nk_chart_push_slot(ctx, data[(int)i], 2);
+			if (nk_chart_push_slot(ctx, data[(int)i], 2) & NK_CHART_HOVERING) {
+				nk_tooltipf(ctx, "%.0f%%", data[(int)i]);
+			}
 		}
 
 		data = get_alt_data();
 		nk_chart_add_slot_colored(ctx, NK_CHART_LINES, alt_color, ctx->style.chart.color, data_count, 0, 35000);
 		for (i=0; i<data_end; i+=data_step) {
-			nk_chart_push_slot(ctx, data[(int)i], 3);
+			if (nk_chart_push_slot(ctx, data[(int)i], 3) & NK_CHART_HOVERING) {
+				nk_tooltipf(ctx, "%.0fm", data[(int)i]);
+			}
 		}
 
 		nk_chart_end(ctx);
