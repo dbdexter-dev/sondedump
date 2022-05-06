@@ -6,44 +6,19 @@
 #include "include/data.h"
 #include "physics.h"
 
+
 extern const char *_decoder_names[];
 extern const int _decoder_count;
 
 void
 widget_data(struct nk_context *ctx, int width, int height)
 {
-	struct nk_rect bounds, inner_bounds;
-	int selected = get_active_decoder();
+	struct nk_rect bounds;
 	char tmp[64];
 	(void) width;
 	(void) height;
 
 	PrintableData *printable = get_data();
-
-	/* Sonde type selection */
-	nk_layout_row_begin(ctx, NK_STATIC, DATA_ITEM_HEIGHT, 2);
-	nk_layout_row_push(ctx, 80);
-	nk_label(ctx, "Type:", NK_TEXT_RIGHT);
-	bounds = nk_layout_widget_bounds(ctx);
-	nk_layout_row_push(ctx, bounds.w - 80 - 4);
-	inner_bounds = nk_widget_bounds(ctx);
-	nk_combobox(ctx,
-	            _decoder_names,
-	            _decoder_count,
-	            &selected,
-	            DATA_ITEM_HEIGHT,
-	            nk_vec2(inner_bounds.w, _decoder_count * (bounds.h + 1))
-	);
-	set_active_decoder(selected);
-
-	nk_layout_row_push(ctx, 80);
-	nk_label(ctx, "Calibration:", NK_TEXT_RIGHT);
-	nk_layout_row_push(ctx, bounds.w - 80 - 4);
-	nk_prog(ctx, printable->calib_percent, 100, nk_false);
-	nk_layout_row_end(ctx);
-
-	/* Calibration */
-	nk_layout_row_dynamic(ctx, DATA_ITEM_HEIGHT, 1);
 
 	nk_layout_row_dynamic(ctx, DATA_ITEM_HEIGHT, 2);
 
@@ -102,5 +77,10 @@ widget_data(struct nk_context *ctx, int width, int height)
 
 	nk_label(ctx, "Pressure: ", NK_TEXT_RIGHT);
 	sprintf(tmp, "%.1f hPa", printable->pressure);
+	nk_label(ctx, tmp, NK_TEXT_LEFT);
+
+	/* Sonde type selection */
+	nk_label(ctx, "Calibration:", NK_TEXT_RIGHT);
+	sprintf(tmp, "%.0f%%", printable->calib_percent);
 	nk_label(ctx, tmp, NK_TEXT_LEFT);
 }

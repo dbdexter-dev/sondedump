@@ -5,6 +5,10 @@
 
 #define STYLE_DEFAULT_FONT_SIZE 17
 
+#define STYLE_ACCENT_0 {61, 132, 224, 255}
+#define STYLE_ACCENT_1 {224, 60, 131, 255}
+#define STYLE_ACCENT_2 {224, 153, 60, 255}
+
 enum font_style {
 	FONT_WEIGHT_REGULAR = 0,
 	FONT_WEIGHT_BOLD    = 1,

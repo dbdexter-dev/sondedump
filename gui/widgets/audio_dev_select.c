@@ -4,6 +4,8 @@
 
 static int _selected_idx = 0;
 
+#define TEXT_WIDTH 90
+
 void
 widget_audio_dev_select(struct nk_context *ctx)
 {
@@ -14,10 +16,10 @@ widget_audio_dev_select(struct nk_context *ctx)
 	int samplerate;
 
 	nk_layout_row_begin(ctx, NK_STATIC, DATA_ITEM_HEIGHT, 2);
-	nk_layout_row_push(ctx, 80);
+	nk_layout_row_push(ctx, TEXT_WIDTH);
 	nk_label(ctx, "Input device:", NK_TEXT_RIGHT);
 	bounds = nk_layout_widget_bounds(ctx);
-	nk_layout_row_push(ctx, bounds.w - 80 - 4);
+	nk_layout_row_push(ctx, bounds.w - TEXT_WIDTH - 4);
 	inner_bounds = nk_layout_widget_bounds(ctx);
 	nk_combobox(ctx,
 	            dev_names,

@@ -1,5 +1,6 @@
 #include "chart.h"
 #include "decode.h"
+#include "gui/style.h"
 #include "utils.h"
 
 #define HISTORY_COUNT 240
@@ -7,9 +8,9 @@
 void
 widget_chart(struct nk_context *ctx)
 {
-	const struct nk_color temp_color = {224, 60, 131, 255};
-	const struct nk_color rh_color = {61, 132, 224, 255};
-	const struct nk_color alt_color = {224, 153, 60, 255};
+	const struct nk_color rh_color = STYLE_ACCENT_0;
+	const struct nk_color temp_color = STYLE_ACCENT_1;
+	const struct nk_color alt_color = STYLE_ACCENT_2;
 
 	const int data_end = get_data_count();
 	const int data_count = MIN(HISTORY_COUNT, data_end);
@@ -23,7 +24,7 @@ widget_chart(struct nk_context *ctx)
 	bounds = nk_window_get_content_region_size(ctx);
 	chart_size = MIN(bounds.x, bounds.y);
 
-	if (nk_chart_begin(ctx, chart_size, data_count, -100, 100)) {
+	if (nk_chart_begin(ctx, chart_size, data_count, -100, 60)) {
 		data = get_temp_data();
 		nk_chart_add_slot_colored(ctx, NK_CHART_LINES, temp_color, ctx->style.chart.color, data_count, -100, 100);
 		for (i=0; i<data_end; i+=data_step) {
@@ -55,4 +56,6 @@ widget_chart(struct nk_context *ctx)
 void
 widget_skew_t(struct nk_context *ctx)
 {
+	(void)ctx;
+	// TODO implement
 }

@@ -8,8 +8,10 @@
 #include "nuklear/nuklear.h"
 #include "nuklear/nuklear_sdl_gl3.h"
 #include "style.h"
+#include "widgets/audio_dev_select.h"
 #include "widgets/chart.h"
 #include "widgets/data.h"
+#include "widgets/type_select.h"
 
 #define MAX_VERTEX_MEMORY (512 * 1024)
 #define MAX_ELEMENT_MEMORY (128 * 1024)
@@ -64,6 +66,7 @@ gui_main(void *args)
 	int last_slot = get_slot();
 	char title[64];
 	int pollcount;
+	enum { LAYOUT_H, LAYOUT_V } layout;
 
 	/* Initialize SDL2 */
 	SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
@@ -126,21 +129,73 @@ gui_main(void *args)
 			SDL_SetWindowTitle(win, title);
 		}
 
+		/* Choose the most appropriate layout for the current aspect ratio */
+		if (width > height) {
+			layout = LAYOUT_H;
+		} else {
+			layout = LAYOUT_V;
+		}
+
 		/* Compose GUI */
 		if (nk_begin(ctx, WINDOW_TITLE, nk_rect(0, 0, width, height), win_flags)) {
-			/* Audio device selection */
-			widget_audio_dev_select(ctx);
+			switch (layout) {
+			case LAYOUT_H:
+				/* Audio device selection TODO handle input from file */
+				widget_audio_dev_select(ctx);
 
-			/* Raw data */
-			widget_data(ctx, width, height);
+				/* Sonde type selection */
+				widget_type_select(ctx);
 
-			/* Chart data: rest of the window, square, centered */
-			bounds = nk_layout_widget_bounds(ctx);
-			nk_layout_space_begin(ctx, NK_STATIC, 0, ~0);
-			height = nk_window_get_height(ctx) - bounds.y - 80;
-			nk_layout_space_push(ctx, nk_rect((nk_window_get_width(ctx) - height) / 2, 0, height, height));
+				nk_layout_row_begin(ctx, NK_STATIC, nk_window_get_width(ctx), 2);
+				nk_layout_row_push(ctx, 500);
+				if (nk_group_begin(ctx, "Raw data", NK_WINDOW_NO_SCROLLBAR)) {
 
-			widget_chart(ctx);
+					/* Raw data */
+					widget_data(ctx, width, height);
+					nk_group_end(ctx);
+				}
+
+				nk_layout_row_push(ctx, nk_window_get_width(ctx) - 500);
+				if (nk_group_begin(ctx, "Chart", NK_WINDOW_NO_SCROLLBAR)) {
+					/* Chart data */
+					bounds = nk_layout_widget_bounds(ctx);
+					nk_layout_space_begin(ctx, NK_STATIC, ~0, ~0);
+					height = MIN(nk_window_get_height(ctx) - bounds.y,
+					             nk_window_get_width(ctx) - bounds.x) - 25;
+					nk_layout_space_push(ctx, nk_rect(0, 0, height, height));
+					widget_chart(ctx);
+
+					nk_layout_space_end(ctx);
+					nk_group_end(ctx);
+				}
+
+				break;
+			case LAYOUT_V:
+				/* Audio device selection TODO handle input from file */
+				widget_audio_dev_select(ctx);
+
+				/* Sonde type selection */
+				widget_type_select(ctx);
+
+				nk_layout_row_dynamic(ctx, nk_window_get_height(ctx), 1);
+				if (nk_group_begin(ctx, "Content", NK_WINDOW_NO_SCROLLBAR)) {
+					/* Raw data */
+					widget_data(ctx, width, height);
+
+					/* Chart data: rest of the window, square, centered */
+					bounds = nk_layout_widget_bounds(ctx);
+					nk_layout_space_begin(ctx, NK_STATIC, ~0, ~0);
+					height = MIN(nk_window_get_width(ctx) - bounds.x,
+					             nk_window_get_height(ctx) - bounds.y) - 55;
+					nk_layout_space_push(ctx, nk_rect((nk_window_get_width(ctx) - height) / 2, 0, height, height));
+
+					widget_chart(ctx);
+
+					nk_layout_space_end(ctx);
+					nk_group_end(ctx);
+				}
+				break;
+			}
 
 			nk_end(ctx);
 		}
