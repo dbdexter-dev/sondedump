@@ -13,7 +13,6 @@ extern const int _decoder_count;
 void
 widget_data(struct nk_context *ctx, int width, int height)
 {
-	struct nk_rect bounds;
 	char tmp[64];
 	(void) width;
 	(void) height;

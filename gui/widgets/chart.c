@@ -17,7 +17,7 @@ widget_chart(struct nk_context *ctx)
 	struct nk_vec2 bounds;
 	float chart_size, data_step;
 	float i;
-	float *data;
+	const float *data;
 
 	data_step = MAX(1, data_end / (float)HISTORY_COUNT);
 

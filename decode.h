@@ -18,11 +18,13 @@ PrintableData *get_data(void);
 int            get_slot(void);
 
 int    get_data_count(void);
-float *get_temp_data(void);
-float *get_rh_data(void);
-float *get_hdg_data(void);
-float *get_speed_data(void);
-float *get_alt_data(void);
+const float *get_temp_data(void);
+const float *get_rh_data(void);
+const float *get_hdg_data(void);
+const float *get_speed_data(void);
+const float *get_alt_data(void);
+const float *get_lat_data(void);
+const float *get_lon_data(void);
 
 
 #endif

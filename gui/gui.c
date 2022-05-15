@@ -97,9 +97,6 @@ gui_main(void *args)
 	pollcount = 1;
 
 	while (!_interrupted) {
-		/* Handle inputs */
-		nk_input_begin(ctx);
-
 		/* When requested, bypass waitevent and go straight to event processing */
 		if (pollcount) {
 			pollcount--;
@@ -108,21 +105,25 @@ gui_main(void *args)
 			SDL_WaitEvent(&evt);
 		}
 
+		/* Handle inputs */
+		nk_input_begin(ctx);
 		do {
 			switch (evt.type) {
-				case SDL_QUIT:
-					goto cleanup;
-					break;
-				case SDL_USEREVENT:
-					break;
-				default:
-					pollcount = 1;
-					break;
+			case SDL_QUIT:
+				goto cleanup;
+				break;
+			case SDL_USEREVENT:
+				break;
+			default:
+				pollcount = 1;
+				break;
 			}
+
 			nk_sdl_handle_event(&evt);
 		} while (SDL_PollEvent(&evt));
 		nk_input_end(ctx);
 
+		/* If the sonde type has changed, update title */
 		if (last_slot != get_slot()) {
 			last_slot = get_slot();
 			sprintf(title, WINDOW_TITLE " - %s", get_data()->serial);
@@ -147,7 +148,7 @@ gui_main(void *args)
 				widget_type_select(ctx);
 
 				nk_layout_row_begin(ctx, NK_STATIC, nk_window_get_width(ctx), 2);
-				nk_layout_row_push(ctx, 500);
+				nk_layout_row_push(ctx, 450);
 				if (nk_group_begin(ctx, "Raw data", NK_WINDOW_NO_SCROLLBAR)) {
 
 					/* Raw data */
@@ -155,13 +156,13 @@ gui_main(void *args)
 					nk_group_end(ctx);
 				}
 
-				nk_layout_row_push(ctx, nk_window_get_width(ctx) - 500);
+				nk_layout_row_push(ctx, nk_window_get_width(ctx) - 450);
 				if (nk_group_begin(ctx, "Chart", NK_WINDOW_NO_SCROLLBAR)) {
 					/* Chart data */
 					bounds = nk_layout_widget_bounds(ctx);
 					nk_layout_space_begin(ctx, NK_STATIC, ~0, ~0);
 					height = MIN(nk_window_get_height(ctx) - bounds.y,
-					             nk_window_get_width(ctx) - bounds.x) - 25;
+					             nk_window_get_width(ctx) - bounds.x) - 10;
 					nk_layout_space_push(ctx, nk_rect(0, 0, height, height));
 					widget_chart(ctx);
 
@@ -186,7 +187,7 @@ gui_main(void *args)
 					bounds = nk_layout_widget_bounds(ctx);
 					nk_layout_space_begin(ctx, NK_STATIC, ~0, ~0);
 					height = MIN(nk_window_get_width(ctx) - bounds.x,
-					             nk_window_get_height(ctx) - bounds.y) - 55;
+					             nk_window_get_height(ctx) - bounds.y) - 5;
 					nk_layout_space_push(ctx, nk_rect((nk_window_get_width(ctx) - height) / 2, 0, height, height));
 
 					widget_chart(ctx);
