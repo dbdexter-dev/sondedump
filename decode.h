@@ -7,7 +7,7 @@
 
 enum decoder { AUTO=0, DFM09, IMET4, IMS100, M10, RS41, END};
 
-void         decoder_init(int samplerate);
+int          decoder_init(int samplerate);
 void         decoder_deinit(void);
 ParserStatus decode(const float *samples, size_t len);
 

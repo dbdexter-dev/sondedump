@@ -79,6 +79,8 @@ afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, c
 	_Fcomplex space_sum = d->space_sum;
 	_Fcomplex out;
 #endif
+	/* Lax sanity check */
+	if (d->len < 1) return PROCEED;
 
 	/* Normalize bit offset */
 	dst += *bit_offset/8;

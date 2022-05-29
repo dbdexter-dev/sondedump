@@ -9,7 +9,7 @@ int
 framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword, int synclen)
 {
 	f->type = GFSK;
-	gfsk_init(&f->demod.gfsk, samplerate, baudrate);
+	if (gfsk_init(&f->demod.gfsk, samplerate, baudrate)) return 1;
 	correlator_init(&f->corr, syncword, synclen);
 	f->state = READ;
 
@@ -20,7 +20,7 @@ int
 framer_init_afsk(Framer *f, int samplerate, int baudrate, float f_mark, float f_space, uint64_t syncword, int synclen)
 {
 	f->type = AFSK;
-	afsk_init(&f->demod.afsk, samplerate, baudrate, f_mark, f_space);
+	if (afsk_init(&f->demod.afsk, samplerate, baudrate, f_mark, f_space)) return 1;
 	correlator_init(&f->corr, syncword, synclen);
 	f->state = READ;
 

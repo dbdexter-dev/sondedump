@@ -59,6 +59,10 @@ gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const f
 	uint8_t tmp;
 	int phase;
 
+	/* Sanity check: number of bits in dst should be more than number of phases
+	 * in the polyphase filter */
+	if ((size_t)g->lpf.num_phases > count + *bit_offset) return PROCEED;
+
 	/* Normalize bit offset */
 	dst += *bit_offset/8;
 	count -= *bit_offset;

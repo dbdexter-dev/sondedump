@@ -177,7 +177,11 @@ main(int argc, char *argv[])
 	if (argc - optind < 1) {
 #ifdef ENABLE_AUDIO
 		/* Initialize audio backend */
-		audio_init();
+		if (audio_init()) {
+			fprintf(stderr, "Error while initializing audio subsystem, exiting...\n");
+			return 1;
+		}
+
 		input_from_audio = 1;
 
 		switch (ui) {
@@ -212,8 +216,9 @@ main(int argc, char *argv[])
 				printf("Selected samplerate: %d\n", samplerate);
 				break;
 			case UI_GUI:
-				/* Defer device opening to the GUI */
+				/* Open first device. If open fails, defer device opening to the GUI */
 				samplerate = audio_open_device(0);
+				if (samplerate < 1) samplerate = 1;
 				break;
 		}
 #else
@@ -270,7 +275,10 @@ main(int argc, char *argv[])
 	}
 
 	/* Initialize decoder */
-	decoder_init(samplerate);
+	if (decoder_init(samplerate)) {
+		fprintf(stderr, "Error while initializing decoder subsystem, exiting...\n");
+		return 1;
+	}
 
 #ifdef ENABLE_TUI
 	/* Enable TUI */

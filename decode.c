@@ -32,9 +32,11 @@ static float *temp, *rh, *hdg, *speed, *alt, *lat, *lon;
 static int reserved_count;
 static int sample_count;
 
-void
+int
 decoder_init(int samplerate)
 {
+	if (samplerate <= 0) return 1;
+
 	/* Initialize decoders */
 	rs41decoder = rs41_decoder_init(samplerate);
 	dfm09decoder = dfm09_decoder_init(samplerate);

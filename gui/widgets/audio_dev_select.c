@@ -31,6 +31,7 @@ widget_audio_dev_select(struct nk_context *ctx)
 
 	if (old_idx != _selected_idx) {
 		samplerate = audio_open_device(_selected_idx);
+		if (samplerate < 0) return;
 		decoder_deinit();
 		decoder_init(samplerate);
 	}
