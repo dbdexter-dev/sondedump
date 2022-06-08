@@ -27,7 +27,7 @@ widget_type_select(struct nk_context *ctx)
 	            _decoder_count,
 	            &selected,
 	            DATA_ITEM_HEIGHT,
-	            nk_vec2(inner_bounds.w, _decoder_count * (bounds.h + 1))
+	            nk_vec2(inner_bounds.w, _decoder_count * bounds.h + 10)
 	);
 
 	/* Handle selection change */

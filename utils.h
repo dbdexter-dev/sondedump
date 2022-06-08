@@ -72,6 +72,16 @@ time_t my_timegm(const struct tm *tm);
  */
 float cspline(const float *xs, const float *ys, float count, float x);
 
+/**
+ * Mercator projection latitude to y conversion
+ */
+float lat_to_y(float latitude, int zoom);
+
+/**
+ * Mercator projection longitude to x conversion
+ */
+float lon_to_x(float longitude, int zoom);
+
 #endif
 
 

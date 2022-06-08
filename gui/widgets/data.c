@@ -11,11 +11,9 @@ extern const char *_decoder_names[];
 extern const int _decoder_count;
 
 void
-widget_data(struct nk_context *ctx, int width, int height)
+widget_data(struct nk_context *ctx)
 {
 	char tmp[64];
-	(void) width;
-	(void) height;
 
 	PrintableData *printable = get_data();
 

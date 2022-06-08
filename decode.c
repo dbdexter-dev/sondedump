@@ -68,6 +68,8 @@ decoder_init(int samplerate)
 	new_data = 0;
 
 	decoder_changed = 1;
+
+	return 0;
 }
 
 void

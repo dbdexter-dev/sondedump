@@ -5,6 +5,6 @@
 
 #define DATA_ITEM_HEIGHT 20
 
-void widget_data(struct nk_context *ctx, int width, int height);
+void widget_data(struct nk_context *ctx);
 
 #endif

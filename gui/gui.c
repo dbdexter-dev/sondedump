@@ -12,11 +12,13 @@
 #include "widgets/chart.h"
 #include "widgets/data.h"
 #include "widgets/type_select.h"
+#include "gl_osm.h"
 
 #define MAX_VERTEX_MEMORY (512 * 1024)
 #define MAX_ELEMENT_MEMORY (128 * 1024)
 
 static void *gui_main(void *args);
+static void overview_window(struct nk_context *ctx);
 
 static pthread_t _tid;
 static enum graph active_visualization;
@@ -57,16 +59,15 @@ gui_main(void *args)
 	(void)args;
 
 	struct nk_context *ctx;
-	const enum nk_panel_flags win_flags = NK_WINDOW_NO_SCROLLBAR;
-	struct nk_rect bounds;
 	SDL_Window *win;
 	SDL_GLContext glContext;
 	SDL_Event evt;
 	int width, height;
+	float center_x, center_y;
 	int last_slot = get_slot();
 	char title[64];
-	int pollcount;
-	enum { LAYOUT_H, LAYOUT_V } layout;
+	GLOpenStreetMap map;
+	int pollcount, dragging;
 
 	/* Initialize SDL2 */
 	SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
@@ -74,6 +75,7 @@ gui_main(void *args)
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
 	win = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -87,6 +89,12 @@ gui_main(void *args)
 	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 	glewExperimental = 1;
 	if (glewInit() != GLEW_OK) return NULL;
+
+	/* Initialize map */
+	gl_openstreetmap_init(&map);
+	center_x = lon_to_x(9.33, 8);
+	center_y = lat_to_y(45.5, 8);
+	dragging = 0;
 
 	/* Initialize nuklear */
 	ctx = nk_sdl_init(win);
@@ -112,9 +120,22 @@ gui_main(void *args)
 			case SDL_QUIT:
 				goto cleanup;
 				break;
+			case SDL_MOUSEBUTTONDOWN:
+				dragging = 1;
+				break;
+			case SDL_MOUSEBUTTONUP:
+				dragging = 0;
+				break;
+			case SDL_MOUSEMOTION:
+				if (dragging) {
+					center_x -= (float)evt.motion.xrel / (1 << 8);
+					center_y -= (float)evt.motion.yrel / (1 << 8);
+				}
+				break;
 			case SDL_USEREVENT:
 				break;
 			default:
+				/* Force refresh  */
 				pollcount = 1;
 				break;
 			}
@@ -129,89 +150,28 @@ gui_main(void *args)
 			sprintf(title, WINDOW_TITLE " - %s", get_data()->serial);
 			SDL_SetWindowTitle(win, title);
 		}
-
-		/* Choose the most appropriate layout for the current aspect ratio */
-		if (width > height) {
-			layout = LAYOUT_H;
-		} else {
-			layout = LAYOUT_V;
-		}
+		SDL_GetWindowSize(win, &width, &height);
 
 		/* Compose GUI */
-		if (nk_begin(ctx, WINDOW_TITLE, nk_rect(0, 0, width, height), win_flags)) {
-			switch (layout) {
-			case LAYOUT_H:
-				/* Audio device selection TODO handle input from file */
-				widget_audio_dev_select(ctx);
+		overview_window(ctx);
 
-				/* Sonde type selection */
-				widget_type_select(ctx);
-
-				nk_layout_row_begin(ctx, NK_STATIC, nk_window_get_width(ctx), 2);
-				nk_layout_row_push(ctx, 450);
-				if (nk_group_begin(ctx, "Raw data", NK_WINDOW_NO_SCROLLBAR)) {
-
-					/* Raw data */
-					widget_data(ctx, width, height);
-					nk_group_end(ctx);
-				}
-
-				nk_layout_row_push(ctx, nk_window_get_width(ctx) - 450);
-				if (nk_group_begin(ctx, "Chart", NK_WINDOW_NO_SCROLLBAR)) {
-					/* Chart data */
-					bounds = nk_layout_widget_bounds(ctx);
-					nk_layout_space_begin(ctx, NK_STATIC, ~0, ~0);
-					height = MIN(nk_window_get_height(ctx) - bounds.y,
-					             nk_window_get_width(ctx) - bounds.x) - 10;
-					nk_layout_space_push(ctx, nk_rect(0, 0, height, height));
-					widget_chart(ctx);
-
-					nk_layout_space_end(ctx);
-					nk_group_end(ctx);
-				}
-
-				break;
-			case LAYOUT_V:
-				/* Audio device selection TODO handle input from file */
-				widget_audio_dev_select(ctx);
-
-				/* Sonde type selection */
-				widget_type_select(ctx);
-
-				nk_layout_row_dynamic(ctx, nk_window_get_height(ctx), 1);
-				if (nk_group_begin(ctx, "Content", NK_WINDOW_NO_SCROLLBAR)) {
-					/* Raw data */
-					widget_data(ctx, width, height);
-
-					/* Chart data: rest of the window, square, centered */
-					bounds = nk_layout_widget_bounds(ctx);
-					nk_layout_space_begin(ctx, NK_STATIC, ~0, ~0);
-					height = MIN(nk_window_get_width(ctx) - bounds.x,
-					             nk_window_get_height(ctx) - bounds.y) - 5;
-					nk_layout_space_push(ctx, nk_rect((nk_window_get_width(ctx) - height) / 2, 0, height, height));
-
-					widget_chart(ctx);
-
-					nk_layout_space_end(ctx);
-					nk_group_end(ctx);
-				}
-				break;
-			}
-
-			nk_end(ctx);
-		}
-
-		/* Draw GUI */
-		SDL_GetWindowSize(win, &width, &height);
+		/* Render */
 		glViewport(0, 0, width, height);
 		glClear(GL_COLOR_BUFFER_BIT);
 		glClearColor(0, 0, 0, 1);
+
+		/* Draw background */
+		gl_openstreetmap_raster(&map, width, height, center_x, center_y, 8);
+
+		/* Draw GUI */
 		nk_sdl_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY);
+
 		SDL_GL_SwapWindow(win);
 	}
 
 cleanup:
 	_interrupted = 1;
+	gl_openstreetmap_deinit(&map);
 	nk_sdl_shutdown();
 	SDL_GL_DeleteContext(glContext);
 	SDL_DestroyWindow(win);
@@ -225,3 +185,31 @@ gui_force_update(void)
 	SDL_Event empty = {.type = SDL_USEREVENT};
 	SDL_PushEvent(&empty);
 }
+
+/* Static functions {{{ */
+static void
+overview_window(struct nk_context *ctx)
+{
+	const enum nk_panel_flags win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
+	                                    | NK_WINDOW_MOVABLE | NK_WINDOW_MINIMIZABLE
+	                                    | NK_WINDOW_TITLE;
+
+	/* Compose GUI */
+	if (nk_begin(ctx, "Overview", nk_rect(0, 0, 400, 500), win_flags)) {
+		/* Audio device selection TODO handle input from file */
+		widget_audio_dev_select(ctx);
+
+		/* Sonde type selection */
+		widget_type_select(ctx);
+
+		nk_layout_row_dynamic(ctx, nk_window_get_height(ctx), 1);
+		if (nk_group_begin(ctx, "Data", NK_WINDOW_NO_SCROLLBAR)) {
+			/* Raw data */
+			widget_data(ctx);
+
+			nk_group_end(ctx);
+		}
+	}
+	nk_end(ctx);
+}
+/* }}} */

@@ -47,7 +47,6 @@ void
 gui_set_style_default(struct nk_context *ctx)
 {
 	nk_style_from_table(ctx, default_style_table);
-
 }
 
 void
