@@ -28,7 +28,7 @@ static PrintableData printable[2];
 static int printable_active_slot;
 static int has_data, new_data;
 
-static float *temp, *rh, *hdg, *speed, *alt, *lat, *lon;
+static GeoPoint *track;
 static int reserved_count;
 static int sample_count;
 
@@ -50,13 +50,7 @@ decoder_init(int samplerate)
 	active_decoder = AUTO;
 
 	/* Initialize historical data pointers */
-	temp = malloc(CHUNKSIZE * sizeof(*temp));
-	rh = malloc(CHUNKSIZE * sizeof(*rh));
-	hdg = malloc(CHUNKSIZE * sizeof(*hdg));
-	speed = malloc(CHUNKSIZE * sizeof(*speed));
-	alt = malloc(CHUNKSIZE * sizeof(*alt));
-	lat = malloc(CHUNKSIZE * sizeof(*lat));
-	lon = malloc(CHUNKSIZE * sizeof(*lon));
+	track = malloc(CHUNKSIZE * sizeof(*track));
 	reserved_count = CHUNKSIZE;
 	sample_count = 0;
 
@@ -84,11 +78,7 @@ decoder_deinit(void)
 
 	/* Clear history buffers */
 	sample_count = 0;
-	free(temp);
-	free(rh);
-	free(hdg);
-	free(speed);
-	free(alt);
+	free(track);
 }
 
 
@@ -178,25 +168,19 @@ decode(const float *srcbuf, size_t len)
 								= altitude_to_pressure(l_printable->alt);
 						}
 
-						if (l_printable->calibrated && isnormal(printable->alt)) {
-							temp[sample_count] = l_printable->temp;
-							rh[sample_count] = l_printable->rh;
-							hdg[sample_count] = l_printable->heading;
-							speed[sample_count] = l_printable->speed;
-							alt[sample_count] = l_printable->alt;
-							lat[sample_count] = l_printable->lat;
-							lon[sample_count] = l_printable->lon;
+						if (isnormal(printable->alt)) {
+							track[sample_count].temp = l_printable->temp;
+							track[sample_count].rh = l_printable->rh;
+							track[sample_count].hdg = l_printable->heading;
+							track[sample_count].speed = l_printable->speed;
+							track[sample_count].alt = l_printable->alt;
+							track[sample_count].lat = l_printable->lat;
+							track[sample_count].lon = l_printable->lon;
 							sample_count++;
 
 							if (sample_count > reserved_count) {
 								reserved_count += CHUNKSIZE;
-								temp = realloc(temp, reserved_count * sizeof(*temp));
-								rh = realloc(rh, reserved_count * sizeof(*rh));
-								hdg = realloc(hdg, reserved_count * sizeof(*hdg));
-								speed = realloc(speed, reserved_count * sizeof(*speed));
-								alt = realloc(alt, reserved_count * sizeof(*alt));
-								lat = realloc(lat, reserved_count * sizeof(*alt));
-								lon = realloc(lon, reserved_count * sizeof(*alt));
+								track = realloc(track, reserved_count * sizeof(*track));
 							}
 						}
 
@@ -255,46 +239,10 @@ get_data_count(void)
 	return sample_count;
 }
 
-const float*
-get_temp_data(void)
+const GeoPoint*
+get_track_data(void)
 {
-	return temp;
-}
-
-const float*
-get_rh_data(void)
-{
-	return rh;
-}
-
-const float*
-get_hdg_data(void)
-{
-	return hdg;
-}
-
-const float*
-get_speed_data(void)
-{
-	return speed;
-}
-
-const float*
-get_alt_data(void)
-{
-	return alt;
-}
-
-const float*
-get_lat_data(void)
-{
-	return lat;
-}
-
-const float*
-get_lon_data(void)
-{
-	return lon;
+	return track;
 }
 
 static void

@@ -126,7 +126,7 @@ set(GUI_SOURCES
 	gui/gui.c gui/gui.h
 	gui/gl_osm.c gui/gl_osm.h
 
-	gui/widgets/chart.c gui/widgets/chart.h
+	#gui/widgets/chart.c gui/widgets/chart.h
 	gui/widgets/data.c gui/widgets/data.h
 	gui/widgets/type_select.c gui/widgets/type_select.h
 	gui/widgets/audio_dev_select.c gui/widgets/audio_dev_select.h
