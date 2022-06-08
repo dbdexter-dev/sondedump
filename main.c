@@ -116,9 +116,6 @@ main(int argc, char *argv[])
 #endif
 #ifdef ENABLE_AUDIO
 	input_type = INPUT_AUDIO;
-#endif
-#ifdef ENABLE_AUDIO
-	int input_from_audio = 0;
 	int audio_device = -1;
 #endif
 	/* }}} */
@@ -185,11 +182,14 @@ main(int argc, char *argv[])
 		samplerate = audio_init(audio_device);
 		if (samplerate < 0) return 1;
 		printf("Selected samplerate: %d\n", samplerate);
-		input_from_audio = 1;
 #else
 		fprintf(stderr, "No input file specified\n");
 		usage(argv[0]);
 		return 1;
+#endif
+#ifdef ENABLE_AUDIO
+	} else {
+		input_type = INPUT_WAV;
 #endif
 	}
 	input_fname = argv[optind];
@@ -319,7 +319,7 @@ main(int argc, char *argv[])
 
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO
-	if (input_from_audio) {
+	if (input_type == INPUT_AUDIO) {
 		audio_deinit();
 	}
 #endif
@@ -366,7 +366,7 @@ usage(const char *pname)
 	fprintf(stderr, "Usage: %s [options] file_in\n", pname);
 	fprintf(stderr,
 #ifdef ENABLE_AUDIO
-			"   -a, --audio-device <id> Use PortAudio device <id> as input (default: choose interactively)\n"
+			"   -a, --audio-device <id>      Use PortAudio device <id> as input (default: choose interactively)\n"
 #endif
 			"   -c, --csv <file>             Output data to <file> in CSV format\n"
 			"   -f, --fmt <format>           Format output lines as <format>\n"
