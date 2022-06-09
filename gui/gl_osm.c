@@ -1,9 +1,10 @@
 #include <assert.h>
 #include <math.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>  /* TODO Remove */
-#include <GL/glew.h>
+#include <GLES3/gl3.h>
 #include "decode.h"
 #include "gl_osm.h"
 #include "stb_image/stb_image.h"
@@ -23,165 +24,22 @@ typedef struct {
 	int tex;
 } Vertex;
 
+static void map_opengl_init(GLOpenStreetMap *map);
+static void track_opengl_init(GLOpenStreetMap *map);
 static void build_quads(int x_count, int y_count, Vertex *vertices, unsigned int *indices);
 static void resize_texture(GLuint *texture, int count);
 static void refresh_textures(GLOpenStreetMap *map, Vertex *vertices, int x_start, int y_start, int x_count, int y_count, int zoom);
+static int mipmap(float zoom);
 
 
 void
 gl_openstreetmap_init(GLOpenStreetMap *map)
 {
-	GLuint attrib_pos;
-	GLuint attrib_tex;
-	GLuint attrib_track_pos;
+	/* Background map program, buffers, uniforms... */
+	map_opengl_init(map);
 
-	static const GLchar *tex_vertex_shader =
-		SHADER_VERSION
-        "precision mediump float;\n"
-
-		"uniform mat4 ProjMtx;\n"
-
-		"in vec2 Position;\n"
-		"in int TextureID;\n"
-
-		"out vec2 TexUV_raw;\n"
-		"flat out int TexID;\n"
-
-		"void main() {\n"
-		"   TexID = TextureID;\n"
-		"   TexUV_raw = Position.xy;\n"
-		"   gl_Position = ProjMtx * vec4(Position.xy, 0, 1);\n"
-		//"   gl_Position = vec4(Position.xy, 0, 1);\n"
-		"}";
-	static const GLchar *tex_fragment_shader =
-		SHADER_VERSION
-        "precision mediump float;\n"
-        "precision mediump sampler2DArray;\n"
-
-		"uniform sampler2DArray Texture;\n"
-
-		"in vec2 TexUV_raw;\n"
-		"flat in int TexID;\n"
-
-		"out vec4 Out_Color;\n"
-
-		"void main() {\n"
-		"   vec2 TexUV = fract(TexUV_raw);\n"
-		"   float z = float(TexID);\n"
-		"   Out_Color = texture(Texture, vec3(TexUV, z));\n"
-		"}";
-	static const GLchar *track_vertex_shader =
-		SHADER_VERSION
-        "precision mediump float;\n"
-
-		"uniform mat4 ProjMtx;\n"
-		"uniform float Zoom;\n"
-
-		"in vec2 Position;\n"
-
-		"void main() {\n"
-		"   float pi = 3.1415926536;\n"
-		"   float rads = Position.x * pi / 180.0;\n"
-		"   float x = Zoom * (Position.y + 180.0) / 360.0;\n"
-		"   float y = Zoom * (1.0 - log(tan(rads) + 1.0/cos(rads)) / pi) / 2.0;\n"
-		"   gl_Position = ProjMtx * vec4(x, y, 0, 1);\n"
-		//"   gl_Position = vec4(Position.xy, 0, 1);\n"
-		"}";
-	static const GLchar *track_fragment_shader =
-		SHADER_VERSION
-		"precision mediump float;\n"
-
-		"uniform vec4 TrackColor;\n"
-
-		"out vec4 Out_Color;\n"
-
-		"void main() {\n"
-		"   Out_Color = TrackColor;\n"
-		"}";
-
-
-	GLint status;
-
-	/* Background map program, buffers, uniforms... {{{ */
-	map->texture_program = glCreateProgram();
-	map->tex_vert_shader = glCreateShader(GL_VERTEX_SHADER);
-	map->tex_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(map->tex_vert_shader, 1, &tex_vertex_shader, 0);
-	glShaderSource(map->tex_frag_shader, 1, &tex_fragment_shader, 0);
-
-	glCompileShader(map->tex_vert_shader);
-	glGetShaderiv(map->tex_vert_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	glCompileShader(map->tex_frag_shader);
-	glGetShaderiv(map->tex_frag_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-
-	glAttachShader(map->texture_program, map->tex_vert_shader);
-	glAttachShader(map->texture_program, map->tex_frag_shader);
-	glLinkProgram(map->texture_program);
-
-	glGetProgramiv(map->texture_program, GL_LINK_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	map->u1i_texture = glGetUniformLocation(map->texture_program, "Texture");
-	map->u4m_proj = glGetUniformLocation(map->texture_program, "ProjMtx");
-
-	attrib_pos = glGetAttribLocation(map->texture_program, "Position");
-	attrib_tex = glGetAttribLocation(map->texture_program, "TextureID");
-
-	/* Needed so that the vertex buffer is actually rendered, otherwise unused */
-	glGenVertexArrays(1, &map->vao);
-	glBindVertexArray(map->vao);
-
-	glGenBuffers(1, &map->vbo);
-	glGenBuffers(1, &map->ibo);
-
-	glBindBuffer(GL_ARRAY_BUFFER, map->vbo);
-
-	glEnableVertexAttribArray(attrib_pos);
-	glVertexAttribPointer(attrib_pos, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, x));
-	glEnableVertexAttribArray(attrib_tex);
-	glVertexAttribIPointer(attrib_tex, 1, GL_INT, sizeof(Vertex), (void*)offsetof(Vertex, tex));
-	/* }}} */
-
-	/* Ground track program, buffers, uniforms... {{{ */
-	map->track_program = glCreateProgram();
-	map->track_vert_shader = glCreateShader(GL_VERTEX_SHADER);
-	map->track_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-
-	glShaderSource(map->track_vert_shader, 1, &track_vertex_shader, 0);
-	glShaderSource(map->track_frag_shader, 1, &track_fragment_shader, 0);
-
-	glCompileShader(map->track_vert_shader);
-	glGetShaderiv(map->track_vert_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	glCompileShader(map->track_frag_shader);
-	glGetShaderiv(map->track_frag_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	glAttachShader(map->track_program, map->track_vert_shader);
-	glAttachShader(map->track_program, map->track_frag_shader);
-	glLinkProgram(map->track_program);
-
-	glGetProgramiv(map->track_program, GL_LINK_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	map->u4m_track_proj = glGetUniformLocation(map->track_program, "ProjMtx");
-	map->u4f_track_color = glGetUniformLocation(map->track_program, "TrackColor");
-	map->u1f_zoom = glGetUniformLocation(map->track_program, "Zoom");
-
-	glGenVertexArrays(1, &map->track_vao);
-	glBindVertexArray(map->track_vao);
-	glGenBuffers(1, &map->track_vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, map->track_vbo);
-
-	attrib_track_pos = glGetAttribLocation(map->track_program, "Position");
-	glEnableVertexAttribArray(attrib_track_pos);
-	glVertexAttribPointer(attrib_track_pos, 2, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, lat));
-	/* }}} */
+	/* Ground track program, buffers, uniforms... */
+	track_opengl_init(map);
 
 	map->textures = NULL;
 	map->tex_array = 0;
@@ -213,11 +71,12 @@ void
 gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_center, float y_center, float zoom)
 {
 	/* Enough to fill the screen plus a 1x border all around for safety */
-	const int x_size = 1 << (int)zoom;
-	const int y_size = 1 << (int)zoom;
-	const int x_count = ceilf(width / MAP_TILE_WIDTH * TILE_MIN_ZOOM) + 2;
-	const int y_count = ceilf(height / MAP_TILE_HEIGHT * TILE_MIN_ZOOM) + 2;
+	const int x_size = 1 << mipmap(zoom);
+	const int y_size = 1 << mipmap(zoom);
+	const int x_count = ceilf((float)width / MAP_TILE_WIDTH * TILE_MIN_ZOOM) + 2;
+	const int y_count = ceilf((float)height / MAP_TILE_HEIGHT * TILE_MIN_ZOOM) + 2;
 	const int count = x_count * y_count;
+	const float digital_zoom = 1.0 / (1.0 + zoom - mipmap(zoom));
 	Vertex *vertices;
 	unsigned int *indices;
 	int x_start, y_start, x_end, y_end;
@@ -239,10 +98,11 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 	 * Projection transform:
 	 * - Pan so that (lat,lon) is at (0,0)
 	 * - Scale so that 1 texture pixel = 1 viewport pixel
+	 * - Scale by the delta between zoom and mipmap zoom
 	 * - Scale by width/height to go from pixel coords to viewport coords
 	 */
-	proj[0][0] *= 2.0f * MAP_TILE_WIDTH / (float)width;
-	proj[1][1] *= 2.0f * -MAP_TILE_HEIGHT / (float)height;
+	proj[0][0] *= 2.0f * MAP_TILE_WIDTH / (float)width * digital_zoom;
+	proj[1][1] *= 2.0f * -MAP_TILE_HEIGHT / (float)height * digital_zoom;
 	proj[3][0] = proj[0][0] * (x_start - x_center);
 	proj[3][1] = proj[1][1] * (y_start - y_center);
 
@@ -287,7 +147,7 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 	/* Link texture indices to each quad */
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, map->tex_array);
-	refresh_textures(map, vertices, x_start, y_start, x_count, y_count, zoom);
+	refresh_textures(map, vertices, x_start, y_start, x_count, y_count, mipmap(zoom));
 	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
 
 	/* Setup program state */
@@ -323,7 +183,7 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 
 	glUniformMatrix4fv(map->u4m_track_proj, 1, GL_FALSE, (GLfloat*)proj);
 	glUniform4f(map->u4f_track_color, 1.0, 0.0, 0.0, 1.0);
-	glUniform1f(map->u1f_zoom, 1 << (int)zoom);
+	glUniform1f(map->u1f_zoom, 1 << mipmap(zoom));
 
 	glDrawArrays(GL_POINTS, 0, get_data_count());
 
@@ -339,6 +199,168 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 }
 
 /* Static functions {{{ */
+static void
+map_opengl_init(GLOpenStreetMap *map)
+{
+	GLuint attrib_pos, attrib_tex;
+	GLint status;
+
+	static const GLchar *vertex_shader =
+		SHADER_VERSION
+        "precision mediump float;\n"
+
+		"uniform mat4 ProjMtx;\n"
+
+		"in vec2 Position;\n"
+		"in int TextureID;\n"
+
+		"out vec2 TexUV_raw;\n"
+		"flat out int TexID;\n"
+
+		"void main() {\n"
+		"   TexID = TextureID;\n"
+		"   TexUV_raw = Position.xy;\n"
+		"   gl_Position = ProjMtx * vec4(Position.xy, 0, 1);\n"
+		//"   gl_Position = vec4(Position.xy, 0, 1);\n"
+		"}";
+	static const GLchar *fragment_shader =
+		SHADER_VERSION
+        "precision mediump float;\n"
+        "precision mediump sampler2DArray;\n"
+
+		"uniform sampler2DArray Texture;\n"
+
+		"in vec2 TexUV_raw;\n"
+		"flat in int TexID;\n"
+
+		"out vec4 Out_Color;\n"
+
+		"void main() {\n"
+		"   vec2 TexUV = fract(TexUV_raw);\n"
+		"   float z = float(TexID);\n"
+		"   Out_Color = texture(Texture, vec3(TexUV, z));\n"
+		"}";
+
+	/* Program + shaders */
+	map->texture_program = glCreateProgram();
+	map->tex_vert_shader = glCreateShader(GL_VERTEX_SHADER);
+	map->tex_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(map->tex_vert_shader, 1, &vertex_shader, 0);
+	glShaderSource(map->tex_frag_shader, 1, &fragment_shader, 0);
+
+	glCompileShader(map->tex_vert_shader);
+	glGetShaderiv(map->tex_vert_shader, GL_COMPILE_STATUS, &status);
+	assert(status == GL_TRUE);
+
+	glCompileShader(map->tex_frag_shader);
+	glGetShaderiv(map->tex_frag_shader, GL_COMPILE_STATUS, &status);
+	assert(status == GL_TRUE);
+
+	glAttachShader(map->texture_program, map->tex_vert_shader);
+	glAttachShader(map->texture_program, map->tex_frag_shader);
+	glLinkProgram(map->texture_program);
+
+	glGetProgramiv(map->texture_program, GL_LINK_STATUS, &status);
+	assert(status == GL_TRUE);
+
+	/* Uniforms + attributes */
+	map->u1i_texture = glGetUniformLocation(map->texture_program, "Texture");
+	map->u4m_proj = glGetUniformLocation(map->texture_program, "ProjMtx");
+
+	attrib_pos = glGetAttribLocation(map->texture_program, "Position");
+	attrib_tex = glGetAttribLocation(map->texture_program, "TextureID");
+
+	/* Buffers, arrays, and layouts */
+	glGenVertexArrays(1, &map->vao);
+	glBindVertexArray(map->vao);
+
+	glGenBuffers(1, &map->vbo);
+	glGenBuffers(1, &map->ibo);
+
+	glBindBuffer(GL_ARRAY_BUFFER, map->vbo);
+
+	glEnableVertexAttribArray(attrib_pos);
+	glVertexAttribPointer(attrib_pos, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, x));
+	glEnableVertexAttribArray(attrib_tex);
+	glVertexAttribIPointer(attrib_tex, 1, GL_INT, sizeof(Vertex), (void*)offsetof(Vertex, tex));
+}
+
+static void
+track_opengl_init(GLOpenStreetMap *map)
+{
+	GLuint attrib_track_pos;
+	GLint status;
+
+	static const GLchar *vertex_shader =
+		SHADER_VERSION
+        "precision mediump float;\n"
+
+		"uniform mat4 ProjMtx;\n"
+		"uniform float Zoom;\n"
+
+		"in vec2 Position;\n"
+
+		"void main() {\n"
+		"   float pi = 3.1415926536;\n"
+		"   float rads = Position.x * pi / 180.0;\n"
+		"   float x = Zoom * (Position.y + 180.0) / 360.0;\n"
+		"   float y = Zoom * (1.0 - log(tan(rads) + 1.0/cos(rads)) / pi) / 2.0;\n"
+		"   gl_Position = ProjMtx * vec4(x, y, 0, 1);\n"
+		//"   gl_Position = vec4(Position.xy, 0, 1);\n"
+		"}";
+	static const GLchar *fragment_shader =
+		SHADER_VERSION
+		"precision mediump float;\n"
+
+		"uniform vec4 TrackColor;\n"
+
+		"out vec4 Out_Color;\n"
+
+		"void main() {\n"
+		"   Out_Color = TrackColor;\n"
+		"}";
+
+	/* Program + shaders */
+	map->track_program = glCreateProgram();
+	map->track_vert_shader = glCreateShader(GL_VERTEX_SHADER);
+	map->track_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
+
+	glShaderSource(map->track_vert_shader, 1, &vertex_shader, 0);
+	glShaderSource(map->track_frag_shader, 1, &fragment_shader, 0);
+
+	glCompileShader(map->track_vert_shader);
+	glGetShaderiv(map->track_vert_shader, GL_COMPILE_STATUS, &status);
+	assert(status == GL_TRUE);
+
+	glCompileShader(map->track_frag_shader);
+	glGetShaderiv(map->track_frag_shader, GL_COMPILE_STATUS, &status);
+	assert(status == GL_TRUE);
+
+	glAttachShader(map->track_program, map->track_vert_shader);
+	glAttachShader(map->track_program, map->track_frag_shader);
+	glLinkProgram(map->track_program);
+
+	glGetProgramiv(map->track_program, GL_LINK_STATUS, &status);
+	assert(status == GL_TRUE);
+
+
+	/* Uniforms + attributes */
+	map->u4m_track_proj = glGetUniformLocation(map->track_program, "ProjMtx");
+	map->u4f_track_color = glGetUniformLocation(map->track_program, "TrackColor");
+	map->u1f_zoom = glGetUniformLocation(map->track_program, "Zoom");
+	attrib_track_pos = glGetAttribLocation(map->track_program, "Position");
+
+	glGenVertexArrays(1, &map->track_vao);
+	glBindVertexArray(map->track_vao);
+	glGenBuffers(1, &map->track_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, map->track_vbo);
+
+	glEnableVertexAttribArray(attrib_track_pos);
+	glVertexAttribPointer(attrib_track_pos, 2, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, lat));
+
+
+}
+
 static void
 build_quads(int x_count, int y_count, Vertex *vertices, unsigned int *indices)
 {
@@ -453,6 +475,14 @@ refresh_textures(GLOpenStreetMap *map, Vertex *vertices, int x_start, int y_star
 			}
 		}
 	}
+}
+
+static int
+mipmap(float zoom)
+{
+	if (zoom >= 8.0f) return 8;
+
+	return 8;
 }
 
 /* }}} */

@@ -1,6 +1,6 @@
-#include <GL/glew.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
+#include <GLES3/gl3.h>
 #include <pthread.h>
 #include "decode.h"
 #include "gui.h"
@@ -63,7 +63,7 @@ gui_main(void *args)
 	SDL_GLContext glContext;
 	SDL_Event evt;
 	int width, height;
-	float center_x, center_y;
+	float center_x, center_y, zoom;
 	int last_slot = get_slot();
 	char title[64];
 	GLOpenStreetMap map;
@@ -73,9 +73,9 @@ gui_main(void *args)
 	SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
 	win = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -85,15 +85,13 @@ gui_main(void *args)
 	glContext = SDL_GL_CreateContext(win);
 	SDL_GetWindowSize(win, &width, &height);
 
-	/* Initialize GLEW */
 	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-	glewExperimental = 1;
-	if (glewInit() != GLEW_OK) return NULL;
 
 	/* Initialize map */
 	gl_openstreetmap_init(&map);
 	center_x = lon_to_x(9.33, 8);
 	center_y = lat_to_y(45.5, 8);
+	zoom = 8.0;
 	dragging = 0;
 
 	/* Initialize nuklear */
@@ -119,6 +117,8 @@ gui_main(void *args)
 			switch (evt.type) {
 			case SDL_QUIT:
 				goto cleanup;
+			case SDL_MOUSEWHEEL:
+				zoom -= 0.01 * evt.wheel.y;
 				break;
 			case SDL_MOUSEBUTTONDOWN:
 				dragging = 1;
@@ -128,8 +128,8 @@ gui_main(void *args)
 				break;
 			case SDL_MOUSEMOTION:
 				if (dragging) {
-					center_x -= (float)evt.motion.xrel / (1 << 8);
-					center_y -= (float)evt.motion.yrel / (1 << 8);
+					center_x -= (float)evt.motion.xrel / powf(2, zoom);
+					center_y -= (float)evt.motion.yrel / powf(2, zoom);
 				}
 				break;
 			case SDL_USEREVENT:
@@ -161,7 +161,7 @@ gui_main(void *args)
 		glClearColor(0, 0, 0, 1);
 
 		/* Draw background */
-		gl_openstreetmap_raster(&map, width, height, center_x, center_y, 8);
+		gl_openstreetmap_raster(&map, width, height, center_x, center_y, zoom);
 
 		/* Draw GUI */
 		nk_sdl_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY);

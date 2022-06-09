@@ -183,12 +183,10 @@ endif()
 
 # Find OpenGL and SDL2
 if (ENABLE_GUI)
-	set(OpenGL_GL_PREFERENCE "GLVND")
-	find_package(OpenGL)
+	find_package(OpenGLESv3)
 	find_package(SDL2)
-	find_package(GLEW)
 endif()
-if (ENABLE_GUI AND OPENGL_FOUND AND SDL2_FOUND AND GLEW_FOUND)
+if (ENABLE_GUI AND SDL2_FOUND AND OPENGLES3_FOUND)
 	# Nuklear configuration, has to be consistent every time nuklear.h is included
 	add_definitions(
 		-DNK_INCLUDE_FIXED_TYPES
@@ -203,18 +201,12 @@ if (ENABLE_GUI AND OPENGL_FOUND AND SDL2_FOUND AND GLEW_FOUND)
 	add_definitions(-DENABLE_GUI)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${GUI_SOURCES})
 	set(INC_DIRS ${INC_DIRS} gui/)
-	set(OPENGL_GL OpenGL::GL)
 else()
 	set(SDL2_LIBRARIES "")
 	set(SDL2_INCLUDE_DIRS "")
 	set(SDL2_LIBRARY_DIRS "")
-	set(OPENGL_INCLUDE_DIRS "")
-	set(OPENGL_LIBRARIES "")
-	set(OPENGL_LIBRARY_DIRS "")
-	set(GLEW_INCLUDE_DIRS "")
-	set(GLEW_LIBRARIES "")
-	set(GLEW_LIBRARY_DIRS "")
-	set(OPENGL_GL "")
+	set(OPENGLES3_INCLUDE_DIRS "")
+	set(OPENGLES3_LIBRARIES "")
 endif()
 
 
@@ -233,8 +225,7 @@ target_include_directories(sondedump PRIVATE ${INC_DIRS}
 	${PORTAUDIO_INCLUDE_DIRS}
 	${CURSES_INCLUDE_DIRS}
 	${SDL2_INCLUDE_DIRS}
-	${OPENGL_INCLUDE_DIRS}
-	${GLEW_INCLUDE_DIRS}
+	${OPENGLES3_INCLUDE_DIRS}
 )
 target_link_libraries(sondedump PRIVATE radiosonde
 	${CMAKE_THREAD_LIBS_INIT}
@@ -242,8 +233,7 @@ target_link_libraries(sondedump PRIVATE radiosonde
 	${PORTAUDIO_LIBRARIES}
 	${CURSES_LIBRARIES}
 	${SDL2_LIBRARIES}
-	${GLEW_LIBRARIES}
-	${OPENGL_GL}
+	${OPENGLES3_LIBRARIES}
 )
 
 # Install targets

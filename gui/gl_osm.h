@@ -1,7 +1,7 @@
 #ifndef gl_osm_h
 #define gl_osm_h
 
-#include <GL/gl.h>
+#include <GLES2/gl2.h>
 
 #define MAP_TILE_WIDTH 256
 #define MAP_TILE_HEIGHT 256
