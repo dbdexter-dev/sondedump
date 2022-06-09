@@ -1,5 +1,6 @@
+#include <assert.h>
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
+#include <SDL2/SDL_opengles2.h>
 #include <GLES3/gl3.h>
 #include <pthread.h>
 #include "decode.h"
@@ -68,14 +69,15 @@ gui_main(void *args)
 	char title[64];
 	GLOpenStreetMap map;
 	int pollcount, dragging;
+	const char *gl_version;
 
 	/* Initialize SDL2 */
 	SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
 	win = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -83,6 +85,17 @@ gui_main(void *args)
 	                       SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
 
 	glContext = SDL_GL_CreateContext(win);
+	gl_version = (const char*)glGetString(GL_VERSION);
+	if (gl_version) {
+		printf("Version string: %s\n", gl_version);
+	} else {
+		printf("Unable to create OpenGL context: %s\n", SDL_GetError());
+	}
+#ifndef NDEBUG
+	if (SDL_GetError()[0] != 0) {
+		printf("SDL context creation failed: %s\n", SDL_GetError());
+	}
+#endif
 	SDL_GetWindowSize(win, &width, &height);
 
 	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -118,7 +131,7 @@ gui_main(void *args)
 			case SDL_QUIT:
 				goto cleanup;
 			case SDL_MOUSEWHEEL:
-				zoom -= 0.01 * evt.wheel.y;
+				zoom += 0.1 * evt.wheel.y;
 				break;
 			case SDL_MOUSEBUTTONDOWN:
 				dragging = 1;
@@ -191,8 +204,7 @@ static void
 overview_window(struct nk_context *ctx)
 {
 	const enum nk_panel_flags win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
-	                                    | NK_WINDOW_MOVABLE | NK_WINDOW_MINIMIZABLE
-	                                    | NK_WINDOW_TITLE;
+	                                    | NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE;
 
 	/* Compose GUI */
 	if (nk_begin(ctx, "Overview", nk_rect(0, 0, 400, 500), win_flags)) {

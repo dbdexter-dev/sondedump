@@ -76,7 +76,7 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 	const int x_count = ceilf((float)width / MAP_TILE_WIDTH * TILE_MIN_ZOOM) + 2;
 	const int y_count = ceilf((float)height / MAP_TILE_HEIGHT * TILE_MIN_ZOOM) + 2;
 	const int count = x_count * y_count;
-	const float digital_zoom = 1.0 / (1.0 + zoom - mipmap(zoom));
+	const float digital_zoom = powf(2, zoom - mipmap(zoom));
 	Vertex *vertices;
 	unsigned int *indices;
 	int x_start, y_start, x_end, y_end;
@@ -306,6 +306,7 @@ track_opengl_init(GLOpenStreetMap *map)
 		"   float x = Zoom * (Position.y + 180.0) / 360.0;\n"
 		"   float y = Zoom * (1.0 - log(tan(rads) + 1.0/cos(rads)) / pi) / 2.0;\n"
 		"   gl_Position = ProjMtx * vec4(x, y, 0, 1);\n"
+		"   gl_PointSize = 4.0f;\n"
 		//"   gl_Position = vec4(Position.xy, 0, 1);\n"
 		"}";
 	static const GLchar *fragment_shader =
@@ -343,6 +344,7 @@ track_opengl_init(GLOpenStreetMap *map)
 	glGetProgramiv(map->track_program, GL_LINK_STATUS, &status);
 	assert(status == GL_TRUE);
 
+	//glEnable(0x8642);
 
 	/* Uniforms + attributes */
 	map->u4m_track_proj = glGetUniformLocation(map->track_program, "ProjMtx");
