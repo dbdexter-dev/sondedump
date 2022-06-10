@@ -183,6 +183,7 @@ endif()
 
 # Find OpenGL and SDL2
 if (ENABLE_GUI)
+	find_package(Threads REQUIRED)
 	find_package(OpenGLESv3)
 	find_package(SDL2)
 endif()

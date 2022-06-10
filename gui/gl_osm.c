@@ -3,11 +3,14 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef NDEBUG
 #include <stdio.h>  /* TODO Remove */
+#endif
 #include <GLES3/gl3.h>
 #include "decode.h"
 #include "gl_osm.h"
 #include "stb_image/stb_image.h"
+#include "style.h"
 #include "utils.h"
 
 #define MODLT(x, y, mod) (((y) - (x) - 1 + (mod)) % (mod) < ((mod) / 2))
@@ -70,22 +73,23 @@ gl_openstreetmap_deinit(GLOpenStreetMap *map)
 void
 gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_center, float y_center, float zoom)
 {
-	/* Enough to fill the screen plus a 1x border all around for safety */
+	const float digital_zoom = powf(2, zoom - mipmap(zoom));
 	const int x_size = 1 << mipmap(zoom);
 	const int y_size = 1 << mipmap(zoom);
-	const int x_count = ceilf((float)width / MAP_TILE_WIDTH * TILE_MIN_ZOOM) + 2;
-	const int y_count = ceilf((float)height / MAP_TILE_HEIGHT * TILE_MIN_ZOOM) + 2;
+	/* Enough to fill the screen plus a 1x border all around for safety */
+	const int x_count = ceilf((float)width / MAP_TILE_WIDTH / digital_zoom) + 2;
+	const int y_count = ceilf((float)height / MAP_TILE_HEIGHT / digital_zoom) + 2;
 	const int count = x_count * y_count;
-	const float digital_zoom = powf(2, zoom - mipmap(zoom));
-	Vertex *vertices;
+	const float track_color[] = STYLE_ACCENT_1_NORMALIZED;
 	unsigned int *indices;
+	Vertex *vertices;
 	int x_start, y_start, x_end, y_end;
 	int i;
 
 	GLfloat proj[4][4] = {
 		{1.0f, 0.0f, 0.0f, 0.0f},
 		{0.0f, 1.0f, 0.0f, 0.0f},
-		{0.0f, 0.0f,-1.0f, 0.0f},
+		{0.0f, 0.0f, 1.0f, 0.0f},
 		{0.0f, 0.0f, 0.0f, 1.0f},
 	};
 
@@ -123,6 +127,8 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 		/* Have to start from scratch since the texture 2d array will be deleted */
 		for (i=0; i<count; i++) {
 			map->textures[i].in_use = 0;
+			map->textures[i].x = -1;
+			map->textures[i].y = -1;
 		}
 
 #ifndef NDEBUG
@@ -178,11 +184,13 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 	glBindBuffer(GL_ARRAY_BUFFER, map->track_vbo);
 	glBufferData(GL_ARRAY_BUFFER, get_data_count() * sizeof(GeoPoint), get_track_data(), GL_STREAM_DRAW);
 
+	/* Shader converts (lat,lon) to (x,y): translate so that the center of the
+	 * viewport is (0, 0) */
 	proj[3][0] = proj[0][0] * -x_center;
 	proj[3][1] = proj[1][1] * -y_center;
 
 	glUniformMatrix4fv(map->u4m_track_proj, 1, GL_FALSE, (GLfloat*)proj);
-	glUniform4f(map->u4f_track_color, 1.0, 0.0, 0.0, 1.0);
+	glUniform4fv(map->u4f_track_color, 1, track_color);
 	glUniform1f(map->u1f_zoom, 1 << mipmap(zoom));
 
 	glDrawArrays(GL_POINTS, 0, get_data_count());
