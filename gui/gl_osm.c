@@ -14,7 +14,7 @@
 #include "utils.h"
 
 #define MODLT(x, y, mod) (((y) - (x) - 1 + (mod)) % (mod) < ((mod) / 2))
-#define MODGE(x, y, mod) (((x) - (y) + (mod)) % (mod) <= ((mod) / 2))
+#define MODGE(x, y, mod) (((x) - (y) + (mod)) % (mod) < ((mod) / 2))
 
 #ifdef __APPLE__
   #define SHADER_VERSION "#version 150\n"
@@ -83,7 +83,7 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 	const float track_color[] = STYLE_ACCENT_1_NORMALIZED;
 	unsigned int *indices;
 	Vertex *vertices;
-	int x_start, y_start, x_end, y_end;
+	int x_start, y_start;
 	int i;
 
 	GLfloat proj[4][4] = {
@@ -93,10 +93,11 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 		{0.0f, 0.0f, 0.0f, 1.0f},
 	};
 
+	x_center *= x_size;
+	y_center *= y_size;
+
 	x_start = (int)roundf(x_center - x_count/2);
 	y_start = (int)roundf(y_center - y_count/2);
-	x_end = x_start + x_count;
-	y_end = y_start + y_count;
 
 	/**
 	 * Projection transform:
@@ -109,10 +110,6 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 	proj[1][1] *= 2.0f * -MAP_TILE_HEIGHT / (float)height * digital_zoom;
 	proj[3][0] = proj[0][0] * (x_start - x_center);
 	proj[3][1] = proj[1][1] * (y_start - y_center);
-
-	/* Project out-of-bounds tiles back in bounds */
-	x_start = (x_start + x_size) % x_size;
-	y_start = (y_start + y_size) % y_size;
 
 	/* Setup quads */
 	vertices = malloc(sizeof(*vertices) * 4 * count);
@@ -138,16 +135,6 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 
 		/* Resize the actual texture array */
 		resize_texture(&map->tex_array, count);
-	}
-
-	/* Mark textures that are no longer in use as replaceable (with wraparounds) */
-	for (i=0; i<map->texture_count; i++) {
-		if (MODLT(map->textures[i].x, x_start, x_size)
-		 || MODLT(map->textures[i].y, y_start, y_size)
-		 || MODGE(map->textures[i].x, x_end, x_size)
-		 || MODGE(map->textures[i].y, y_end, y_size)) {
-			map->textures[i].in_use = 0;
-		}
 	}
 
 	/* Link texture indices to each quad */
@@ -245,8 +232,11 @@ map_opengl_init(GLOpenStreetMap *map)
 
 		"void main() {\n"
 		"   vec2 TexUV = fract(TexUV_raw);\n"
-		"   float z = float(TexID);\n"
-		"   Out_Color = texture(Texture, vec3(TexUV, z));\n"
+		"   if (TexID < 0) {\n"
+		"       Out_Color = vec4(0);\n"
+		"   } else {\n"
+		"       Out_Color = texture(Texture, vec3(TexUV, TexID));\n"
+		"   }\n"
 		"}";
 
 	/* Program + shaders */
@@ -352,8 +342,6 @@ track_opengl_init(GLOpenStreetMap *map)
 	glGetProgramiv(map->track_program, GL_LINK_STATUS, &status);
 	assert(status == GL_TRUE);
 
-	//glEnable(0x8642);
-
 	/* Uniforms + attributes */
 	map->u4m_track_proj = glGetUniformLocation(map->track_program, "ProjMtx");
 	map->u4f_track_color = glGetUniformLocation(map->track_program, "TrackColor");
@@ -421,6 +409,8 @@ refresh_textures(GLOpenStreetMap *map, Vertex *vertices, int x_start, int y_star
 {
 	const int x_size = 1 << zoom;
 	const int y_size = 1 << zoom;
+	const int x_end = x_start + x_count;
+	const int y_end = y_start + y_count;
 	FILE *fd;
 	int i, j, x, y, actual_x, actual_y;
 	int idx;
@@ -430,52 +420,80 @@ refresh_textures(GLOpenStreetMap *map, Vertex *vertices, int x_start, int y_star
 	void *pngdata;
 	int width, height, n;
 
+	/* Mark textures that are no longer in use as replaceable (with wraparounds) */
+	for (i=0; i<map->texture_count; i++) {
+		if (map->textures[i].in_use && (
+			   map->textures[i].z != zoom
+			|| map->textures[i].x < x_start
+			|| map->textures[i].x >= x_end
+			|| map->textures[i].y < y_start
+			|| map->textures[i].y >= y_end)) {
+#ifndef NDEBUG
+			printf("[%d,%d] Texture (%d,%d) marked for removal\n", x_start, y_start, map->textures[i].x, map->textures[i].y);
+#endif
+			map->textures[i].in_use = 0;
+		}
+	}
+
+
+	/* Bind textures to quads */
 	for (x = 0; x < x_count; x++) {
-		actual_x = (x_start + x) % x_size;
+		actual_x = x_start + x;
 		for (y = 0; y < y_count; y++) {
-			actual_y = (y_start + y) % y_size;
-			for (i=0; i<map->texture_count; i++) {
-				if (map->textures[i].x == actual_x && map->textures[i].y == actual_y) {
-					/* Texture already loaded: exit early */
-					break;
+			actual_y = y_start + y;
+
+			/* If outside x/y bounds, bind quads to texture -1 aka draw black */
+			if (actual_y < 0 || actual_y >= y_size
+			 || actual_x < 0 || actual_x >= x_size) {
+				i = -1;
+			} else {
+
+				for (i=0; i<map->texture_count; i++) {
+					if (map->textures[i].x == actual_x && map->textures[i].y == actual_y && map->textures[i].z == zoom) {
+						/* Texture already loaded: exit early */
+						break;
+					}
 				}
-			}
 
-			if (i == map->texture_count) {
-				/* Texture is not in memory yet: find an empty slot */
-				for (i=0; i<map->texture_count && map->textures[i].in_use; i++)
-					;
+				if (i == map->texture_count) {
+					/* Texture is not in memory yet: find an empty slot */
+					for (i=0; i<map->texture_count && map->textures[i].in_use; i++)
+						;
 
-				map->textures[i].x = actual_x;
-				map->textures[i].y = actual_y;
-				map->textures[i].in_use = 1;
+					/* Update texture metadata */
+					map->textures[i].x = actual_x;
+					map->textures[i].y = actual_y;
+					map->textures[i].z = zoom;
+					map->textures[i].in_use = 1;
 
-				/* Load new texture from file */
-				sprintf(path, "/home/dbdexter/Projects/magellan/out/%d/%d/%d.png", zoom, actual_x, actual_y);
-				fd = fopen(path, "rb");
-				fseek(fd, 0, SEEK_END);
-				len = ftell(fd);
-				fseek(fd, 0, SEEK_SET);
-				pngdata = malloc(len);
-				fread(pngdata, len, 1, fd);
-				fclose(fd);
+					/* Load new texture from file */
+					sprintf(path, "/home/dbdexter/Projects/magellan/%d/%d/%d.png", zoom, actual_x, actual_y);
+					fd = fopen(path, "rb");
 
-				image = stbi_load_from_memory(pngdata, len, &width, &height, &n, 3);
-				free(pngdata);
+					fseek(fd, 0, SEEK_END);
+					len = ftell(fd);
+					fseek(fd, 0, SEEK_SET);
+					pngdata = malloc(len);
+					fread(pngdata, len, 1, fd);
+					fclose(fd);
 
-				/* Copy texture into 2d tex array at offset i (already bound) */
-				glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0,
-						0, 0, i,
-						MAP_TILE_WIDTH, MAP_TILE_HEIGHT, 1,
-						GL_RGB, GL_UNSIGNED_BYTE,
-						image);
+					image = stbi_load_from_memory(pngdata, len, &width, &height, &n, 3);
+					free(pngdata);
 
-				free(image);
+					/* Copy texture into 2d tex array at offset i (already bound) */
+					glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0,
+							0, 0, i,
+							MAP_TILE_WIDTH, MAP_TILE_HEIGHT, 1,
+							GL_RGB, GL_UNSIGNED_BYTE,
+							image);
+
+					free(image);
 
 #ifndef NDEBUG
-				printf("Loaded texture (%d,%d) -> [%d]\n", actual_x, actual_y, i);
+					printf("Loaded texture (%d,%d) -> [%d]\n", actual_x, actual_y, i);
 #endif
 
+				}
 			}
 
 			/* Associate quad to index */
@@ -491,8 +509,11 @@ static int
 mipmap(float zoom)
 {
 	if (zoom >= 8.0f) return 8;
+	if (zoom >= 6.0f) return 6;
+	if (zoom >= 5.0f) return 5;
+	if (zoom >= 4.0f) return 4;
 
-	return 8;
+	return 4;
 }
 
 /* }}} */

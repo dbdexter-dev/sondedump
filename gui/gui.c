@@ -87,7 +87,7 @@ gui_main(void *args)
 	glContext = SDL_GL_CreateContext(win);
 	gl_version = (const char*)glGetString(GL_VERSION);
 	if (gl_version) {
-		printf("Version string: %s\n", gl_version);
+		printf("Created OpenGL context: %s\n", gl_version);
 	} else {
 		printf("Unable to create OpenGL context: %s\n", SDL_GetError());
 	}
@@ -102,10 +102,13 @@ gui_main(void *args)
 
 	/* Initialize map */
 	gl_openstreetmap_init(&map);
-	center_x = lon_to_x(9.33, 8);
-	center_y = lat_to_y(45.5, 8);
 	zoom = 8.0;
+	center_x = lon_to_x(9.33, 0);
+	center_y = lat_to_y(45.5, 0);
 	dragging = 0;
+#ifndef NDEBUG
+	printf("Starting xy: %f %f\n", center_x, center_y);
+#endif
 
 	/* Initialize nuklear */
 	ctx = nk_sdl_init(win);
@@ -141,8 +144,8 @@ gui_main(void *args)
 				break;
 			case SDL_MOUSEMOTION:
 				if (dragging) {
-					center_x -= (float)evt.motion.xrel / powf(2, zoom);
-					center_y -= (float)evt.motion.yrel / powf(2, zoom);
+					center_x -= (float)evt.motion.xrel / MAP_TILE_WIDTH / powf(2, zoom);
+					center_y -= (float)evt.motion.yrel / MAP_TILE_HEIGHT / powf(2, zoom);
 				}
 				break;
 			case SDL_USEREVENT:
