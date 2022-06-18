@@ -102,7 +102,7 @@ gui_main(void *args)
 
 	/* Initialize map */
 	gl_openstreetmap_init(&map);
-	zoom = 8.0;
+	zoom = 7.0;
 	center_x = lon_to_x(9.33, 0);
 	center_y = lat_to_y(45.5, 0);
 	dragging = 0;

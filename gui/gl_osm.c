@@ -3,13 +3,10 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef NDEBUG
 #include <stdio.h>  /* TODO Remove */
-#endif
 #include <GLES3/gl3.h>
 #include "decode.h"
 #include "gl_osm.h"
-#include "stb_image/stb_image.h"
 #include "style.h"
 #include "utils.h"
 
@@ -24,15 +21,13 @@
 
 typedef struct {
 	float x, y;
-	int tex;
 } Vertex;
 
 static void map_opengl_init(GLOpenStreetMap *map);
 static void track_opengl_init(GLOpenStreetMap *map);
-static void build_quads(int x_count, int y_count, Vertex *vertices, unsigned int *indices);
-static void resize_texture(GLuint *texture, int count);
-static void refresh_textures(GLOpenStreetMap *map, Vertex *vertices, int x_start, int y_start, int x_count, int y_count, int zoom);
 static int mipmap(float zoom);
+
+static void update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int y_count, int zoom);
 
 
 void
@@ -44,9 +39,9 @@ gl_openstreetmap_init(GLOpenStreetMap *map)
 	/* Ground track program, buffers, uniforms... */
 	track_opengl_init(map);
 
-	map->textures = NULL;
+	map->tiles = NULL;
 	map->tex_array = 0;
-	map->texture_count = 0;
+	map->tile_count = 0;
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
@@ -54,20 +49,26 @@ gl_openstreetmap_init(GLOpenStreetMap *map)
 void
 gl_openstreetmap_deinit(GLOpenStreetMap *map)
 {
+	int i;
+
+	if (map->vao) glDeleteVertexArrays(1, &map->vao);
+	if (map->tile_count) {
+		for (i=0; i<map->tile_count; i++) {
+			glDeleteBuffers(1, &map->tiles[i].vbo);
+			glDeleteBuffers(1, &map->tiles[i].ibo);
+		}
+	}
+
 	if (map->tex_vert_shader) glDeleteProgram(map->tex_vert_shader);
 	if (map->tex_frag_shader) glDeleteProgram(map->tex_frag_shader);
 	if (map->texture_program) glDeleteProgram(map->texture_program);
 	if (map->track_vert_shader) glDeleteProgram(map->track_vert_shader);
 	if (map->track_frag_shader) glDeleteProgram(map->track_frag_shader);
 	if (map->track_program) glDeleteProgram(map->track_program);
-	if (map->vbo) glDeleteBuffers(1, &map->vbo);
-	if (map->ibo) glDeleteBuffers(1, &map->ibo);
-	if (map->vao) glDeleteVertexArrays(1, &map->vao);
 	if (map->tex_array) glDeleteTextures(1, &map->tex_array);
 	if (map->track_vao) glDeleteTextures(1, &map->track_vao);
 	if (map->track_vbo) glDeleteTextures(1, &map->track_vbo);
-	free(map->textures);
-	map->texture_count = 0;
+
 }
 
 void
@@ -77,12 +78,10 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 	const int x_size = 1 << mipmap(zoom);
 	const int y_size = 1 << mipmap(zoom);
 	/* Enough to fill the screen plus a 1x border all around for safety */
-	const int x_count = ceilf((float)width / MAP_TILE_WIDTH / digital_zoom) + 2;
-	const int y_count = ceilf((float)height / MAP_TILE_HEIGHT / digital_zoom) + 2;
+	const int x_count = MIN(x_size, ceilf((float)width / MAP_TILE_WIDTH / digital_zoom) + 2);
+	const int y_count = MIN(y_size, ceilf((float)height / MAP_TILE_HEIGHT / digital_zoom) + 2);
 	const int count = x_count * y_count;
 	const float track_color[] = STYLE_ACCENT_1_NORMALIZED;
-	unsigned int *indices;
-	Vertex *vertices;
 	int x_start, y_start;
 	int i;
 
@@ -108,61 +107,65 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 	 */
 	proj[0][0] *= 2.0f * MAP_TILE_WIDTH / (float)width * digital_zoom;
 	proj[1][1] *= 2.0f * -MAP_TILE_HEIGHT / (float)height * digital_zoom;
-	proj[3][0] = proj[0][0] * (x_start - x_center);
-	proj[3][1] = proj[1][1] * (y_start - y_center);
-
-	/* Setup quads */
-	vertices = malloc(sizeof(*vertices) * 4 * count);
-	indices = malloc(sizeof(*indices) * 6 * count);
-	build_quads(x_count, y_count, vertices, indices);
+	proj[3][0] = proj[0][0] * (- x_center);
+	proj[3][1] = proj[1][1] * (- y_center);
 
 
-	/* Resize array to fit all textures */
-	if (map->texture_count < count) {
-		map->textures = reallocarray(map->textures, count, sizeof(Texture));
+	/* Resize array to fit all tiles */
+	glBindVertexArray(map->vao);
+	if (map->tile_count < count) {
+		map->tiles = reallocarray(map->tiles, count, sizeof(*map->tiles));
 
 		/* Have to start from scratch since the texture 2d array will be deleted */
-		for (i=0; i<count; i++) {
-			map->textures[i].in_use = 0;
-			map->textures[i].x = -1;
-			map->textures[i].y = -1;
+		for (i=map->tile_count; i<count; i++) {
+			map->tiles[i].in_use = 0;
+			map->tiles[i].x = -1;
+			map->tiles[i].y = -1;
+
+			glGenBuffers(1, &map->tiles[i].vbo);
+			glGenBuffers(1, &map->tiles[i].ibo);
 		}
 
 #ifndef NDEBUG
-		printf("Texture count: %d -> %d\n", map->texture_count, count);
+		printf("Tile count: %d -> %d\n", map->tile_count, count);
 #endif
-		map->texture_count = count;
-
-		/* Resize the actual texture array */
-		resize_texture(&map->tex_array, count);
+		map->tile_count = count;
 	}
 
-	/* Link texture indices to each quad */
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, map->tex_array);
-	refresh_textures(map, vertices, x_start, y_start, x_count, y_count, mipmap(zoom));
-	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+	/* Load missing vertex buffers */
+	update_buffers(map, x_start, y_start, x_count, y_count, mipmap(zoom));
+
 
 	/* Setup program state */
 	glUseProgram(map->texture_program);
 	glBindVertexArray(map->vao);
-	glBindBuffer(GL_ARRAY_BUFFER, map->vbo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, map->ibo);
-
-	/* Update quads */
-	glBufferData(GL_ARRAY_BUFFER, 4 * count * sizeof(*vertices), vertices, GL_STATIC_DRAW);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * count * sizeof(*indices), indices, GL_STATIC_DRAW);
-
-	/* Bind correct texture to shaders */
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, map->tex_array);
-	glUniform1i(map->u1i_texture, 0);
-
-	/* Setup model-view-projection */
 	glUniformMatrix4fv(map->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
 
-	/* Draw tiles (ibo, vao & vbo already bound) */
-	glDrawElements(GL_TRIANGLES, 6 * count, GL_UNSIGNED_INT, 0);
+	/* Draw map */
+#ifndef NDEBUG
+	int call_count = 0;
+#endif
+	glBindVertexArray(map->vao);
+	for (i=0; i<map->tile_count; i++) {
+		if (map->tiles[i].in_use) {
+#ifndef NDEBUG
+			call_count++;
+#endif
+			/* Bind vbo & ibo */
+			glBindBuffer(GL_ARRAY_BUFFER, map->tiles[i].vbo);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, map->tiles[i].ibo);
+
+			glEnableVertexAttribArray(map->attrib_pos);
+			glVertexAttribPointer(map->attrib_pos, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, x));
+
+
+			/* Draw */
+			glDrawElements(GL_LINES, map->tiles[i].vertex_count, GL_UNSIGNED_SHORT, 0);
+		}
+	}
+#ifndef NDEBUG
+	printf("Total draw calls (map): %d\n", call_count);
+#endif
 
 
 	/* Swap to the track program */
@@ -188,16 +191,12 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
     //glDisable(GL_BLEND);
-
-	free(vertices);
-	free(indices);
 }
 
 /* Static functions {{{ */
 static void
 map_opengl_init(GLOpenStreetMap *map)
 {
-	GLuint attrib_pos, attrib_tex;
 	GLint status;
 
 	static const GLchar *vertex_shader =
@@ -207,36 +206,19 @@ map_opengl_init(GLOpenStreetMap *map)
 		"uniform mat4 ProjMtx;\n"
 
 		"in vec2 Position;\n"
-		"in int TextureID;\n"
-
-		"out vec2 TexUV_raw;\n"
-		"flat out int TexID;\n"
 
 		"void main() {\n"
-		"   TexID = TextureID;\n"
-		"   TexUV_raw = Position.xy;\n"
 		"   gl_Position = ProjMtx * vec4(Position.xy, 0, 1);\n"
 		//"   gl_Position = vec4(Position.xy, 0, 1);\n"
 		"}";
 	static const GLchar *fragment_shader =
 		SHADER_VERSION
         "precision mediump float;\n"
-        "precision mediump sampler2DArray;\n"
-
-		"uniform sampler2DArray Texture;\n"
-
-		"in vec2 TexUV_raw;\n"
-		"flat in int TexID;\n"
 
 		"out vec4 Out_Color;\n"
 
 		"void main() {\n"
-		"   vec2 TexUV = fract(TexUV_raw);\n"
-		"   if (TexID < 0) {\n"
-		"       Out_Color = vec4(0);\n"
-		"   } else {\n"
-		"       Out_Color = texture(Texture, vec3(TexUV, TexID));\n"
-		"   }\n"
+		"   Out_Color = vec4(0.23, 0.52, 0.88, 1);\n"
 		"}";
 
 	/* Program + shaders */
@@ -262,25 +244,15 @@ map_opengl_init(GLOpenStreetMap *map)
 	assert(status == GL_TRUE);
 
 	/* Uniforms + attributes */
-	map->u1i_texture = glGetUniformLocation(map->texture_program, "Texture");
 	map->u4m_proj = glGetUniformLocation(map->texture_program, "ProjMtx");
-
-	attrib_pos = glGetAttribLocation(map->texture_program, "Position");
-	attrib_tex = glGetAttribLocation(map->texture_program, "TextureID");
+	map->attrib_pos = glGetAttribLocation(map->texture_program, "Position");
 
 	/* Buffers, arrays, and layouts */
 	glGenVertexArrays(1, &map->vao);
 	glBindVertexArray(map->vao);
 
-	glGenBuffers(1, &map->vbo);
-	glGenBuffers(1, &map->ibo);
-
-	glBindBuffer(GL_ARRAY_BUFFER, map->vbo);
-
-	glEnableVertexAttribArray(attrib_pos);
-	glVertexAttribPointer(attrib_pos, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, x));
-	glEnableVertexAttribArray(attrib_tex);
-	glVertexAttribIPointer(attrib_tex, 1, GL_INT, sizeof(Vertex), (void*)offsetof(Vertex, tex));
+	glEnableVertexAttribArray(map->attrib_pos);
+	glVertexAttribPointer(map->attrib_pos, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, x));
 }
 
 static void
@@ -360,83 +332,35 @@ track_opengl_init(GLOpenStreetMap *map)
 }
 
 static void
-build_quads(int x_count, int y_count, Vertex *vertices, unsigned int *indices)
-{
-	int x, y, i, idx;
-
-	for (x = 0; x < x_count; x++) {
-		for (y = 0; y < y_count; y++) {
-			/* 4 vertices */
-			for (i=0; i<4; i++) {
-				idx = i + y * 4 + x * 4 * y_count;
-
-				vertices[idx].x = x + i/2;
-				vertices[idx].y = y + i%2;
-			}
-
-			/* 2x triangles (3 indices each) */
-			idx = y * 6 + x * 6 * y_count;
-
-			indices[idx]   = y * 4 + x * 4 * y_count;
-			indices[idx+1] = y * 4 + x * 4 * y_count + 1;
-			indices[idx+2] = y * 4 + x * 4 * y_count + 2;
-			indices[idx+3] = y * 4 + x * 4 * y_count + 1;
-			indices[idx+4] = y * 4 + x * 4 * y_count + 2;
-			indices[idx+5] = y * 4 + x * 4 * y_count + 3;
-		}
-	}
-}
-
-static void
-resize_texture(GLuint *texture, int count)
-{
-	/* Build a new texture array */
-	if (*texture) glDeleteTextures(1, texture);
-	glGenTextures(1, texture);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, *texture);
-	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGB,
-			MAP_TILE_WIDTH, MAP_TILE_HEIGHT, count,
-			0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
-}
-
-static void
-refresh_textures(GLOpenStreetMap *map, Vertex *vertices, int x_start, int y_start, int x_count, int y_count, int zoom)
+update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int y_count, int zoom)
 {
 	const int x_size = 1 << zoom;
 	const int y_size = 1 << zoom;
 	const int x_end = x_start + x_count;
 	const int y_end = y_start + y_count;
 	FILE *fd;
-	int i, j, x, y, actual_x, actual_y;
-	int idx;
-	void *image;
+	int i, x, y, actual_x, actual_y;
 	char path[256];
-	size_t len;
-	void *pngdata;
-	int width, height, n;
+	void *tiledata;
+	uint32_t buflen;
 
 	/* Mark textures that are no longer in use as replaceable (with wraparounds) */
-	for (i=0; i<map->texture_count; i++) {
-		if (map->textures[i].in_use && (
-			   map->textures[i].z != zoom
-			|| map->textures[i].x < x_start
-			|| map->textures[i].x >= x_end
-			|| map->textures[i].y < y_start
-			|| map->textures[i].y >= y_end)) {
+	for (i=0; i<map->tile_count; i++) {
+		if (map->tiles[i].in_use && (
+			map->tiles[i].x < x_start
+			|| map->tiles[i].x >= x_end
+			|| map->tiles[i].y < y_start
+			|| map->tiles[i].y >= y_end)) {
 #ifndef NDEBUG
-			printf("[%d,%d] Texture (%d,%d) marked for removal\n", x_start, y_start, map->textures[i].x, map->textures[i].y);
+			printf("[%d,%d] Tile (%d,%d) marked for removal\n", x_start, y_start, map->tiles[i].x, map->tiles[i].y);
 #endif
-			map->textures[i].in_use = 0;
+
+			map->tiles[i].in_use = 0;
 		}
 	}
 
 
-	/* Bind textures to quads */
+	/* Load buffers from file */
 	for (x = 0; x < x_count; x++) {
 		actual_x = x_start + x;
 		for (y = 0; y < y_count; y++) {
@@ -448,58 +372,73 @@ refresh_textures(GLOpenStreetMap *map, Vertex *vertices, int x_start, int y_star
 				i = -1;
 			} else {
 
-				for (i=0; i<map->texture_count; i++) {
-					if (map->textures[i].x == actual_x && map->textures[i].y == actual_y && map->textures[i].z == zoom) {
-						/* Texture already loaded: exit early */
+				/* Check if tile is already in GPU memory */
+				for (i=0; i<map->tile_count; i++) {
+					if (map->tiles[i].x == actual_x && map->tiles[i].y == actual_y) {
+						map->tiles[i].in_use = 1;
 						break;
 					}
 				}
 
-				if (i == map->texture_count) {
-					/* Texture is not in memory yet: find an empty slot */
-					for (i=0; i<map->texture_count && map->textures[i].in_use; i++)
+				if (i == map->tile_count) {
+					/* Tile is not in memory yet: find an empty slot */
+					for (i=0; i<map->tile_count && map->tiles[i].in_use; i++)
 						;
 
-					/* Update texture metadata */
-					map->textures[i].x = actual_x;
-					map->textures[i].y = actual_y;
-					map->textures[i].z = zoom;
-					map->textures[i].in_use = 1;
+					/* Update tile metadata */
+					map->tiles[i].x = actual_x;
+					map->tiles[i].y = actual_y;
+					map->tiles[i].in_use = 1;
 
-					/* Load new texture from file */
-					sprintf(path, "/home/dbdexter/Projects/magellan/%d/%d/%d.png", zoom, actual_x, actual_y);
+					/* Load new tile from file */
+					sprintf(path, "/home/dbdexter/Projects/magellan/binary_svgs/%d_%d_0.bin", actual_x, actual_y);
+#ifndef NDEBUG
+					printf("Loading %s into %d\n", path, i);
+#endif
 					fd = fopen(path, "rb");
 
-					fseek(fd, 0, SEEK_END);
-					len = ftell(fd);
-					fseek(fd, 0, SEEK_SET);
-					pngdata = malloc(len);
-					fread(pngdata, len, 1, fd);
-					fclose(fd);
+					if (!fd) {
+						/* Nothing in this tile */
+						glBindVertexArray(map->vao);
+						glBindBuffer(GL_ARRAY_BUFFER, map->tiles[i].vbo);
+						glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, map->tiles[i].ibo);
 
-					image = stbi_load_from_memory(pngdata, len, &width, &height, &n, 3);
-					free(pngdata);
-
-					/* Copy texture into 2d tex array at offset i (already bound) */
-					glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0,
-							0, 0, i,
-							MAP_TILE_WIDTH, MAP_TILE_HEIGHT, 1,
-							GL_RGB, GL_UNSIGNED_BYTE,
-							image);
-
-					free(image);
+						glBufferData(GL_ARRAY_BUFFER, 0, tiledata, GL_STATIC_DRAW);
+						glBufferData(GL_ELEMENT_ARRAY_BUFFER, 0, tiledata, GL_STATIC_DRAW);
+					} else {
+						/* Bind vbo & ibo for the tile */
+						glBindVertexArray(map->vao);
+						glBindBuffer(GL_ARRAY_BUFFER, map->tiles[i].vbo);
+						glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, map->tiles[i].ibo);
 
 #ifndef NDEBUG
-					printf("Loaded texture (%d,%d) -> [%d]\n", actual_x, actual_y, i);
+						printf("Uploading [%d,%d] to VRAM", actual_x, actual_y);
 #endif
 
-				}
-			}
+						/* Read and upload vbo */
+						fread(&buflen, 4, 1, fd);
+						tiledata = malloc(buflen * sizeof(Vertex));
+						fread(tiledata, buflen, sizeof(Vertex), fd);
 
-			/* Associate quad to index */
-			for (j=0; j<4; j++) {
-				idx = j + y * 4 + x * 4 * y_count;
-				vertices[idx].tex = i;
+						glBufferData(GL_ARRAY_BUFFER, buflen * sizeof(Vertex), tiledata, GL_STATIC_DRAW);
+						free(tiledata);
+
+						/* Read and upload ibo */
+						fread(&buflen, 4, 1, fd);
+						tiledata = malloc(buflen * sizeof(uint16_t));
+						fread(tiledata, buflen, sizeof(uint16_t), fd);
+						glBufferData(GL_ELEMENT_ARRAY_BUFFER, buflen * sizeof(uint16_t), tiledata, GL_STATIC_DRAW);
+						free(tiledata);
+
+						map->tiles[i].vertex_count = buflen;
+
+						fclose(fd);
+
+#ifndef NDEBUG
+						printf("Loaded tile (%d,%d) -> [%d]\n", actual_x, actual_y, i);
+#endif
+					}
+				}
 			}
 		}
 	}
@@ -508,12 +447,7 @@ refresh_textures(GLOpenStreetMap *map, Vertex *vertices, int x_start, int y_star
 static int
 mipmap(float zoom)
 {
-	if (zoom >= 8.0f) return 8;
-	if (zoom >= 6.0f) return 6;
-	if (zoom >= 5.0f) return 5;
-	if (zoom >= 4.0f) return 4;
-
-	return 4;
+	return 6;
 }
 
 /* }}} */
