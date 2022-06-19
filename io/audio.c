@@ -99,6 +99,7 @@ audio_open_device(int device_idx)
 	}
 	if (samplerate < 0) {
 		fprintf(stderr, "[ERROR] Could not initialize specified device with sane parameters\n");
+		_state.stream = NULL;
 		return -1;
 	}
 

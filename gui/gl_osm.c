@@ -44,8 +44,11 @@ gl_openstreetmap_init(GLOpenStreetMap *map)
 	/* Ground track program, buffers, uniforms... */
 	track_opengl_init(map);
 
+	map->vram_tile_metadata.x_start = 0;
+	map->vram_tile_metadata.y_start = 0;
 	map->vram_tile_metadata.x_count = 0;
 	map->vram_tile_metadata.y_count = 0;
+	map->vram_tile_metadata.zoom = 0;
 }
 
 void
@@ -110,7 +113,7 @@ gl_openstreetmap_vector(GLOpenStreetMap *map, int width, int height, float x_cen
 	/* Load missing vertex buffers */
 	update_buffers(map, x_start, y_start, x_count, y_count, mipmap(zoom));
 
-	/* Draw map {{{*/
+	/* Draw map {{{ */
 	glUseProgram(map->tile_program);
 	glBindVertexArray(map->vao);
 	glUniformMatrix4fv(map->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
@@ -160,9 +163,9 @@ update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int 
 	const int y_size = 1 << zoom;
 	int i, x, y, actual_x, actual_y, layer;
 
-	Vertex *vbo_data = NULL;
+	Vertex *vbo_data;
+	uint32_t *ibo_data;
 	uint16_t *packed_ibo_data = NULL;
-	uint32_t *ibo_data = NULL;
 	size_t vbo_len = 0, ibo_len = 0, prev_ibo_len = 0;
 	uint32_t len;
 	uint32_t max_ibo, ibo_offset;
@@ -189,6 +192,8 @@ update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int 
 	map->vram_tile_metadata.y_count = MIN(y_size, y_count);
 	map->vram_tile_metadata.zoom = zoom;
 
+	vbo_data = NULL;
+	ibo_data = NULL;
 	max_ibo = 0;
 	ibo_offset = 0;
 	changed = 0;
