@@ -120,8 +120,6 @@ set(GUI_SOURCES
 	gui/nuklear/nuklear.c gui/nuklear/nuklear.h
 	gui/nuklear/nuklear_sdl_gl3.h
 
-	gui/stb_image/stb_image.c gui/stb_image/stb_image.h
-
 	gui/style.c gui/style.h
 	gui/gui.c gui/gui.h
 	gui/gl_osm.c gui/gl_osm.h

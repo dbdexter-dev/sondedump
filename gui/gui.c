@@ -19,7 +19,7 @@
 #define MAX_ELEMENT_MEMORY (128 * 1024)
 
 static void *gui_main(void *args);
-static void overview_window(struct nk_context *ctx);
+static void overview_window(struct nk_context *ctx, float *center_x, float *center_y);
 
 static pthread_t _tid;
 static enum graph active_visualization;
@@ -73,7 +73,7 @@ gui_main(void *args)
 
 	/* Initialize SDL2 */
 	SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
-	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS);
+	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -169,7 +169,7 @@ gui_main(void *args)
 		SDL_GetWindowSize(win, &width, &height);
 
 		/* Compose GUI */
-		overview_window(ctx);
+		overview_window(ctx, &center_x, &center_y);
 
 		/* Render */
 		glViewport(0, 0, width, height);
@@ -204,26 +204,38 @@ gui_force_update(void)
 
 /* Static functions {{{ */
 static void
-overview_window(struct nk_context *ctx)
+overview_window(struct nk_context *ctx, float *center_x, float *center_y)
 {
+	const GeoPoint *last_point;
 	const enum nk_panel_flags win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
 	                                    | NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE;
 
 	/* Compose GUI */
-	if (nk_begin(ctx, "Overview", nk_rect(0, 0, 400, 500), win_flags)) {
+	if (nk_begin(ctx, "Overview", nk_rect(0, 0, 400, 520), win_flags)) {
 		/* Audio device selection TODO handle input from file */
 		widget_audio_dev_select(ctx);
 
 		/* Sonde type selection */
 		widget_type_select(ctx);
 
-		nk_layout_row_dynamic(ctx, nk_window_get_height(ctx), 1);
+		nk_layout_row_dynamic(ctx, 400, 1);
 		if (nk_group_begin(ctx, "Data", NK_WINDOW_NO_SCROLLBAR)) {
 			/* Raw data */
 			widget_data(ctx);
 
 			nk_group_end(ctx);
 		}
+
+		nk_layout_row_dynamic(ctx, 25, 1);
+		if (nk_button_label(ctx, "Re-center map")) {
+			if (get_data_count() > 0) {
+				last_point = get_track_data() + get_data_count() - 1;
+				*center_x = lon_to_x(last_point->lon, 0);
+				*center_y = lat_to_y(last_point->lat, 0);
+			}
+		}
+
+
 	}
 	nk_end(ctx);
 }

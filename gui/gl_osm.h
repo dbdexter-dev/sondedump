@@ -13,15 +13,14 @@ typedef struct {
 } Tile;
 
 typedef struct {
-	GLuint tex_array;
 	Tile *tiles;
 	int tile_count;
 
 	GLuint vao;
 	GLuint track_vao, track_vbo;
 
-	GLuint texture_program;
-	GLuint tex_vert_shader, tex_frag_shader;
+	GLuint tile_program;
+	GLuint tile_vert_shader, tile_frag_shader;
 	GLuint track_program;
 	GLuint track_vert_shader, track_frag_shader;
 
