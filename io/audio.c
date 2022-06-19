@@ -175,7 +175,7 @@ print_error(PaError err)
 static int
 audio_stop_stream(void)
 {
-	if (_state.stream) return 0;
+	if (!_state.stream) return 0;
 
 	/* Stop streaming audio and deinitialize stream */
 	Pa_AbortStream(&_state.stream);

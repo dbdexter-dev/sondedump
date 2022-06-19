@@ -218,7 +218,7 @@ main(int argc, char *argv[])
 			case UI_GUI:
 				/* Open first device. If open fails, defer device opening to the GUI */
 				samplerate = audio_open_device(0);
-				if (samplerate < 1) samplerate = 1;
+				if (samplerate < 1) samplerate = 48000;
 				break;
 		}
 #else
