@@ -7,16 +7,17 @@
 #define MAP_TILE_HEIGHT 1024
 
 typedef struct {
-	GLuint vbo, ibo;
-	int x, y, vertex_count;
-	int in_use;
-} Tile;
+	struct {
+		int x_start, x_count;
+		int y_start, y_count;
+		int zoom;
 
-typedef struct {
-	Tile *tiles;
-	int tile_count;
 
-	GLuint vao;
+		int vbo_size, ibo_size;
+		int vertex_count;
+	} vram_tile_metadata;
+
+	GLuint vao, vbo, ibo;
 	GLuint track_vao, track_vbo;
 
 	GLuint tile_program;
