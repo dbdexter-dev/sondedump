@@ -41,8 +41,6 @@ gl_openstreetmap_init(GLOpenStreetMap *map)
 
 	map->vram_tile_metadata.x_count = 0;
 	map->vram_tile_metadata.y_count = 0;
-	map->vram_tile_metadata.vbo_size = 0;
-	map->vram_tile_metadata.ibo_size = 0;
 }
 
 void
@@ -63,7 +61,7 @@ gl_openstreetmap_deinit(GLOpenStreetMap *map)
 }
 
 void
-gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_center, float y_center, float zoom)
+gl_openstreetmap_vector(GLOpenStreetMap *map, int width, int height, float x_center, float y_center, float zoom)
 {
 	const float digital_zoom = powf(2, zoom - mipmap(zoom));
 	const int x_size = 1 << mipmap(zoom);
@@ -71,7 +69,9 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 	/* Enough to fill the screen plus a 1x border all around for safety */
 	const int x_count = ceilf((float)width / MAP_TILE_WIDTH / digital_zoom) + 2;
 	const int y_count = ceilf((float)height / MAP_TILE_HEIGHT / digital_zoom) + 2;
-	const float track_color[] = STYLE_ACCENT_2_NORMALIZED;
+	const float track_color[] = STYLE_ACCENT_1_NORMALIZED;
+	const float map_color[] = STYLE_ACCENT_0_NORMALIZED;
+	const float road_color[] = STYLE_ACCENT_2_NORMALIZED;
 	int x_start, y_start;
 
 	GLfloat proj[4][4] = {
@@ -99,7 +99,6 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 	proj[3][0] = proj[0][0] * (-x_center);
 	proj[3][1] = proj[1][1] * (-y_center);
 
-
 	/* Resize array to fit all tiles */
 	glBindVertexArray(map->vao);
 
@@ -115,9 +114,12 @@ gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float x_cen
 	glBindBuffer(GL_ARRAY_BUFFER, map->vbo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, map->ibo);
 
-	glDrawElements(GL_LINES, map->vram_tile_metadata.vertex_count, GL_UNSIGNED_INT, 0);
-	/* }}} */
+	glUniform4fv(map->u4f_map_color, 1, map_color);
+	glDrawElements(GL_LINES, map->vram_tile_metadata.vertex_count[0], GL_UNSIGNED_INT, 0);
 
+	glUniform4fv(map->u4f_map_color, 1, road_color);
+	glDrawElements(GL_LINES, map->vram_tile_metadata.vertex_count[1], GL_UNSIGNED_INT, (void*)((size_t)map->vram_tile_metadata.vertex_count[0] * sizeof(uint32_t)));
+	/* }}} */
 
 	/* Draw ground track {{{ */
 	glUseProgram(map->track_program);
@@ -152,13 +154,13 @@ update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int 
 	const int x_size = 1 << zoom;
 	const int y_size = 1 << zoom;
 	FILE *fd;
-	int i, x, y, actual_x, actual_y;
+	int i, x, y, actual_x, actual_y, layer;
 	char path[256];
 
 	Vertex *vbo_data = NULL;
 	uint16_t *packed_ibo_data = NULL;
 	uint32_t *ibo_data = NULL;
-	size_t vbo_len = 0, ibo_len = 0;
+	size_t vbo_len = 0, ibo_len = 0, prev_ibo_len = 0;
 	uint32_t len;
 	uint32_t max_ibo, ibo_offset;
 	int changed;
@@ -187,55 +189,60 @@ update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int 
 	changed = 0;
 
 	/* Load all tiles into RAM */
-	for (x = 0; x < x_count; x++) {
-		actual_x = x_start + x;
-		for (y = 0; y < y_count; y++) {
-			actual_y = y_start + y;
+	for (layer=0; layer<2; layer++) {
+		for (x = 0; x < x_count; x++) {
+			actual_x = x_start + x;
+			for (y = 0; y < y_count; y++) {
+				actual_y = y_start + y;
 
-			/* If outside x/y bounds, draw as black and go to the next */
-			if (actual_y < 0 || actual_y >= y_size
-			 || actual_x < 0 || actual_x >= x_size) {
-				continue;
-			}
+				/* If outside x/y bounds, draw as black and go to the next */
+				if (actual_y < 0 || actual_y >= y_size
+				 || actual_x < 0 || actual_x >= x_size) {
+					continue;
+				}
 
-			sprintf(path, "/home/dbdexter/Projects/magellan/binary_svgs/%d_%d_0.bin", actual_x, actual_y);
+				sprintf(path, "/home/dbdexter/Projects/magellan/binary_svgs/%d_%d_%d.bin", actual_x, actual_y, layer);
 #ifndef NDEBUG
-			printf("Attempting to load %s...\n", path);
+				printf("Attempting to load %s...\n", path);
 #endif
 
-			fd = fopen(path, "rb");
+				fd = fopen(path, "rb");
 
-			/* If tile is unavailable, draw as black and go to the next */
-			if (!fd) continue;
+				/* If tile is unavailable, draw as black and go to the next */
+				if (!fd) continue;
 
-			changed = 1;
+				changed = 1;
 
-			/* Read vbo data */
-			fread(&len, sizeof(uint32_t), 1, fd);
-			vbo_data = realloc(vbo_data, (vbo_len + len) * sizeof(*vbo_data));
-			fread(vbo_data + vbo_len, sizeof(*vbo_data), len, fd);
-			vbo_len += len;
+				/* Read vbo data */
+				fread(&len, sizeof(uint32_t), 1, fd);
+				vbo_data = realloc(vbo_data, (vbo_len + len) * sizeof(*vbo_data));
+				fread(vbo_data + vbo_len, sizeof(*vbo_data), len, fd);
+				vbo_len += len;
 
-			/* Read and unpack ibo data */
-			fread(&len, sizeof(uint32_t), 1, fd);
-			packed_ibo_data = malloc(len * sizeof(uint16_t));
-			fread(packed_ibo_data, sizeof(uint16_t), len, fd);
+				/* Read and unpack ibo data */
+				fread(&len, sizeof(uint32_t), 1, fd);
+				packed_ibo_data = malloc(len * sizeof(uint16_t));
+				fread(packed_ibo_data, sizeof(uint16_t), len, fd);
 
-			fclose(fd);
+				fclose(fd);
 
-			ibo_data = realloc(ibo_data, (ibo_len + len) * sizeof(*ibo_data));
-			for (i=0; i < (int)len; i++) {
-				ibo_data[ibo_len + i] = (uint32_t)packed_ibo_data[i] + ibo_offset;
-				max_ibo = MAX(ibo_data[ibo_len + i], max_ibo);
-			}
-			free(packed_ibo_data);
+				ibo_data = realloc(ibo_data, (ibo_len + len) * sizeof(*ibo_data));
+				for (i=0; i < (int)len; i++) {
+					ibo_data[ibo_len + i] = (uint32_t)packed_ibo_data[i] + ibo_offset;
+					max_ibo = MAX(ibo_data[ibo_len + i], max_ibo);
+				}
+				free(packed_ibo_data);
 
-			ibo_len += len;
-			ibo_offset = max_ibo + 1;
+				ibo_len += len;
+				ibo_offset = max_ibo + 1;
 #ifndef NDEBUG
-			printf("New IBO offset: %u\n", ibo_offset);
+				printf("New IBO offset: %u\n", ibo_offset);
 #endif
+			}
 		}
+
+		map->vram_tile_metadata.vertex_count[layer] = ibo_len - prev_ibo_len;
+		prev_ibo_len = ibo_len;
 	}
 
 	if (changed) {
@@ -243,7 +250,6 @@ update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, map->ibo);
 		glBufferData(GL_ARRAY_BUFFER, vbo_len * sizeof(*vbo_data), vbo_data, GL_STATIC_DRAW);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, ibo_len * sizeof(*ibo_data), ibo_data, GL_STATIC_DRAW);
-		map->vram_tile_metadata.vertex_count = ibo_len;
 	}
 
 	free(vbo_data);
@@ -278,10 +284,11 @@ map_opengl_init(GLOpenStreetMap *map)
 		SHADER_VERSION
         "precision mediump float;\n"
 
+		"uniform vec4 MapColor;\n"
 		"out vec4 Out_Color;\n"
 
 		"void main() {\n"
-		"   Out_Color = vec4(0.23, 0.52, 0.88, 1);\n"
+		"   Out_Color = MapColor;\n"
 		"}";
 
 	/* Program + shaders */
@@ -308,6 +315,7 @@ map_opengl_init(GLOpenStreetMap *map)
 
 	/* Uniforms + attributes */
 	map->u4m_proj = glGetUniformLocation(map->tile_program, "ProjMtx");
+	map->u4f_map_color = glGetUniformLocation(map->tile_program, "MapColor");
 	map->attrib_pos = glGetAttribLocation(map->tile_program, "Position");
 
 	/* Buffers, arrays, and layouts */

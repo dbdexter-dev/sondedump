@@ -177,7 +177,7 @@ gui_main(void *args)
 		glClearColor(0, 0, 0, 1);
 
 		/* Draw background */
-		gl_openstreetmap_raster(&map, width, height, center_x, center_y, zoom);
+		gl_openstreetmap_vector(&map, width, height, center_x, center_y, zoom);
 
 		/* Draw GUI */
 		nk_sdl_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY);

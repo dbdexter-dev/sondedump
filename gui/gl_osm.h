@@ -12,9 +12,7 @@ typedef struct {
 		int y_start, y_count;
 		int zoom;
 
-
-		int vbo_size, ibo_size;
-		int vertex_count;
+		int vertex_count[2];
 	} vram_tile_metadata;
 
 	GLuint vao, vbo, ibo;
@@ -25,14 +23,14 @@ typedef struct {
 	GLuint track_program;
 	GLuint track_vert_shader, track_frag_shader;
 
-	GLuint u4m_proj;
+	GLuint u4f_map_color, u4m_proj;
 	GLuint u1f_zoom, u4f_track_color, u4m_track_proj;
 
 	GLuint attrib_pos;
 } GLOpenStreetMap;
 
 void gl_openstreetmap_init(GLOpenStreetMap *map);
-void gl_openstreetmap_raster(GLOpenStreetMap *map, int width, int height, float lat, float lon, float zoom);
+void gl_openstreetmap_vector(GLOpenStreetMap *map, int width, int height, float lat, float lon, float zoom);
 void gl_openstreetmap_deinit(GLOpenStreetMap *map);
 
 #endif
