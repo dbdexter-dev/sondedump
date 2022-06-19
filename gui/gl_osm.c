@@ -3,7 +3,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>  /* TODO Remove */
+#ifndef NDEBUG
+#include <stdio.h>
+#endif
 #include <GLES3/gl3.h>
 #include "decode.h"
 #include "gl_osm.h"
@@ -18,6 +20,9 @@
 #else
   #define SHADER_VERSION "#version 300 es\n"
 #endif
+
+extern const char _binary_tiledata_bin_start[];
+extern const char _binary_tileindex_bin_start[];
 
 typedef struct {
 	float x, y;
@@ -153,9 +158,7 @@ update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int 
 {
 	const int x_size = 1 << zoom;
 	const int y_size = 1 << zoom;
-	FILE *fd;
 	int i, x, y, actual_x, actual_y, layer;
-	char path[256];
 
 	Vertex *vbo_data = NULL;
 	uint16_t *packed_ibo_data = NULL;
@@ -164,6 +167,8 @@ update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int 
 	uint32_t len;
 	uint32_t max_ibo, ibo_offset;
 	int changed;
+	int index_offset;
+	int binary_offset;
 
 	/* If the viewport has not changed, exit */
 	if (MAX(0, x_start) == map->vram_tile_metadata.x_start &&
@@ -201,37 +206,39 @@ update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int 
 					continue;
 				}
 
-				sprintf(path, "/home/dbdexter/Projects/magellan/binary_svgs/%d_%d_%d.bin", actual_x, actual_y, layer);
 #ifndef NDEBUG
-				printf("Attempting to load %s...\n", path);
+				printf("Attempting to load (%d,%d)...\n", actual_x, actual_y);
 #endif
-
-				fd = fopen(path, "rb");
-
-				/* If tile is unavailable, draw as black and go to the next */
-				if (!fd) continue;
 
 				changed = 1;
 
-				/* Read vbo data */
-				fread(&len, sizeof(uint32_t), 1, fd);
+				/* Compute start of vbo/ibo data */
+				index_offset = (actual_x * y_size + actual_y) * 2 + layer;
+				binary_offset = ((uint32_t*)_binary_tileindex_bin_start)[index_offset];
+
+				/* If tile is unavailable, draw as black and go to the next */
+				if (binary_offset < 0) continue;
+
+				/* Copy vbo data */
+				len = *(uint32_t*)(_binary_tiledata_bin_start + binary_offset);
+				binary_offset += 4;
+
 				vbo_data = realloc(vbo_data, (vbo_len + len) * sizeof(*vbo_data));
-				fread(vbo_data + vbo_len, sizeof(*vbo_data), len, fd);
+				memcpy(vbo_data + vbo_len, _binary_tiledata_bin_start + binary_offset, len * sizeof(*vbo_data));
 				vbo_len += len;
+				binary_offset += sizeof(*vbo_data) * len;
 
 				/* Read and unpack ibo data */
-				fread(&len, sizeof(uint32_t), 1, fd);
-				packed_ibo_data = malloc(len * sizeof(uint16_t));
-				fread(packed_ibo_data, sizeof(uint16_t), len, fd);
+				len = *(uint32_t*)(_binary_tiledata_bin_start + binary_offset);
+				binary_offset += 4;
 
-				fclose(fd);
+				packed_ibo_data = (uint16_t*)(_binary_tiledata_bin_start + binary_offset);
 
 				ibo_data = realloc(ibo_data, (ibo_len + len) * sizeof(*ibo_data));
 				for (i=0; i < (int)len; i++) {
 					ibo_data[ibo_len + i] = (uint32_t)packed_ibo_data[i] + ibo_offset;
 					max_ibo = MAX(ibo_data[ibo_len + i], max_ibo);
 				}
-				free(packed_ibo_data);
 
 				ibo_len += len;
 				ibo_offset = max_ibo + 1;
@@ -255,6 +262,7 @@ update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int 
 	free(vbo_data);
 	free(ibo_data);
 }
+
 
 static int
 mipmap(float zoom)

@@ -37,17 +37,38 @@ if (is_arm EQUAL "0")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -mcpu=native -mfpu=auto")
 endif()
 
-# Rules to embed font as binary, with stable symbol names
+# Rules to embed font and map as binary, with stable symbol names
 if (ENABLE_GUI)
 	add_custom_command(
 		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/roboto_medium.o
-		COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/fonts/Roboto-Medium.ttf .
+		COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/Roboto-Medium.ttf .
 		COMMAND ld -r -b binary -o ${CMAKE_CURRENT_BINARY_DIR}/roboto_medium.o Roboto-Medium.ttf
 		COMMAND rm Roboto-Medium.ttf
-		MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/fonts/Roboto-Medium.ttf
+		MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/Roboto-Medium.ttf
 	)
+
+	add_custom_command(
+		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/tiledata.o
+		COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/assets/tiles/tiledata.bin .
+		COMMAND ld -r -b binary -o ${CMAKE_CURRENT_BINARY_DIR}/tiledata.o tiledata.bin
+		COMMAND rm tiledata.bin
+		MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/assets/tiles/tiledata.bin
+	)
+
+	add_custom_command(
+		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/tileindex.o
+		COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/assets/tiles/tileindex.bin .
+		COMMAND ld -r -b binary -o ${CMAKE_CURRENT_BINARY_DIR}/tileindex.o tileindex.bin
+		COMMAND rm tileindex.bin
+		MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/assets/tiles/tileindex.bin
+	)
+
 	set(FONT_OBJS
 		roboto_medium.o
+	)
+
+	set(MAP_OBJS
+		tiledata.o tileindex.o
 	)
 endif()
 
@@ -216,7 +237,7 @@ target_link_libraries(radiosonde PUBLIC ${MATH_LIBRARY})
 
 # Main executable target
 if (ENABLE_GUI)
-	add_executable(sondedump ${FONT_OBJS} ${EXEC_SOURCES})
+	add_executable(sondedump ${FONT_OBJS} ${MAP_OBJS} ${EXEC_SOURCES})
 else()
 	add_executable(sondedump ${EXEC_SOURCES})
 endif()
