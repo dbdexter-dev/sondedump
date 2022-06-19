@@ -127,6 +127,7 @@ void
 rs41_decoder_deinit(RS41Decoder *d)
 {
 	framer_deinit(&d->f);
+	rs_deinit(&d->rs);
 	free(d);
 #ifndef NDEBUG
 	if (debug) fclose(debug);

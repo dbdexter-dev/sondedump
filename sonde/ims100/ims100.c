@@ -68,6 +68,7 @@ void
 ims100_decoder_deinit(IMS100Decoder *d)
 {
 	framer_deinit(&d->f);
+	rs_deinit(&d->rs);
 	free(d);
 #ifndef NDEBUG
 	if (debug) fclose(debug);
