@@ -47,7 +47,6 @@ decoder_init(int samplerate)
 	/* Initialize pointers to "no decoder" */
 	active_decoder_decode = NULL;
 	active_decoder_ctx = NULL;
-	active_decoder = AUTO;
 
 	/* Initialize historical data pointers */
 	track = malloc(CHUNKSIZE * sizeof(*track));
@@ -122,82 +121,82 @@ decode(const float *srcbuf, size_t len)
 
 	/* Parse based on decoder */
 	switch (active_decoder) {
-		case AUTO:
-			while (rs41_decode(rs41decoder, &data, srcbuf, len) != PROCEED) {
-				if (data.type != EMPTY && data.type != FRAME_END) {
-					set_active_decoder(RS41);
-				}
+	case AUTO:
+		while (rs41_decode(rs41decoder, &data, srcbuf, len) != PROCEED) {
+			if (data.type != EMPTY && data.type != FRAME_END) {
+				set_active_decoder(RS41);
 			}
-			while (m10_decode(m10decoder, &data, srcbuf, len) != PROCEED) {
-				if (data.type != EMPTY && data.type != FRAME_END) {
-					set_active_decoder(M10);
-				}
+		}
+		while (m10_decode(m10decoder, &data, srcbuf, len) != PROCEED) {
+			if (data.type != EMPTY && data.type != FRAME_END) {
+				set_active_decoder(M10);
 			}
-			while (ims100_decode(ims100decoder, &data, srcbuf, len) != PROCEED) {
-				if (data.type != EMPTY && data.type != FRAME_END) {
-					set_active_decoder(IMS100);
-				}
+		}
+		while (ims100_decode(ims100decoder, &data, srcbuf, len) != PROCEED) {
+			if (data.type != EMPTY && data.type != FRAME_END) {
+				set_active_decoder(IMS100);
 			}
-			while (dfm09_decode(dfm09decoder, &data, srcbuf, len) != PROCEED) {
-				if (data.type != EMPTY && data.type != FRAME_END) {
-					set_active_decoder(DFM09);
-				}
+		}
+		while (dfm09_decode(dfm09decoder, &data, srcbuf, len) != PROCEED) {
+			if (data.type != EMPTY && data.type != FRAME_END) {
+				set_active_decoder(DFM09);
 			}
-			while (imet4_decode(imet4decoder, &data, srcbuf, len) != PROCEED) {
-				if (data.type != EMPTY && data.type != FRAME_END) {
-					set_active_decoder(IMET4);
-				}
+		}
+		while (imet4_decode(imet4decoder, &data, srcbuf, len) != PROCEED) {
+			if (data.type != EMPTY && data.type != FRAME_END) {
+				set_active_decoder(IMET4);
 			}
-			break;
-		case END:
-			/* Decoder is being changed: wait */
-			return PARSED;
-			break;
-		default:
-			while (active_decoder_decode(active_decoder_ctx, &data, srcbuf, len) != PROCEED) {
-				fill_printable_data(&printable[printable_active_slot], &data);
+		}
+		break;
+	case END:
+		/* Decoder is being changed: wait */
+		return PARSED;
+		break;
+	default:
+		while (active_decoder_decode(active_decoder_ctx, &data, srcbuf, len) != PROCEED) {
+			fill_printable_data(&printable[printable_active_slot], &data);
 
-				switch (data.type) {
-				case FRAME_END:
-					/* End of printable data */
-					new_data = has_data;
-					if (has_data) {
-						/* Fudge the altitude if it's invalid */
-						if (!isnormal(l_printable->pressure) || l_printable->pressure < 0) {
-							l_printable->pressure
-								= altitude_to_pressure(l_printable->alt);
-						}
-
-						if (isnormal(printable->alt)) {
-							track[sample_count].temp = l_printable->temp;
-							track[sample_count].rh = l_printable->rh;
-							track[sample_count].hdg = l_printable->heading;
-							track[sample_count].speed = l_printable->speed;
-							track[sample_count].alt = l_printable->alt;
-							track[sample_count].lat = l_printable->lat;
-							track[sample_count].lon = l_printable->lon;
-							sample_count++;
-
-							if (sample_count > reserved_count) {
-								reserved_count += CHUNKSIZE;
-								track = realloc(track, reserved_count * sizeof(*track));
-							}
-						}
-
-
-						/* Swap buffers */
-						printable[(printable_active_slot + 1) % LEN(printable)] = printable[printable_active_slot];
-						printable_active_slot = (printable_active_slot + 1) % LEN(printable);
-						has_data = 0;
+			switch (data.type) {
+			case FRAME_END:
+				/* End of printable data */
+				new_data = has_data;
+				if (has_data) {
+					/* Fudge the altitude if it's invalid */
+					if (!isnormal(l_printable->pressure) || l_printable->pressure < 0) {
+						l_printable->pressure
+							= altitude_to_pressure(l_printable->alt);
 					}
-					return PARSED;
-				case EMPTY:
-					break;
-				default:
-					has_data = 1;
-					break;
+
+					if (isnormal(printable->alt)) {
+						track[sample_count].temp = l_printable->temp;
+						track[sample_count].rh = l_printable->rh;
+						track[sample_count].hdg = l_printable->heading;
+						track[sample_count].speed = l_printable->speed;
+						track[sample_count].alt = l_printable->alt;
+						track[sample_count].lat = l_printable->lat;
+						track[sample_count].lon = l_printable->lon;
+						sample_count++;
+
+						if (sample_count >= reserved_count) {
+							reserved_count += CHUNKSIZE;
+							track = realloc(track, reserved_count * sizeof(*track));
+						}
+					}
+
+					/* Swap buffers */
+					printable[(printable_active_slot + 1) % LEN(printable)] = printable[printable_active_slot];
+					printable_active_slot = (printable_active_slot + 1) % LEN(printable);
+					has_data = 0;
 				}
+				return PARSED;
+			case EMPTY:
+				break;
+			default:
+				has_data = 1;
+				break;
 			}
+		}
+		break;
 	}
 	return PROCEED;
 }

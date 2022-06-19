@@ -43,12 +43,6 @@ gl_openstreetmap_init(GLOpenStreetMap *map)
 
 	/* Ground track program, buffers, uniforms... */
 	track_opengl_init(map);
-
-	map->vram_tile_metadata.x_start = 0;
-	map->vram_tile_metadata.y_start = 0;
-	map->vram_tile_metadata.x_count = 0;
-	map->vram_tile_metadata.y_count = 0;
-	map->vram_tile_metadata.zoom = 0;
 }
 
 void
@@ -342,6 +336,12 @@ map_opengl_init(GLOpenStreetMap *map)
 
 	glEnableVertexAttribArray(map->attrib_pos);
 	glVertexAttribPointer(map->attrib_pos, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, x));
+
+	map->vram_tile_metadata.x_start = 0;
+	map->vram_tile_metadata.y_start = 0;
+	map->vram_tile_metadata.x_count = 0;
+	map->vram_tile_metadata.y_count = 0;
+	map->vram_tile_metadata.zoom = 0;
 }
 
 static void

@@ -103,7 +103,7 @@ main(int argc, char *argv[])
 	const char *input_fname = NULL;
 	enum ui ui = UI_TEXT;
 	int receiver_location_set = 0;
-	int active_decoder = 0;
+	enum decoder active_decoder = AUTO;
 	float receiver_lat = 0, receiver_lon = 0, receiver_alt = 0;
 #ifdef ENABLE_TUI
 	ui = UI_TUI;
@@ -275,6 +275,7 @@ main(int argc, char *argv[])
 	}
 
 	/* Initialize decoder */
+	set_active_decoder(active_decoder);
 	if (decoder_init(samplerate)) {
 		fprintf(stderr, "Error while initializing decoder subsystem, exiting...\n");
 		return 1;
