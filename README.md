@@ -31,10 +31,11 @@ additional libraries are found however, extra features will be enabled at
 compile-time. If you do not want/need these features, you can disable them by
 passing the corresponding flag to `cmake` (or by toggling them with `ccmake`):
 
-| Library   | Feature                                                   | Disable with         |
-|-----------|-----------------------------------------------------------|----------------------|
-| ncurses   | Simple TUI displaying a live summary of the decoded data  | `-DENABLE_TUI=OFF`   |
-| portaudio | Support for reading samples live from an audio device     | `-DENABLE_AUDIO=OFF` |
+| Library     | Feature                                                   | Disable with         |
+|-------------|-----------------------------------------------------------|----------------------|
+| ncurses     | Simple TUI displaying a live summary of the decoded data  | `-DENABLE_TUI=OFF`   |
+| portaudio   | Support for reading samples live from an audio device     | `-DENABLE_AUDIO=OFF` |
+| SDL2/OpenGL | GUI displaying a live summary + ground track              | `-DENABLE_GUI=OFF`   |
 
 
 To compile and install:
@@ -62,6 +63,7 @@ sondedump [options] file_in
                                 dfm: GRAW DFM06/09
                                 m10: MeteoModem M10
                                 ims100: Meisei iMS-100
+   -u, --gui                    Enable GUI
 
    -h, --help                   Print this help screen
    -v, --version                Print version info

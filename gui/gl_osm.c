@@ -73,7 +73,6 @@ gl_openstreetmap_vector(GLOpenStreetMap *map, int width, int height, float x_cen
 	const int y_count = ceilf((float)height / MAP_TILE_HEIGHT / digital_zoom) + 2;
 	const float track_color[] = STYLE_ACCENT_1_NORMALIZED;
 	const float map_color[] = STYLE_ACCENT_0_NORMALIZED;
-	const float road_color[] = STYLE_ACCENT_2_NORMALIZED;
 	int x_start, y_start;
 
 	GLfloat proj[4][4] = {
@@ -117,10 +116,7 @@ gl_openstreetmap_vector(GLOpenStreetMap *map, int width, int height, float x_cen
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, map->ibo);
 
 	glUniform4fv(map->u4f_map_color, 1, map_color);
-	glDrawElements(GL_LINES, map->vram_tile_metadata.vertex_count[0], GL_UNSIGNED_INT, 0);
-
-	glUniform4fv(map->u4f_map_color, 1, road_color);
-	glDrawElements(GL_LINES, map->vram_tile_metadata.vertex_count[1], GL_UNSIGNED_INT, (void*)((size_t)map->vram_tile_metadata.vertex_count[0] * sizeof(uint32_t)));
+	glDrawElements(GL_LINES, map->vram_tile_metadata.vertex_count, GL_UNSIGNED_INT, 0);
 	/* }}} */
 
 	/* Draw ground track {{{ */
@@ -155,7 +151,7 @@ update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int 
 {
 	const int x_size = 1 << zoom;
 	const int y_size = 1 << zoom;
-	int i, x, y, actual_x, actual_y, layer;
+	int i, x, y, actual_x, actual_y;
 
 	Vertex *vbo_data;
 	uint32_t *ibo_data;
@@ -193,63 +189,61 @@ update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int 
 	changed = 0;
 
 	/* Load all tiles into RAM */
-	for (layer=0; layer<2; layer++) {
-		for (x = 0; x < x_count; x++) {
-			actual_x = x_start + x;
-			for (y = 0; y < y_count; y++) {
-				actual_y = y_start + y;
+	for (x = 0; x < x_count; x++) {
+		actual_x = x_start + x;
+		for (y = 0; y < y_count; y++) {
+			actual_y = y_start + y;
 
-				/* If outside x/y bounds, draw as black and go to the next */
-				if (actual_y < 0 || actual_y >= y_size
-				 || actual_x < 0 || actual_x >= x_size) {
-					continue;
-				}
-
-#ifndef NDEBUG
-				printf("Attempting to load (%d,%d)...\n", actual_x, actual_y);
-#endif
-
-				changed = 1;
-
-				/* Compute start of vbo/ibo data */
-				index_offset = (actual_x * y_size + actual_y) * 2 + layer;
-				binary_offset = ((uint32_t*)_binary_tileindex_bin_start)[index_offset];
-
-				/* If tile is unavailable, draw as black and go to the next */
-				if (binary_offset < 0) continue;
-
-				/* Copy vbo data */
-				len = *(uint32_t*)(_binary_tiledata_bin_start + binary_offset);
-				binary_offset += 4;
-
-				vbo_data = realloc(vbo_data, (vbo_len + len) * sizeof(*vbo_data));
-				memcpy(vbo_data + vbo_len, _binary_tiledata_bin_start + binary_offset, len * sizeof(*vbo_data));
-				vbo_len += len;
-				binary_offset += sizeof(*vbo_data) * len;
-
-				/* Read and unpack ibo data */
-				len = *(uint32_t*)(_binary_tiledata_bin_start + binary_offset);
-				binary_offset += 4;
-
-				packed_ibo_data = (uint16_t*)(_binary_tiledata_bin_start + binary_offset);
-
-				ibo_data = realloc(ibo_data, (ibo_len + len) * sizeof(*ibo_data));
-				for (i=0; i < (int)len; i++) {
-					ibo_data[ibo_len + i] = (uint32_t)packed_ibo_data[i] + ibo_offset;
-					max_ibo = MAX(ibo_data[ibo_len + i], max_ibo);
-				}
-
-				ibo_len += len;
-				ibo_offset = max_ibo + 1;
-#ifndef NDEBUG
-				printf("New IBO offset: %u\n", ibo_offset);
-#endif
+			/* If outside x/y bounds, draw as black and go to the next */
+			if (actual_y < 0 || actual_y >= y_size
+			 || actual_x < 0 || actual_x >= x_size) {
+				continue;
 			}
-		}
 
-		map->vram_tile_metadata.vertex_count[layer] = ibo_len - prev_ibo_len;
-		prev_ibo_len = ibo_len;
+#ifndef NDEBUG
+			printf("Attempting to load (%d,%d)...\n", actual_x, actual_y);
+#endif
+
+			changed = 1;
+
+			/* Compute start of vbo/ibo data */
+			index_offset = actual_x * y_size + actual_y;
+			binary_offset = ((uint32_t*)_binary_tileindex_bin_start)[index_offset];
+
+			/* If tile is unavailable, draw as black and go to the next */
+			if (binary_offset < 0) continue;
+
+			/* Copy vbo data */
+			len = *(uint32_t*)(_binary_tiledata_bin_start + binary_offset);
+			binary_offset += 4;
+
+			vbo_data = realloc(vbo_data, (vbo_len + len) * sizeof(*vbo_data));
+			memcpy(vbo_data + vbo_len, _binary_tiledata_bin_start + binary_offset, len * sizeof(*vbo_data));
+			vbo_len += len;
+			binary_offset += sizeof(*vbo_data) * len;
+
+			/* Read and unpack ibo data */
+			len = *(uint32_t*)(_binary_tiledata_bin_start + binary_offset);
+			binary_offset += 4;
+
+			packed_ibo_data = (uint16_t*)(_binary_tiledata_bin_start + binary_offset);
+
+			ibo_data = realloc(ibo_data, (ibo_len + len) * sizeof(*ibo_data));
+			for (i=0; i < (int)len; i++) {
+				ibo_data[ibo_len + i] = (uint32_t)packed_ibo_data[i] + ibo_offset;
+				max_ibo = MAX(ibo_data[ibo_len + i], max_ibo);
+			}
+
+			ibo_len += len;
+			ibo_offset = max_ibo + 1;
+#ifndef NDEBUG
+			printf("New IBO offset: %u\n", ibo_offset);
+#endif
+		}
 	}
+
+	map->vram_tile_metadata.vertex_count = ibo_len - prev_ibo_len;
+	prev_ibo_len = ibo_len;
 
 	if (changed) {
 		glBindBuffer(GL_ARRAY_BUFFER, map->vbo);

@@ -12,7 +12,7 @@ typedef struct {
 		int y_start, y_count;
 		int zoom;
 
-		int vertex_count[2];
+		int vertex_count;
 	} vram_tile_metadata;
 
 	GLuint vao, vbo, ibo;
