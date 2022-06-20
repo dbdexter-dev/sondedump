@@ -9,26 +9,36 @@
 #include "physics.h"
 #include "utils.h"
 
+#define CHUNKSIZE 1024
+
 static void fill_printable_data(PrintableData *to_print, SondeData *data);
+
 
 static ParserStatus (*active_decoder_decode)(void*, SondeData*, const float*, size_t);
 static void *active_decoder_ctx;
 static enum decoder active_decoder;
 static int decoder_changed;
 
-static RS41Decoder *rs41decoder;
-static DFM09Decoder *dfm09decoder;
-static IMS100Decoder *ims100decoder;
-static M10Decoder *m10decoder;
-static IMET4Decoder *imet4decoder;
+static RS41Decoder *rs41decoder = NULL;
+static DFM09Decoder *dfm09decoder = NULL;
+static IMS100Decoder *ims100decoder = NULL;
+static M10Decoder *m10decoder = NULL;
+static IMET4Decoder *imet4decoder = NULL;
 
 static PrintableData printable[2];
 static int printable_active_slot;
 static int has_data, new_data;
 
-void
+static GeoPoint *track;
+static int reserved_count;
+static int sample_count;
+static int new_samplerate = -1;
+
+int
 decoder_init(int samplerate)
 {
+	if (samplerate <= 0) return 1;
+
 	/* Initialize decoders */
 	rs41decoder = rs41_decoder_init(samplerate);
 	dfm09decoder = dfm09_decoder_init(samplerate);
@@ -39,7 +49,12 @@ decoder_init(int samplerate)
 	/* Initialize pointers to "no decoder" */
 	active_decoder_decode = NULL;
 	active_decoder_ctx = NULL;
-	active_decoder = AUTO;
+
+	/* Initialize historical data pointers */
+	track = malloc(CHUNKSIZE * sizeof(*track));
+	reserved_count = CHUNKSIZE;
+	sample_count = 0;
+
 
 	/* Initialize data double-buffer */
 	memset(printable, 0, sizeof(printable));
@@ -48,26 +63,66 @@ decoder_init(int samplerate)
 	new_data = 0;
 
 	decoder_changed = 1;
+
+	return 0;
 }
+
 
 void
 decoder_deinit(void)
 {
 	/* Deinitialize all decoders */
-	rs41_decoder_deinit(rs41decoder);
-	ims100_decoder_deinit(ims100decoder);
-	m10_decoder_deinit(m10decoder);
-	dfm09_decoder_deinit(dfm09decoder);
-	imet4_decoder_deinit(imet4decoder);
+	if (rs41decoder) {
+		rs41_decoder_deinit(rs41decoder);
+		rs41decoder = NULL;
+	}
+	if (ims100decoder) {
+		ims100_decoder_deinit(ims100decoder);
+		ims100decoder = NULL;
+	}
+	if (m10decoder) {
+		m10_decoder_deinit(m10decoder);
+		m10decoder = NULL;
+	}
+	if (dfm09decoder) {
+		dfm09_decoder_deinit(dfm09decoder);
+		dfm09decoder = NULL;
+	}
+	if (imet4decoder) {
+		imet4_decoder_deinit(imet4decoder);
+		imet4decoder = NULL;
+	}
+
+	/* Clear history buffers */
+	sample_count = 0;
+	if (track) {
+		free(track);
+		track = NULL;
+	}
 }
 
+void
+decoder_set_samplerate(int samplerate)
+{
+	new_samplerate = samplerate;
+}
 
 ParserStatus
 decode(const float *srcbuf, size_t len)
 {
 	SondeData data;
+	PrintableData *l_printable = &printable[printable_active_slot];
 
 	data.type = EMPTY;
+
+	if (new_samplerate > 0) {
+		/* Handle samplerate change */
+		decoder_deinit();
+		decoder_init(new_samplerate);
+
+		new_samplerate = -1;
+	}
+
 
 	if (decoder_changed) {
 		/* Handle decoder switch */
@@ -142,10 +197,25 @@ decode(const float *srcbuf, size_t len)
 				new_data = has_data;
 				if (has_data) {
 					/* Fudge the altitude if it's invalid */
-					if (!isnormal(printable[printable_active_slot].pressure)
-					 || printable[printable_active_slot].pressure < 0) {
-						printable[printable_active_slot].pressure
-							= altitude_to_pressure(printable[printable_active_slot].alt);
+					if (!isnormal(l_printable->pressure) || l_printable->pressure < 0) {
+						l_printable->pressure
+							= altitude_to_pressure(l_printable->alt);
+					}
+
+					if (isnormal(printable->alt)) {
+						track[sample_count].temp = l_printable->temp;
+						track[sample_count].rh = l_printable->rh;
+						track[sample_count].hdg = l_printable->heading;
+						track[sample_count].speed = l_printable->speed;
+						track[sample_count].alt = l_printable->alt;
+						track[sample_count].lat = l_printable->lat;
+						track[sample_count].lon = l_printable->lon;
+						sample_count++;
+
+						if (sample_count >= reserved_count) {
+							reserved_count += CHUNKSIZE;
+							track = realloc(track, reserved_count * sizeof(*track));
+						}
 					}
 
 					/* Swap buffers */
@@ -163,7 +233,6 @@ decode(const float *srcbuf, size_t len)
 		}
 		break;
 	}
-
 	return PROCEED;
 }
 
@@ -176,10 +245,13 @@ get_active_decoder(void)
 void
 set_active_decoder(enum decoder decoder)
 {
+	if (decoder == active_decoder) return;
+
 	/* Signal that pointers are okay again */
 	active_decoder = (decoder + END) % END;
 	memset(printable, 0, sizeof(printable));
 	decoder_changed = 1;
+	sample_count = 0;
 }
 
 PrintableData*
@@ -195,6 +267,19 @@ get_slot(void)
 	return printable_active_slot;
 }
 
+int
+get_data_count(void)
+{
+	return sample_count;
+}
+
+const GeoPoint*
+get_track_data(void)
+{
+	return track;
+}
+
+/* Static functions {{{ */
 static void
 fill_printable_data(PrintableData *to_print, SondeData *data)
 {
@@ -232,4 +317,4 @@ fill_printable_data(PrintableData *to_print, SondeData *data)
 		break;
 	}
 }
-
+/* }}} */

@@ -42,6 +42,7 @@ dfm09_decoder_init(int samplerate)
 	d->gps_idx = 0;
 	d->raw_serial = 0;
 	d->ptu_type_serial = -1;
+	d->state = READ;
 	memset(&d->ptu_data, 0, sizeof(d->ptu_data));
 	memset(&d->gps_data, 0, sizeof(d->gps_data));
 	memset(&d->serial, 0, sizeof(d->serial));
