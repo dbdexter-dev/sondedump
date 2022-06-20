@@ -17,6 +17,11 @@ int          decoder_init(int samplerate);
 void         decoder_deinit(void);
 ParserStatus decode(const float *samples, size_t len);
 
+/**
+ * Thread-safe way to change the decoder sample rate
+ */
+void         decoder_set_samplerate(int samplerate);
+
 enum decoder get_active_decoder(void);
 void         set_active_decoder(enum decoder decoder);
 

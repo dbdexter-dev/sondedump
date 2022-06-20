@@ -63,6 +63,8 @@ audio_init()
 int
 audio_open_device(int device_idx)
 {
+	PaStream *new_stream;
+
 	const PaDeviceInfo *dev_info;
 	PaStreamParameters input_params = {
 		.device = 0,
@@ -103,9 +105,8 @@ audio_open_device(int device_idx)
 		return -1;
 	}
 
-
 	/* Open stream */
-	err = Pa_OpenStream(&_state.stream,
+	err = Pa_OpenStream(&new_stream,
 	                    &input_params,
 	                    NULL,                                   /* Input-only stream */
 	                    samplerate,                             /* Agreed upon samplerate */
@@ -119,9 +120,12 @@ audio_open_device(int device_idx)
 	}
 
 	/* Start streaming audio from the device */
-	if ((err = Pa_StartStream(_state.stream)) != paNoError) {
+	if ((err = Pa_StartStream(new_stream)) != paNoError) {
 		return print_error(err);
 	}
+
+	/* Install new stream ptr atomically */
+	_state.stream = new_stream;
 
 	return (int)samplerate;
 }
@@ -143,13 +147,12 @@ audio_deinit(void)
 int
 audio_read(float *ptr, size_t count)
 {
-	/* If stream is not yet open, return immediately */
-	if (!_state.stream) {
+	/* If stream is not yet open, exit */
+	if (!_state.stream || Pa_IsStreamStopped(_state.stream)) {
 		return 1;
 	}
 
 	Pa_ReadStream(_state.stream, ptr, count);
-
 	return 1;
 }
 
@@ -179,7 +182,6 @@ audio_stop_stream(void)
 	if (!_state.stream) return 0;
 
 	/* Stop streaming audio and deinitialize stream */
-	Pa_AbortStream(&_state.stream);
 	Pa_CloseStream(&_state.stream);
 	_state.stream = NULL;
 

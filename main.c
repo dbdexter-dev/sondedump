@@ -205,7 +205,6 @@ main(int argc, char *argv[])
 
 					printf("Device index: ");
 					scanf("%d", &audio_device);
-
 				}
 
 				/* Open device */
@@ -299,6 +298,9 @@ main(int argc, char *argv[])
 	/* Catch SIGINT to exit the loop */
 	_interrupted = 0;
 	signal(SIGINT, sigint_handler);
+
+	/* Initialize srcbuf just in case the audio device init failed */
+	memset(srcbuf, 0, sizeof(srcbuf));
 
 	/* Process decoded frames */
 	while (!_interrupted) {

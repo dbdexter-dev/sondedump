@@ -18,11 +18,11 @@ static void *active_decoder_ctx;
 static enum decoder active_decoder;
 static int decoder_changed;
 
-static RS41Decoder *rs41decoder;
-static DFM09Decoder *dfm09decoder;
-static IMS100Decoder *ims100decoder;
-static M10Decoder *m10decoder;
-static IMET4Decoder *imet4decoder;
+static RS41Decoder *rs41decoder = NULL;
+static DFM09Decoder *dfm09decoder = NULL;
+static IMS100Decoder *ims100decoder = NULL;
+static M10Decoder *m10decoder = NULL;
+static IMET4Decoder *imet4decoder = NULL;
 
 static PrintableData printable[2];
 static int printable_active_slot;
@@ -31,6 +31,7 @@ static int has_data, new_data;
 static GeoPoint *track;
 static int reserved_count;
 static int sample_count;
+static int new_samplerate = -1;
 
 int
 decoder_init(int samplerate)
@@ -65,21 +66,45 @@ decoder_init(int samplerate)
 	return 0;
 }
 
+
 void
 decoder_deinit(void)
 {
 	/* Deinitialize all decoders */
-	rs41_decoder_deinit(rs41decoder);
-	ims100_decoder_deinit(ims100decoder);
-	m10_decoder_deinit(m10decoder);
-	dfm09_decoder_deinit(dfm09decoder);
-	imet4_decoder_deinit(imet4decoder);
+	if (rs41decoder) {
+		rs41_decoder_deinit(rs41decoder);
+		rs41decoder = NULL;
+	}
+	if (ims100decoder) {
+		ims100_decoder_deinit(ims100decoder);
+		ims100decoder = NULL;
+	}
+	if (m10decoder) {
+		m10_decoder_deinit(m10decoder);
+		m10decoder = NULL;
+	}
+	if (dfm09decoder) {
+		dfm09_decoder_deinit(dfm09decoder);
+		dfm09decoder = NULL;
+	}
+	if (imet4decoder) {
+		imet4_decoder_deinit(imet4decoder);
+		imet4decoder = NULL;
+	}
 
 	/* Clear history buffers */
 	sample_count = 0;
-	free(track);
+	if (track) {
+		free(track);
+		track = NULL;
+	}
 }
 
+void
+decoder_set_samplerate(int samplerate)
+{
+	new_samplerate = samplerate;
+}
 
 ParserStatus
 decode(const float *srcbuf, size_t len)
@@ -88,6 +113,15 @@ decode(const float *srcbuf, size_t len)
 	PrintableData *l_printable = &printable[printable_active_slot];
 
 	data.type = EMPTY;
+
+	if (new_samplerate > 0) {
+		/* Handle samplerate change */
+		decoder_deinit();
+		decoder_init(new_samplerate);
+
+		new_samplerate = -1;
+	}
+
 
 	if (decoder_changed) {
 		/* Handle decoder switch */
@@ -244,6 +278,7 @@ get_track_data(void)
 	return track;
 }
 
+/* Static functions {{{ */
 static void
 fill_printable_data(PrintableData *to_print, SondeData *data)
 {
@@ -281,4 +316,4 @@ fill_printable_data(PrintableData *to_print, SondeData *data)
 			break;
 	}
 }
-
+/* }}} */

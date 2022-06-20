@@ -1,3 +1,6 @@
+#ifndef NDEBUG
+#include <stdio.h>
+#endif
 #include "io/audio.h"
 #include "audio_dev_select.h"
 #include "decode.h"
@@ -32,7 +35,9 @@ widget_audio_dev_select(struct nk_context *ctx)
 	if (prev_selected != _selected_idx) {
 		samplerate = audio_open_device(_selected_idx);
 		if (samplerate < 0) return;
-		decoder_deinit();
-		decoder_init(samplerate);
+#ifndef NDEBUG
+		printf("Samplerate: %d\n", samplerate);
+#endif
+		decoder_set_samplerate(samplerate);
 	}
 }
