@@ -1,6 +1,7 @@
 #ifndef NDEBUG
 #include <stdio.h>
 #endif
+#include "gui/style.h"
 #include "io/audio.h"
 #include "audio_dev_select.h"
 #include "decode.h"
@@ -18,7 +19,7 @@ widget_audio_dev_select(struct nk_context *ctx)
 	int prev_selected = _selected_idx;
 	int samplerate;
 
-	nk_layout_row_begin(ctx, NK_STATIC, DATA_ITEM_HEIGHT, 2);
+	nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT, 2);
 	nk_layout_row_push(ctx, TEXT_WIDTH);
 	nk_label(ctx, "Input device:", NK_TEXT_RIGHT);
 	bounds = nk_layout_widget_bounds(ctx);

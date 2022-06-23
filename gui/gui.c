@@ -18,8 +18,12 @@
 #define MAX_VERTEX_MEMORY (512 * 1024)
 #define MAX_ELEMENT_MEMORY (128 * 1024)
 
+typedef struct {
+	float center_x, center_y, zoom;
+} MapState;
+
 static void *gui_main(void *args);
-static void overview_window(struct nk_context *ctx, float *center_x, float *center_y);
+static void overview_window(struct nk_context *ctx, MapState *map_state, int *over_window);
 
 static pthread_t _tid;
 static enum graph active_visualization;
@@ -64,12 +68,13 @@ gui_main(void *args)
 	SDL_GLContext glContext;
 	SDL_Event evt;
 	int width, height;
-	float center_x, center_y, zoom;
 	int last_slot = get_slot();
 	char title[64];
 	GLOpenStreetMap map;
-	int pollcount, dragging;
+	MapState map_state;
+	int force_refresh, dragging, over_window;
 	const char *gl_version;
+
 
 	/* Initialize SDL2 */
 	SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
@@ -92,20 +97,19 @@ gui_main(void *args)
 		printf("Unable to create OpenGL context: %s\n", SDL_GetError());
 	}
 #ifndef NDEBUG
-	if (SDL_GetError()[0] != 0) {
+	if (!strcmp(SDL_GetError(), "")) {
 		printf("SDL context creation failed: %s\n", SDL_GetError());
 	}
 #endif
 	SDL_GetWindowSize(win, &width, &height);
-
-	glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+	glViewport(0, 0, width, height);
 
 	/* Initialize map */
 	gl_openstreetmap_init(&map);
-	zoom = 7.0;
-	center_x = lon_to_x(9.33, 0);
-	center_y = lat_to_y(45.5, 0);
-	dragging = 0;
+	map_state.zoom = 7.0;
+	map_state.center_x = lon_to_x(0, 0);
+	map_state.center_y = lat_to_y(0, 0);
+
 #ifndef NDEBUG
 	printf("Starting xy: %f %f\n", center_x, center_y);
 #endif
@@ -115,13 +119,15 @@ gui_main(void *args)
 	gui_load_fonts(ctx);
 	gui_set_style_default(ctx);
 
-	/* Force refresh */
-	pollcount = 1;
+	/* Initialize imgui data */
+	force_refresh = 1;
+	dragging = 0;
+	over_window = 0;
 
 	while (!_interrupted) {
 		/* When requested, bypass waitevent and go straight to event processing */
-		if (pollcount) {
-			pollcount--;
+		if (force_refresh) {
+			force_refresh--;
 			evt.type = SDL_USEREVENT;
 		} else {
 			SDL_WaitEvent(&evt);
@@ -134,25 +140,25 @@ gui_main(void *args)
 			case SDL_QUIT:
 				goto cleanup;
 			case SDL_MOUSEWHEEL:
-				zoom += 0.1 * evt.wheel.y;
+				map_state.zoom += 0.1 * evt.wheel.y;
 				break;
 			case SDL_MOUSEBUTTONDOWN:
-				dragging = 1;
+				dragging = !over_window;
 				break;
 			case SDL_MOUSEBUTTONUP:
 				dragging = 0;
 				break;
 			case SDL_MOUSEMOTION:
 				if (dragging) {
-					center_x -= (float)evt.motion.xrel / MAP_TILE_WIDTH / powf(2, zoom);
-					center_y -= (float)evt.motion.yrel / MAP_TILE_HEIGHT / powf(2, zoom);
+					map_state.center_x -= (float)evt.motion.xrel / MAP_TILE_WIDTH / powf(2, map_state.zoom);
+					map_state.center_y -= (float)evt.motion.yrel / MAP_TILE_HEIGHT / powf(2, map_state.zoom);
 				}
 				break;
 			case SDL_USEREVENT:
 				break;
 			default:
-				/* Force refresh  */
-				pollcount = 1;
+				/* Force refresh */
+				force_refresh = 1;
 				break;
 			}
 
@@ -166,22 +172,25 @@ gui_main(void *args)
 			sprintf(title, WINDOW_TITLE " - %s", get_data()->serial);
 			SDL_SetWindowTitle(win, title);
 		}
+
+		/* Update window size */
 		SDL_GetWindowSize(win, &width, &height);
 
 		/* Compose GUI */
-		overview_window(ctx, &center_x, &center_y);
+		overview_window(ctx, &map_state, &over_window);
 
 		/* Render */
 		glViewport(0, 0, width, height);
 		glClear(GL_COLOR_BUFFER_BIT);
 		glClearColor(0, 0, 0, 1);
 
-		/* Draw background */
-		gl_openstreetmap_vector(&map, width, height, center_x, center_y, zoom);
+		/* Draw background map */
+		gl_openstreetmap_vector(&map, width, height, map_state.center_x, map_state.center_y, map_state.zoom);
 
 		/* Draw GUI */
 		nk_sdl_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY);
 
+		/* Swap buffers */
 		SDL_GL_SwapWindow(win);
 	}
 
@@ -204,14 +213,16 @@ gui_force_update(void)
 
 /* Static functions {{{ */
 static void
-overview_window(struct nk_context *ctx, float *center_x, float *center_y)
+overview_window(struct nk_context *ctx, MapState *map_state, int *over_window)
 {
+	struct nk_vec2 position;
+	const char *title = "Overview";
 	const GeoPoint *last_point;
-	const enum nk_panel_flags win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
-	                                    | NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE;
+	const enum nk_panel_flags overview_win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
+	                                             | NK_WINDOW_MINIMIZABLE | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE;
 
 	/* Compose GUI */
-	if (nk_begin(ctx, "Overview", nk_rect(0, 0, 400, 520), win_flags)) {
+	if (nk_begin(ctx, title, nk_rect(0, 0, 400, 528), overview_win_flags)) {
 		/* Audio device selection TODO handle input from file */
 		widget_audio_dev_select(ctx);
 
@@ -226,17 +237,23 @@ overview_window(struct nk_context *ctx, float *center_x, float *center_y)
 			nk_group_end(ctx);
 		}
 
-		nk_layout_row_dynamic(ctx, 25, 1);
+		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * 1.5, 1);
 		if (nk_button_label(ctx, "Re-center map")) {
 			if (get_data_count() > 0) {
 				last_point = get_track_data() + get_data_count() - 1;
-				*center_x = lon_to_x(last_point->lon, 0);
-				*center_y = lat_to_y(last_point->lat, 0);
+				map_state->center_x = lon_to_x(last_point->lon, 0);
+				map_state->center_y = lat_to_y(last_point->lat, 0);
 			}
 		}
-
-
 	}
+	/* Bring window back in bounds */
+	position = nk_window_get_position(ctx);
+	position.x = MAX(0, position.x);
+	position.y = MAX(0, position.y);
+	nk_window_set_position(ctx, "Overview", position);
+
+
+	*over_window = nk_window_is_hovered(ctx);
 	nk_end(ctx);
 }
 /* }}} */

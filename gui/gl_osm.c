@@ -21,6 +21,7 @@
   #define SHADER_VERSION "#version 300 es\n"
 #endif
 
+/* Tile data and index will be linked into the final executable */
 extern const char _binary_tiledata_bin_start[];
 extern const char _binary_tileindex_bin_start[];
 

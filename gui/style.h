@@ -4,6 +4,7 @@
 #include "nuklear/nuklear.h"
 
 #define STYLE_DEFAULT_FONT_SIZE 17
+#define STYLE_DEFAULT_ROW_HEIGHT (STYLE_DEFAULT_FONT_SIZE + 4)
 
 #define STYLE_ACCENT_0 {61, 132, 224, 255}
 #define STYLE_ACCENT_1 {224, 60, 131, 255}
