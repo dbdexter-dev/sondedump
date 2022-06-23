@@ -3,6 +3,6 @@
 
 #include "nuklear/nuklear.h"
 
-void widget_type_select(struct nk_context *ctx);
+void widget_type_select(struct nk_context *ctx, float scale);
 
 #endif

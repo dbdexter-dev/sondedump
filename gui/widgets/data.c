@@ -5,19 +5,20 @@
 #include "decode.h"
 #include "include/data.h"
 #include "physics.h"
+#include "style.h"
 
 
 extern const char *_decoder_names[];
 extern const int _decoder_count;
 
-void
-widget_data(struct nk_context *ctx)
+int
+widget_data(struct nk_context *ctx, float scale)
 {
 	char tmp[64];
 
 	PrintableData *printable = get_data();
 
-	nk_layout_row_dynamic(ctx, DATA_ITEM_HEIGHT, 2);
+	nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * scale, 2);
 
 	nk_label(ctx, "Serial no.:", NK_TEXT_RIGHT);
 	nk_label(ctx, printable->serial, NK_TEXT_LEFT);
@@ -80,4 +81,6 @@ widget_data(struct nk_context *ctx)
 	nk_label(ctx, "Calibration:", NK_TEXT_RIGHT);
 	sprintf(tmp, "%.0f%%", printable->calib_percent);
 	nk_label(ctx, tmp, NK_TEXT_LEFT);
+
+	return 0;
 }

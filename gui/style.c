@@ -50,7 +50,7 @@ gui_set_style_default(struct nk_context *ctx)
 }
 
 void
-gui_load_fonts(struct nk_context *ctx)
+gui_load_fonts(struct nk_context *ctx, float scale)
 {
 
 	struct nk_font_atlas *atlas_latin_regular;
@@ -67,7 +67,7 @@ gui_load_fonts(struct nk_context *ctx)
 			atlas_latin_regular,
 			(void*)_binary_Roboto_Medium_ttf_start,
 			(size_t)_binary_Roboto_Medium_ttf_end - (size_t)_binary_Roboto_Medium_ttf_start,
-			STYLE_DEFAULT_FONT_SIZE,
+			STYLE_DEFAULT_FONT_SIZE * scale,
 			&cfg_latin_regular);
 	nk_sdl_font_stash_end();
 

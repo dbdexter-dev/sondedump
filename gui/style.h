@@ -20,7 +20,7 @@ enum font_style {
 };
 
 void gui_set_style_default(struct nk_context *ctx);
-void gui_load_fonts(struct nk_context *ctx);
+void gui_load_fonts(struct nk_context *ctx, float scale);
 
 void gui_set_font_style(enum font_style style);
 

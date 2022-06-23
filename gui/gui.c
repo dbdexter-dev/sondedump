@@ -23,7 +23,7 @@ typedef struct {
 } MapState;
 
 static void *gui_main(void *args);
-static void overview_window(struct nk_context *ctx, MapState *map_state, int *over_window);
+static void overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *over_window);
 
 static pthread_t _tid;
 static enum graph active_visualization;
@@ -63,6 +63,7 @@ gui_main(void *args)
 {
 	(void)args;
 
+	const float scale = 1;
 	struct nk_context *ctx;
 	SDL_Window *win;
 	SDL_GLContext glContext;
@@ -116,7 +117,7 @@ gui_main(void *args)
 
 	/* Initialize nuklear */
 	ctx = nk_sdl_init(win);
-	gui_load_fonts(ctx);
+	gui_load_fonts(ctx, scale);
 	gui_set_style_default(ctx);
 
 	/* Initialize imgui data */
@@ -177,7 +178,7 @@ gui_main(void *args)
 		SDL_GetWindowSize(win, &width, &height);
 
 		/* Compose GUI */
-		overview_window(ctx, &map_state, &over_window);
+		overview_window(ctx, scale, &map_state, &over_window);
 
 		/* Render */
 		glViewport(0, 0, width, height);
@@ -213,7 +214,7 @@ gui_force_update(void)
 
 /* Static functions {{{ */
 static void
-overview_window(struct nk_context *ctx, MapState *map_state, int *over_window)
+overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *over_window)
 {
 	struct nk_panel *window_panel;
 	struct nk_vec2 position, size;
@@ -223,22 +224,22 @@ overview_window(struct nk_context *ctx, MapState *map_state, int *over_window)
 	                                             | NK_WINDOW_MINIMIZABLE | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE;
 
 	/* Compose GUI */
-	if (nk_begin(ctx, title, nk_rect(0, 0, PANEL_WIDTH, 0), overview_win_flags)) {
+	if (nk_begin(ctx, title, nk_rect(0, 0, PANEL_WIDTH * scale, 0), overview_win_flags)) {
 		/* Audio device selection TODO handle input from file */
-		widget_audio_dev_select(ctx);
+		widget_audio_dev_select(ctx, scale);
 
 		/* Sonde type selection */
-		widget_type_select(ctx);
+		widget_type_select(ctx, scale);
 
-		nk_layout_row_dynamic(ctx, 400, 1);
+		nk_layout_row_dynamic(ctx, 400 * scale, 1);
 		if (nk_group_begin(ctx, "Data", NK_WINDOW_NO_SCROLLBAR)) {
 			/* Raw data */
-			widget_data(ctx);
+			widget_data(ctx, scale);
 
 			nk_group_end(ctx);
 		}
 
-		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * 1.5, 1);
+		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * 1.2 * scale, 1);
 		if (nk_button_label(ctx, "Re-center map")) {
 			if (get_data_count() > 0) {
 				last_point = get_track_data() + get_data_count() - 1;
