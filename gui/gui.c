@@ -215,14 +215,15 @@ gui_force_update(void)
 static void
 overview_window(struct nk_context *ctx, MapState *map_state, int *over_window)
 {
-	struct nk_vec2 position;
+	struct nk_panel *window_panel;
+	struct nk_vec2 position, size;
 	const char *title = "Overview";
 	const GeoPoint *last_point;
 	const enum nk_panel_flags overview_win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
 	                                             | NK_WINDOW_MINIMIZABLE | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE;
 
 	/* Compose GUI */
-	if (nk_begin(ctx, title, nk_rect(0, 0, 400, 528), overview_win_flags)) {
+	if (nk_begin(ctx, title, nk_rect(0, 0, PANEL_WIDTH, 0), overview_win_flags)) {
 		/* Audio device selection TODO handle input from file */
 		widget_audio_dev_select(ctx);
 
@@ -246,8 +247,15 @@ overview_window(struct nk_context *ctx, MapState *map_state, int *over_window)
 			}
 		}
 	}
-	/* Bring window back in bounds */
 	position = nk_window_get_position(ctx);
+	size = nk_window_get_size(ctx);
+	window_panel = nk_window_get_panel(ctx);
+
+	/* Resize to fit contents in the y direction */
+	size.y = window_panel->at_y - position.y + window_panel->row.height;
+	nk_window_set_size(ctx, "Overview", size);
+
+	/* Bring window back in bounds */
 	position.x = MAX(0, position.x);
 	position.y = MAX(0, position.y);
 	nk_window_set_position(ctx, "Overview", position);
