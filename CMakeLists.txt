@@ -140,6 +140,7 @@ set(AUDIO_SOURCES
 set(GUI_SOURCES
 	gui/nuklear/nuklear.c gui/nuklear/nuklear.h
 	gui/nuklear/nuklear_sdl_gl3.h
+	gui/nuklear/nuklear_ext.c gui/nuklear/nuklear_ext.h
 
 	gui/style.c gui/style.h
 	gui/gui.c gui/gui.h

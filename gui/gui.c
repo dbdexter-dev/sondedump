@@ -7,6 +7,7 @@
 #include "gui.h"
 #include "utils.h"
 #include "nuklear/nuklear.h"
+#include "nuklear/nuklear_ext.h"
 #include "nuklear/nuklear_sdl_gl3.h"
 #include "style.h"
 #include "widgets/audio_dev_select.h"
@@ -216,8 +217,7 @@ gui_force_update(void)
 static void
 overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *over_window)
 {
-	struct nk_panel *window_panel;
-	struct nk_vec2 position, size;
+	struct nk_vec2 position;
 	const char *title = "Overview";
 	const GeoPoint *last_point;
 	const enum nk_panel_flags overview_win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
@@ -249,18 +249,14 @@ overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *o
 		}
 	}
 	position = nk_window_get_position(ctx);
-	size = nk_window_get_size(ctx);
-	window_panel = nk_window_get_panel(ctx);
 
 	/* Resize to fit contents in the y direction */
-	size.y = window_panel->at_y - position.y + window_panel->row.height;
-	nk_window_set_size(ctx, "Overview", size);
+	nk_window_fit_to_content(ctx);
 
 	/* Bring window back in bounds */
 	position.x = MAX(0, position.x);
 	position.y = MAX(0, position.y);
 	nk_window_set_position(ctx, "Overview", position);
-
 
 	*over_window = nk_window_is_hovered(ctx);
 	nk_end(ctx);

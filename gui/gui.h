@@ -11,7 +11,7 @@
 enum graph {
 	GUI_TIMESERIES=0,
 	GUI_SKEW_T,
-	GUI_OPENSTREETMAP,
+	GUI_MAP,
 };
 
 void gui_init(void);

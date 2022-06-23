@@ -14,14 +14,7 @@
 #define STYLE_ACCENT_1_NORMALIZED {224/255.0, 60/255.0, 131/255.0, 1}
 #define STYLE_ACCENT_2_NORMALIZED {224/255.0, 153/255.0, 60/255.0, 1}
 
-enum font_style {
-	FONT_WEIGHT_REGULAR = 0,
-	FONT_WEIGHT_BOLD    = 1,
-};
-
 void gui_set_style_default(struct nk_context *ctx);
 void gui_load_fonts(struct nk_context *ctx, float scale);
-
-void gui_set_font_style(enum font_style style);
 
 #endif
