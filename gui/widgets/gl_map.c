@@ -64,8 +64,12 @@ gl_map_deinit(GLMap *map)
 }
 
 void
-gl_map_vector(GLMap *map, int width, int height, float x_center, float y_center, float zoom)
+gl_map_vector(GLMap *map, int width, int height)
 {
+	float center_x = map->center_x;
+	float center_y = map->center_y;
+	float zoom = map->zoom;
+
 	const float digital_zoom = powf(2, zoom - mipmap(zoom));
 	const int x_size = 1 << mipmap(zoom);
 	const int y_size = 1 << mipmap(zoom);
@@ -83,11 +87,11 @@ gl_map_vector(GLMap *map, int width, int height, float x_center, float y_center,
 		{0.0f, 0.0f, 0.0f, 1.0f},
 	};
 
-	x_center *= x_size;
-	y_center *= y_size;
+	center_x *= x_size;
+	center_y *= y_size;
 
-	x_start = (int)roundf(x_center - x_count/2);
-	y_start = (int)roundf(y_center - y_count/2);
+	x_start = (int)roundf(center_x - x_count/2);
+	y_start = (int)roundf(center_y - y_count/2);
 
 	/**
 	 * Projection transform:
@@ -98,8 +102,8 @@ gl_map_vector(GLMap *map, int width, int height, float x_center, float y_center,
 	 */
 	proj[0][0] *= 2.0f * MAP_TILE_WIDTH / (float)width * digital_zoom;
 	proj[1][1] *= 2.0f * -MAP_TILE_HEIGHT / (float)height * digital_zoom;
-	proj[3][0] = proj[0][0] * (-x_center);
-	proj[3][1] = proj[1][1] * (-y_center);
+	proj[3][0] = proj[0][0] * (-center_x);
+	proj[3][1] = proj[1][1] * (-center_y);
 
 	/* Resize array to fit all tiles */
 	glBindVertexArray(map->vao);
@@ -128,8 +132,8 @@ gl_map_vector(GLMap *map, int width, int height, float x_center, float y_center,
 
 	/* Shader converts (lat,lon) to (x,y): translate so that the center of the
 	 * viewport is (0, 0) */
-	proj[3][0] = proj[0][0] * -x_center;
-	proj[3][1] = proj[1][1] * -y_center;
+	proj[3][0] = proj[0][0] * -center_x;
+	proj[3][1] = proj[1][1] * -center_y;
 
 	glUniformMatrix4fv(map->u4m_track_proj, 1, GL_FALSE, (GLfloat*)proj);
 	glUniform4fv(map->u4f_track_color, 1, track_color);

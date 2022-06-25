@@ -14,6 +14,7 @@
 #include "widgets/data.h"
 #include "widgets/type_select.h"
 #include "widgets/gl_map.h"
+#include "widgets/gl_skewt.h"
 
 #define MAX_VERTEX_MEMORY (512 * 1024)
 #define MAX_ELEMENT_MEMORY (128 * 1024)
@@ -23,9 +24,18 @@ typedef struct {
 	float receiver_x, receiver_y;
 } MapState;
 
+typedef struct {
+	float scale;
+
+	int over_window;
+	int config_open;
+	int dragging;
+	int force_refresh;
+} UIState;
+
 static void *gui_main(void *args);
-static void overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *over_window, int *config_open);
-static void config_window(struct nk_context *ctx, float *scale, int *config_open);
+static void overview_window(struct nk_context *ctx, GLMap *map, UIState *state);
+static void config_window(struct nk_context *ctx, UIState *state);
 
 static pthread_t _tid;
 extern volatile int _interrupted;
@@ -51,7 +61,7 @@ gui_main(void *args)
 {
 	(void)args;
 
-	float scale, old_scale;
+	float old_scale;
 	struct nk_context *ctx;
 	SDL_Window *win;
 	SDL_GLContext glContext;
@@ -61,9 +71,9 @@ gui_main(void *args)
 	char title[64];
 
 	GLMap map;
-	MapState map_state;
+	GLSkewT skewt;
 	enum graph active_visualization;
-	int force_refresh, dragging, over_window, config_open;
+	UIState ui_state;
 	const char *gl_version;
 
 
@@ -97,31 +107,31 @@ gui_main(void *args)
 
 	/* Initialize map */
 	gl_map_init(&map);
-	map_state.zoom = 7.0;
-	map_state.center_x = lon_to_x(0, 0);
-	map_state.center_y = lat_to_y(0, 0);
+	map.zoom = 7.0;
+	map.center_x = 0;
+	map.center_y = 0;
 
 #ifndef NDEBUG
 	printf("Starting xy: %f %f\n", center_x, center_y);
 #endif
 
 	/* Initialize nuklear */
-	scale = old_scale = 1;
+	ui_state.scale = old_scale = 1;
 	ctx = nk_sdl_init(win);
-	gui_load_fonts(ctx, scale);
+	gui_load_fonts(ctx, ui_state.scale);
 	gui_set_style_default(ctx);
 
 	/* Initialize imgui data */
-	force_refresh = 1;
-	dragging = 0;
-	over_window = 0;
-	config_open = 0;
+	ui_state.force_refresh = 1;
+	ui_state.dragging = 0;
+	ui_state.over_window = 0;
+	ui_state.config_open = 0;
 	active_visualization = GUI_MAP;
 
 	while (!_interrupted) {
 		/* When requested, bypass waitevent and go straight to event processing */
-		if (force_refresh) {
-			force_refresh--;
+		if (ui_state.force_refresh) {
+			ui_state.force_refresh--;
 			evt.type = SDL_USEREVENT;
 		} else {
 			SDL_WaitEvent(&evt);
@@ -134,25 +144,25 @@ gui_main(void *args)
 			case SDL_QUIT:
 				goto cleanup;
 			case SDL_MOUSEWHEEL:
-				map_state.zoom += 0.1 * evt.wheel.y;
+				map.zoom += 0.1 * evt.wheel.y;
 				break;
 			case SDL_MOUSEBUTTONDOWN:
-				dragging = !over_window;
+				ui_state.dragging = !ui_state.over_window;
 				break;
 			case SDL_MOUSEBUTTONUP:
-				dragging = 0;
+				ui_state.dragging = 0;
 				break;
 			case SDL_MOUSEMOTION:
-				if (dragging) {
-					map_state.center_x -= (float)evt.motion.xrel / MAP_TILE_WIDTH / powf(2, map_state.zoom);
-					map_state.center_y -= (float)evt.motion.yrel / MAP_TILE_HEIGHT / powf(2, map_state.zoom);
+				if (ui_state.dragging) {
+					map.center_x -= (float)evt.motion.xrel / MAP_TILE_WIDTH / powf(2, map.zoom);
+					map.center_y -= (float)evt.motion.yrel / MAP_TILE_HEIGHT / powf(2, map.zoom);
 				}
 				break;
 			case SDL_USEREVENT:
 				break;
 			default:
 				/* Force refresh */
-				force_refresh = 1;
+				ui_state.force_refresh = 1;
 				break;
 			}
 
@@ -171,11 +181,11 @@ gui_main(void *args)
 		SDL_GetWindowSize(win, &width, &height);
 
 		/* Compose nuklear GUI elements */
-		overview_window(ctx, scale, &map_state, &over_window, &config_open);
-		if (config_open) config_window(ctx, &scale, &config_open);
-		if (scale != old_scale) {
-			gui_load_fonts(ctx, scale);
-			old_scale = scale;
+		overview_window(ctx, &map, &ui_state);
+		if (ui_state.config_open) config_window(ctx, &ui_state);
+		if (ui_state.scale != old_scale) {
+			gui_load_fonts(ctx, ui_state.scale);
+			old_scale = ui_state.scale;
 		}
 
 		/* Render */
@@ -186,11 +196,12 @@ gui_main(void *args)
 		/* Draw background map */
 		switch (active_visualization) {
 		case GUI_MAP:
-			gl_map_vector(&map, width, height, map_state.center_x, map_state.center_y, map_state.zoom);
+			gl_map_vector(&map, width, height);
 			break;
 		case GUI_TIMESERIES:
 			break;
 		case GUI_SKEW_T:
+			gl_skewt_raster(&skewt, width, height, 0, 0, 1);
 			break;
 		}
 
@@ -220,7 +231,7 @@ gui_force_update(void)
 
 /* Static functions {{{ */
 static void
-overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *over_window, int *config_open)
+overview_window(struct nk_context *ctx, GLMap *map, UIState *state)
 {
 	struct nk_vec2 position;
 	const char *title = "Overview";
@@ -229,36 +240,36 @@ overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *o
 	                                    | NK_WINDOW_MINIMIZABLE | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE;
 
 	/* Compose GUI */
-	if (nk_begin(ctx, title, nk_rect(0, 0, PANEL_WIDTH * scale, 0), win_flags)) {
+	if (nk_begin(ctx, title, nk_rect(0, 0, PANEL_WIDTH * state->scale, 0), win_flags)) {
 		/* Audio device selection TODO handle input from file */
-		widget_audio_dev_select(ctx, scale);
+		widget_audio_dev_select(ctx, state->scale);
 
 		/* Sonde type selection */
-		widget_type_select(ctx, scale);
+		widget_type_select(ctx, state->scale);
 
-		nk_layout_row_dynamic(ctx, 400 * scale, 1);
+		nk_layout_row_dynamic(ctx, 400 * state->scale, 1);
 		if (nk_group_begin(ctx, "Data", NK_WINDOW_NO_SCROLLBAR)) {
 			/* Raw data */
-			widget_data(ctx, scale);
+			widget_data(ctx, state->scale);
 
 			nk_group_end(ctx);
 		}
 
-		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * 1.2 * scale, 1);
+		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * 1.2 * state->scale, 1);
 		if (nk_button_label(ctx, "Re-center map")) {
 			if (get_data_count() > 0) {
 				last_point = get_track_data() + get_data_count() - 1;
-				map_state->center_x = lon_to_x(last_point->lon, 0);
-				map_state->center_y = lat_to_y(last_point->lat, 0);
+				map->center_x = lon_to_x(last_point->lon, 0);
+				map->center_y = lat_to_y(last_point->lat, 0);
 			}
 		}
 
 		if (nk_button_label(ctx, "Configure...")) {
-			*config_open = 1;
+			state->config_open = 1;
 		}
 	}
 	/* Resize according to the scale factor */
-	ctx->current->bounds.w = PANEL_WIDTH * scale;
+	ctx->current->bounds.w = PANEL_WIDTH * state->scale;
 	position = nk_window_get_position(ctx);
 
 	/* Resize to fit contents in the y direction */
@@ -269,12 +280,12 @@ overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *o
 	position.y = MAX(0, position.y);
 	nk_window_set_position(ctx, "Overview", position);
 
-	*over_window = nk_window_is_hovered(ctx);
+	state->over_window = nk_window_is_hovered(ctx);
 	nk_end(ctx);
 }
 
 static void
-config_window(struct nk_context *ctx, float *scale, int *config_open)
+config_window(struct nk_context *ctx, UIState *state)
 {
 	const int label_len = 120;
 	const char *title = "Settings";
@@ -284,40 +295,40 @@ config_window(struct nk_context *ctx, float *scale, int *config_open)
 	float border;
 	static char lat[32], lon[32], alt[32];
 
-	if (nk_begin(ctx, title, nk_rect(100, 100, PANEL_WIDTH * *scale, 0), win_flags)) {
+	if (nk_begin(ctx, title, nk_rect(100, 100, PANEL_WIDTH * state->scale, 0), win_flags)) {
 		border = nk_window_get_panel(ctx)->border;
 
 		if (nk_tree_push(ctx, NK_TREE_TAB, "Display options", NK_MAXIMIZED)) {
-			nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * *scale, 1);
+			nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 1);
 
 			/* UI scale configuration */
 			bounds = nk_layout_widget_bounds(ctx);
 			nk_layout_row_push(ctx, bounds.w);
-			nk_property_float(ctx, "#UI scale", 1, scale, 5, 0.1, 0.1);
+			nk_property_float(ctx, "#UI scale", 1, &state->scale, 5, 0.1, 0.1);
 
 			nk_tree_pop(ctx);
 		}
 
 		if (nk_tree_push(ctx, NK_TREE_TAB, "Ground station location", NK_MAXIMIZED)) {
-			nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * *scale, 2);
+			nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 2);
 
 			/* Latitude text box */
-			nk_layout_row_push(ctx, label_len * *scale);
+			nk_layout_row_push(ctx, label_len * state->scale);
 			nk_label(ctx, "Latitude ('N):", NK_TEXT_LEFT);
 			bounds = nk_layout_widget_bounds(ctx);
-			nk_layout_row_push(ctx, bounds.w - label_len * *scale - 2 * border);
+			nk_layout_row_push(ctx, bounds.w - label_len * state->scale - 2 * border);
 			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, lat, LEN(lat), nk_filter_float);
 
 			/* Longitude text box */
-			nk_layout_row_push(ctx, label_len * *scale);
+			nk_layout_row_push(ctx, label_len * state->scale);
 			nk_label(ctx, "Longitude ('E):", NK_TEXT_LEFT);
-			nk_layout_row_push(ctx, bounds.w - label_len * *scale - 2 * border);
+			nk_layout_row_push(ctx, bounds.w - label_len * state->scale - 2 * border);
 			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, lon, LEN(lon), nk_filter_float);
 
 			/* Altitude text box */
-			nk_layout_row_push(ctx, label_len * *scale);
+			nk_layout_row_push(ctx, label_len * state->scale);
 			nk_label(ctx, "Altitude (m):", NK_TEXT_LEFT);
-			nk_layout_row_push(ctx, bounds.w - label_len * *scale - 2 * border);
+			nk_layout_row_push(ctx, bounds.w - label_len * state->scale - 2 * border);
 			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, alt, LEN(alt), nk_filter_float);
 
 			nk_layout_row_end(ctx);
@@ -326,12 +337,13 @@ config_window(struct nk_context *ctx, float *scale, int *config_open)
 		}
 	}
 
-	nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * *scale, 2);
+	nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 2);
 	if (nk_button_label(ctx, "Cancel")) {
-		*config_open = 0;
+		state->config_open = 0;
+		/* TODO undo settings */
 	}
 	if (nk_button_label(ctx, "Save")) {
-		*config_open = 0;
+		state->config_open = 0;
 		/* TODO copy settings */
 	}
 

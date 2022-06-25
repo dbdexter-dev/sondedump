@@ -7,6 +7,8 @@
 #define MAP_TILE_HEIGHT 1024
 
 typedef struct {
+	float center_x, center_y, zoom;
+
 	struct {
 		int x_start, x_count;
 		int y_start, y_count;
@@ -30,7 +32,7 @@ typedef struct {
 } GLMap;
 
 void gl_map_init(GLMap *map);
-void gl_map_vector(GLMap *map, int width, int height, float lat, float lon, float zoom);
+void gl_map_vector(GLMap *map, int width, int height);
 void gl_map_deinit(GLMap *map);
 
 #endif
