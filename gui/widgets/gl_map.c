@@ -123,7 +123,6 @@ gl_map_vector(GLMap *map, int width, int height)
 	glUniform4fv(map->u4f_map_color, 1, map_color);
 	glDrawElements(GL_LINES, map->vram_tile_metadata.vertex_count, GL_UNSIGNED_INT, 0);
 	/* }}} */
-
 	/* Draw ground track {{{ */
 	glUseProgram(map->track_program);
 	glBindVertexArray(map->track_vao);

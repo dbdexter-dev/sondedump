@@ -12,7 +12,7 @@ project(sondedump
 add_definitions(-DVERSION="${CMAKE_PROJECT_VERSION}")
 
 # Include modules for external libraries
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
 
 if (NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE "Release")
@@ -37,39 +37,34 @@ if (is_arm EQUAL "0")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -mcpu=native -mfpu=auto")
 endif()
 
+
+function(add_blobs out_var)
+	set(result)
+	foreach(IN_FILE ${ARGN})
+		get_filename_component(SRC_FILE ${IN_FILE} NAME)
+		get_filename_component(SRC_BASE_NAME ${IN_FILE} NAME_WE)
+		get_filename_component(SRC_DIR ${IN_FILE} DIRECTORY)
+		set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/${SRC_BASE_NAME}.o")
+
+		add_custom_command(
+			OUTPUT ${OUT_FILE}
+			COMMAND ld -r -b binary -o ${OUT_FILE} ${SRC_FILE}
+			DEPENDS ${IN_FILE}
+			WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/${SRC_DIR}"
+		)
+		list(APPEND result ${OUT_FILE})
+	endforeach()
+
+	set(${out_var} "${result}" PARENT_SCOPE)
+endfunction()
+
+
+
 # Rules to embed font and map as binary, with stable symbol names
+set(BLOB_SRCS)
 if (ENABLE_GUI)
-	add_custom_command(
-		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/roboto_medium.o
-		COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/Roboto-Medium.ttf .
-		COMMAND ld -r -b binary -o ${CMAKE_CURRENT_BINARY_DIR}/roboto_medium.o Roboto-Medium.ttf
-		COMMAND rm Roboto-Medium.ttf
-		MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/Roboto-Medium.ttf
-	)
-
-	add_custom_command(
-		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/tiledata.o
-		COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/assets/tiles/tiledata.bin .
-		COMMAND ld -r -b binary -o ${CMAKE_CURRENT_BINARY_DIR}/tiledata.o tiledata.bin
-		COMMAND rm tiledata.bin
-		MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/assets/tiles/tiledata.bin
-	)
-
-	add_custom_command(
-		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/tileindex.o
-		COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/assets/tiles/tileindex.bin .
-		COMMAND ld -r -b binary -o ${CMAKE_CURRENT_BINARY_DIR}/tileindex.o tileindex.bin
-		COMMAND rm tileindex.bin
-		MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/assets/tiles/tileindex.bin
-	)
-
-	set(FONT_OBJS
-		roboto_medium.o
-	)
-
-	set(MAP_OBJS
-		tiledata.o tileindex.o
-	)
+	list(APPEND BLOB_SRCS "assets/fonts/Roboto-Medium.ttf")
+	list(APPEND BLOB_SRCS "assets/tiles/tiledata.bin" "assets/tiles/tileindex.bin")
 endif()
 
 
@@ -229,6 +224,8 @@ else()
 	set(OPENGLES3_LIBRARIES "")
 endif()
 
+# Add binary blobs
+add_blobs(BLOB_BINS ${BLOB_SRCS})
 
 # Main library target
 add_library(radiosonde STATIC ${LIBRARY_SOURCES})
@@ -236,11 +233,7 @@ target_include_directories(radiosonde PUBLIC ${INC_DIRS})
 target_link_libraries(radiosonde PUBLIC ${MATH_LIBRARY})
 
 # Main executable target
-if (ENABLE_GUI)
-	add_executable(sondedump ${FONT_OBJS} ${MAP_OBJS} ${EXEC_SOURCES})
-else()
-	add_executable(sondedump ${EXEC_SOURCES})
-endif()
+add_executable(sondedump ${EXEC_SOURCES} ${BLOB_BINS})
 target_include_directories(sondedump PRIVATE ${INC_DIRS}
 	${PORTAUDIO_INCLUDE_DIRS}
 	${CURSES_INCLUDE_DIRS}

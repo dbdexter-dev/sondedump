@@ -108,8 +108,8 @@ gui_main(void *args)
 	/* Initialize map */
 	gl_map_init(&map);
 	map.zoom = 7.0;
-	map.center_x = 0;
-	map.center_y = 0;
+	map.center_x = lon_to_x(0, 0);
+	map.center_y = lat_to_y(0, 0);
 
 #ifndef NDEBUG
 	printf("Starting xy: %f %f\n", center_x, center_y);
@@ -181,6 +181,8 @@ gui_main(void *args)
 		SDL_GetWindowSize(win, &width, &height);
 
 		/* Compose nuklear GUI elements */
+		ui_state.over_window = 0;
+
 		overview_window(ctx, &map, &ui_state);
 		if (ui_state.config_open) config_window(ctx, &ui_state);
 		if (ui_state.scale != old_scale) {
@@ -280,7 +282,7 @@ overview_window(struct nk_context *ctx, GLMap *map, UIState *state)
 	position.y = MAX(0, position.y);
 	nk_window_set_position(ctx, "Overview", position);
 
-	state->over_window = nk_window_is_hovered(ctx);
+	state->over_window |= nk_window_is_hovered(ctx);
 	nk_end(ctx);
 }
 
@@ -295,7 +297,7 @@ config_window(struct nk_context *ctx, UIState *state)
 	float border;
 	static char lat[32], lon[32], alt[32];
 
-	if (nk_begin(ctx, title, nk_rect(100, 100, PANEL_WIDTH * state->scale, 0), win_flags)) {
+	if (nk_begin(ctx, title, nk_rect(0, 0, PANEL_WIDTH * state->scale, 0), win_flags)) {
 		border = nk_window_get_panel(ctx)->border;
 
 		if (nk_tree_push(ctx, NK_TREE_TAB, "Display options", NK_MAXIMIZED)) {
@@ -348,6 +350,8 @@ config_window(struct nk_context *ctx, UIState *state)
 	}
 
 	nk_window_fit_to_content(ctx);
+	state->over_window |= nk_window_is_hovered(ctx);
+
 	nk_end(ctx);
 }
 /* }}} */
