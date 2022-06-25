@@ -7,7 +7,9 @@ uniform float zoom;
 
 in vec2 position;
 
-void main() {
+void
+main()
+{
 	float pi = 3.1415926536;
 	float rads = position.x * pi / 180.0;
 

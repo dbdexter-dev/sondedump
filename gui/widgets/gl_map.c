@@ -15,12 +15,6 @@
 #define MODLT(x, y, mod) (((y) - (x) - 1 + (mod)) % (mod) < ((mod) / 2))
 #define MODGE(x, y, mod) (((x) - (y) + (mod)) % (mod) < ((mod) / 2))
 
-#ifdef __APPLE__
-  #define SHADER_VERSION "#version 150\n"
-#else
-  #define SHADER_VERSION "#version 300 es\n"
-#endif
-
 typedef struct {
 	float x, y;
 } Vertex;
@@ -128,8 +122,10 @@ gl_map_vector(GLMap *map, int width, int height)
 	glBindBuffer(GL_ARRAY_BUFFER, map->vbo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, map->ibo);
 
+	glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
 	glUniform4fv(map->u4f_map_color, 1, map_color);
-	glDrawElements(GL_LINES, map->vram_tile_metadata.vertex_count, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_LINE_STRIP, map->vram_tile_metadata.vertex_count, GL_UNSIGNED_INT, 0);
+	glDisable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
 	/* }}} */
 	/* Draw ground track {{{ */
 	glUseProgram(map->track_program);
@@ -242,8 +238,14 @@ update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, i
 
 			ibo_data = realloc(ibo_data, (ibo_len + len) * sizeof(*ibo_data));
 			for (i=0; i < (int)len; i++) {
-				ibo_data[ibo_len + i] = (uint32_t)packed_ibo_data[i] + ibo_offset;
-				max_ibo = MAX(ibo_data[ibo_len + i], max_ibo);
+				if (packed_ibo_data[i] == 0xFFFF) {
+					/* Extend restart index to 32 bits */
+					ibo_data[ibo_len + i] = 0xFFFFFFFF;
+				} else {
+					/* Extend regular index to 32 bits */
+					ibo_data[ibo_len + i] = (uint32_t)packed_ibo_data[i] + ibo_offset;
+					max_ibo = MAX(ibo_data[ibo_len + i], max_ibo);
+				}
 			}
 
 			ibo_len += len;
