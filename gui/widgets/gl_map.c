@@ -107,8 +107,6 @@ gl_map_vector(GLMap *map, int width, int height)
 	proj[3][0] = proj[0][0] * (-center_x);
 	proj[3][1] = proj[1][1] * (-center_y);
 
-	/* Resize array to fit all tiles */
-	glBindVertexArray(map->vao);
 
 	/* Load missing vertex buffers */
 	update_buffers(map, x_start, y_start, x_count, y_count, mipmap(zoom));
@@ -117,10 +115,6 @@ gl_map_vector(GLMap *map, int width, int height)
 	glUseProgram(map->tile_program);
 	glBindVertexArray(map->vao);
 	glUniformMatrix4fv(map->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
-
-	glBindVertexArray(map->vao);
-	glBindBuffer(GL_ARRAY_BUFFER, map->vbo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, map->ibo);
 
 	glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
 	glUniform4fv(map->u4f_map_color, 1, map_color);
