@@ -8,7 +8,7 @@
 #endif
 #include <GLES3/gl3.h>
 #include "decode.h"
-#include "gl_osm.h"
+#include "gl_map.h"
 #include "style.h"
 #include "utils.h"
 
@@ -21,23 +21,23 @@
   #define SHADER_VERSION "#version 300 es\n"
 #endif
 
-/* Tile data and index will be linked into the final executable */
-extern const char _binary_tiledata_bin_start[];
-extern const char _binary_tileindex_bin_start[];
-
 typedef struct {
 	float x, y;
 } Vertex;
 
-static void map_opengl_init(GLOpenStreetMap *map);
-static void track_opengl_init(GLOpenStreetMap *map);
+/* Tile data and index will be linked into the final executable */
+extern const char _binary_tiledata_bin_start[];
+extern const char _binary_tileindex_bin_start[];
+
+static void map_opengl_init(GLMap *map);
+static void track_opengl_init(GLMap *map);
 static int mipmap(float zoom);
 
-static void update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int y_count, int zoom);
+static void update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, int zoom);
 
 
 void
-gl_openstreetmap_init(GLOpenStreetMap *map)
+gl_map_init(GLMap *map)
 {
 	/* Background map program, buffers, uniforms... */
 	map_opengl_init(map);
@@ -47,7 +47,7 @@ gl_openstreetmap_init(GLOpenStreetMap *map)
 }
 
 void
-gl_openstreetmap_deinit(GLOpenStreetMap *map)
+gl_map_deinit(GLMap *map)
 {
 	if (map->vao) glDeleteVertexArrays(1, &map->vao);
 	if (map->vbo) glDeleteBuffers(1, &map->vbo);
@@ -64,7 +64,7 @@ gl_openstreetmap_deinit(GLOpenStreetMap *map)
 }
 
 void
-gl_openstreetmap_vector(GLOpenStreetMap *map, int width, int height, float x_center, float y_center, float zoom)
+gl_map_vector(GLMap *map, int width, int height, float x_center, float y_center, float zoom)
 {
 	const float digital_zoom = powf(2, zoom - mipmap(zoom));
 	const int x_size = 1 << mipmap(zoom);
@@ -148,7 +148,7 @@ gl_openstreetmap_vector(GLOpenStreetMap *map, int width, int height, float x_cen
 
 /* Static functions {{{ */
 static void
-update_buffers(GLOpenStreetMap *map, int x_start, int y_start, int x_count, int y_count, int zoom)
+update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, int zoom)
 {
 	const int x_size = 1 << zoom;
 	const int y_size = 1 << zoom;
@@ -267,7 +267,7 @@ mipmap(float zoom)
 }
 
 static void
-map_opengl_init(GLOpenStreetMap *map)
+map_opengl_init(GLMap *map)
 {
 	GLint status;
 
@@ -340,7 +340,7 @@ map_opengl_init(GLOpenStreetMap *map)
 }
 
 static void
-track_opengl_init(GLOpenStreetMap *map)
+track_opengl_init(GLMap *map)
 {
 	GLuint attrib_track_pos;
 	GLint status;

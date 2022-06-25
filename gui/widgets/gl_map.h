@@ -1,5 +1,5 @@
-#ifndef gl_osm_h
-#define gl_osm_h
+#ifndef gl_map_h
+#define gl_map_h
 
 #include <GLES2/gl2.h>
 
@@ -27,10 +27,10 @@ typedef struct {
 	GLuint u1f_zoom, u4f_track_color, u4m_track_proj;
 
 	GLuint attrib_pos;
-} GLOpenStreetMap;
+} GLMap;
 
-void gl_openstreetmap_init(GLOpenStreetMap *map);
-void gl_openstreetmap_vector(GLOpenStreetMap *map, int width, int height, float lat, float lon, float zoom);
-void gl_openstreetmap_deinit(GLOpenStreetMap *map);
+void gl_map_init(GLMap *map);
+void gl_map_vector(GLMap *map, int width, int height, float lat, float lon, float zoom);
+void gl_map_deinit(GLMap *map);
 
 #endif

@@ -38,4 +38,5 @@ widget_type_select(struct nk_context *ctx, float scale)
 	if (prev_selected != selected) {
 		set_active_decoder(selected);
 	}
+	nk_layout_row_end(ctx);
 }

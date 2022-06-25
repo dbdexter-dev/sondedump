@@ -46,4 +46,5 @@ widget_audio_dev_select(struct nk_context *ctx, float scale)
 #endif
 		decoder_set_samplerate(samplerate);
 	}
+	nk_layout_row_end(ctx);
 }

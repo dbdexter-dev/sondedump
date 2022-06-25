@@ -11,30 +11,29 @@
 #include "nuklear/nuklear_sdl_gl3.h"
 #include "style.h"
 #include "widgets/audio_dev_select.h"
-#include "widgets/chart.h"
 #include "widgets/data.h"
 #include "widgets/type_select.h"
-#include "gl_osm.h"
+#include "widgets/gl_map.h"
 
 #define MAX_VERTEX_MEMORY (512 * 1024)
 #define MAX_ELEMENT_MEMORY (128 * 1024)
 
 typedef struct {
 	float center_x, center_y, zoom;
+	float receiver_x, receiver_y;
 } MapState;
 
 static void *gui_main(void *args);
-static void overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *over_window);
+static void overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *over_window, int *config_open);
+static void config_window(struct nk_context *ctx, float *scale, int *config_open);
 
 static pthread_t _tid;
-static enum graph active_visualization;
 extern volatile int _interrupted;
 
 void
 gui_init(void)
 {
 	_interrupted = 0;
-	active_visualization = GUI_TIMESERIES;
 	pthread_create(&_tid, NULL, gui_main, NULL);
 }
 
@@ -47,24 +46,12 @@ gui_deinit(void)
 	if (_tid) pthread_join(_tid, &retval);
 }
 
-enum graph
-gui_get_graph(void)
-{
-	return active_visualization;
-}
-
-void
-gui_set_graph(enum graph visual)
-{
-	active_visualization = visual;
-}
-
 static void*
 gui_main(void *args)
 {
 	(void)args;
 
-	const float scale = 1;
+	float scale, old_scale;
 	struct nk_context *ctx;
 	SDL_Window *win;
 	SDL_GLContext glContext;
@@ -72,9 +59,11 @@ gui_main(void *args)
 	int width, height;
 	int last_slot = get_slot();
 	char title[64];
-	GLOpenStreetMap map;
+
+	GLMap map;
 	MapState map_state;
-	int force_refresh, dragging, over_window;
+	enum graph active_visualization;
+	int force_refresh, dragging, over_window, config_open;
 	const char *gl_version;
 
 
@@ -107,7 +96,7 @@ gui_main(void *args)
 	glViewport(0, 0, width, height);
 
 	/* Initialize map */
-	gl_openstreetmap_init(&map);
+	gl_map_init(&map);
 	map_state.zoom = 7.0;
 	map_state.center_x = lon_to_x(0, 0);
 	map_state.center_y = lat_to_y(0, 0);
@@ -117,6 +106,7 @@ gui_main(void *args)
 #endif
 
 	/* Initialize nuklear */
+	scale = old_scale = 1;
 	ctx = nk_sdl_init(win);
 	gui_load_fonts(ctx, scale);
 	gui_set_style_default(ctx);
@@ -125,6 +115,8 @@ gui_main(void *args)
 	force_refresh = 1;
 	dragging = 0;
 	over_window = 0;
+	config_open = 0;
+	active_visualization = GUI_MAP;
 
 	while (!_interrupted) {
 		/* When requested, bypass waitevent and go straight to event processing */
@@ -178,8 +170,13 @@ gui_main(void *args)
 		/* Update window size */
 		SDL_GetWindowSize(win, &width, &height);
 
-		/* Compose GUI */
-		overview_window(ctx, scale, &map_state, &over_window);
+		/* Compose nuklear GUI elements */
+		overview_window(ctx, scale, &map_state, &over_window, &config_open);
+		if (config_open) config_window(ctx, &scale, &config_open);
+		if (scale != old_scale) {
+			gui_load_fonts(ctx, scale);
+			old_scale = scale;
+		}
 
 		/* Render */
 		glViewport(0, 0, width, height);
@@ -187,9 +184,17 @@ gui_main(void *args)
 		glClearColor(0, 0, 0, 1);
 
 		/* Draw background map */
-		gl_openstreetmap_vector(&map, width, height, map_state.center_x, map_state.center_y, map_state.zoom);
+		switch (active_visualization) {
+		case GUI_MAP:
+			gl_map_vector(&map, width, height, map_state.center_x, map_state.center_y, map_state.zoom);
+			break;
+		case GUI_TIMESERIES:
+			break;
+		case GUI_SKEW_T:
+			break;
+		}
 
-		/* Draw GUI */
+		/* Draw nuklear GUI elements */
 		nk_sdl_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY);
 
 		/* Swap buffers */
@@ -198,7 +203,7 @@ gui_main(void *args)
 
 cleanup:
 	_interrupted = 1;
-	gl_openstreetmap_deinit(&map);
+	gl_map_deinit(&map);
 	nk_sdl_shutdown();
 	SDL_GL_DeleteContext(glContext);
 	SDL_DestroyWindow(win);
@@ -215,16 +220,16 @@ gui_force_update(void)
 
 /* Static functions {{{ */
 static void
-overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *over_window)
+overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *over_window, int *config_open)
 {
 	struct nk_vec2 position;
 	const char *title = "Overview";
 	const GeoPoint *last_point;
-	const enum nk_panel_flags overview_win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
-	                                             | NK_WINDOW_MINIMIZABLE | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE;
+	const enum nk_panel_flags win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
+	                                    | NK_WINDOW_MINIMIZABLE | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE;
 
 	/* Compose GUI */
-	if (nk_begin(ctx, title, nk_rect(0, 0, PANEL_WIDTH * scale, 0), overview_win_flags)) {
+	if (nk_begin(ctx, title, nk_rect(0, 0, PANEL_WIDTH * scale, 0), win_flags)) {
 		/* Audio device selection TODO handle input from file */
 		widget_audio_dev_select(ctx, scale);
 
@@ -247,7 +252,13 @@ overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *o
 				map_state->center_y = lat_to_y(last_point->lat, 0);
 			}
 		}
+
+		if (nk_button_label(ctx, "Configure...")) {
+			*config_open = 1;
+		}
 	}
+	/* Resize according to the scale factor */
+	ctx->current->bounds.w = PANEL_WIDTH * scale;
 	position = nk_window_get_position(ctx);
 
 	/* Resize to fit contents in the y direction */
@@ -259,6 +270,72 @@ overview_window(struct nk_context *ctx, float scale, MapState *map_state, int *o
 	nk_window_set_position(ctx, "Overview", position);
 
 	*over_window = nk_window_is_hovered(ctx);
+	nk_end(ctx);
+}
+
+static void
+config_window(struct nk_context *ctx, float *scale, int *config_open)
+{
+	const int label_len = 120;
+	const char *title = "Settings";
+	const enum nk_panel_flags win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
+	                                    | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE;
+	struct nk_rect bounds;
+	float border;
+	static char lat[32], lon[32], alt[32];
+
+	if (nk_begin(ctx, title, nk_rect(100, 100, PANEL_WIDTH * *scale, 0), win_flags)) {
+		border = nk_window_get_panel(ctx)->border;
+
+		if (nk_tree_push(ctx, NK_TREE_TAB, "Display options", NK_MAXIMIZED)) {
+			nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * *scale, 1);
+
+			/* UI scale configuration */
+			bounds = nk_layout_widget_bounds(ctx);
+			nk_layout_row_push(ctx, bounds.w);
+			nk_property_float(ctx, "#UI scale", 1, scale, 5, 0.1, 0.1);
+
+			nk_tree_pop(ctx);
+		}
+
+		if (nk_tree_push(ctx, NK_TREE_TAB, "Ground station location", NK_MAXIMIZED)) {
+			nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * *scale, 2);
+
+			/* Latitude text box */
+			nk_layout_row_push(ctx, label_len * *scale);
+			nk_label(ctx, "Latitude ('N):", NK_TEXT_LEFT);
+			bounds = nk_layout_widget_bounds(ctx);
+			nk_layout_row_push(ctx, bounds.w - label_len * *scale - 2 * border);
+			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, lat, LEN(lat), nk_filter_float);
+
+			/* Longitude text box */
+			nk_layout_row_push(ctx, label_len * *scale);
+			nk_label(ctx, "Longitude ('E):", NK_TEXT_LEFT);
+			nk_layout_row_push(ctx, bounds.w - label_len * *scale - 2 * border);
+			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, lon, LEN(lon), nk_filter_float);
+
+			/* Altitude text box */
+			nk_layout_row_push(ctx, label_len * *scale);
+			nk_label(ctx, "Altitude (m):", NK_TEXT_LEFT);
+			nk_layout_row_push(ctx, bounds.w - label_len * *scale - 2 * border);
+			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, alt, LEN(alt), nk_filter_float);
+
+			nk_layout_row_end(ctx);
+
+			nk_tree_pop(ctx);
+		}
+	}
+
+	nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * *scale, 2);
+	if (nk_button_label(ctx, "Cancel")) {
+		*config_open = 0;
+	}
+	if (nk_button_label(ctx, "Save")) {
+		*config_open = 0;
+		/* TODO copy settings */
+	}
+
+	nk_window_fit_to_content(ctx);
 	nk_end(ctx);
 }
 /* }}} */
