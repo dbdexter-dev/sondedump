@@ -29,6 +29,14 @@ typedef struct {
 extern const char _binary_tiledata_bin_start[];
 extern const char _binary_tileindex_bin_start[];
 
+extern const char _binary_simpleproj_vert_start[];
+extern const char _binary_simpleproj_vert_end[];
+extern const char _binary_worldproj_vert_start[];
+extern const char _binary_worldproj_vert_end[];
+extern const char _binary_simplecolor_frag_start[];
+extern const char _binary_simplecolor_frag_end[];
+
+
 static void map_opengl_init(GLMap *map);
 static void track_opengl_init(GLMap *map);
 static int mipmap(float zoom);
@@ -274,34 +282,17 @@ map_opengl_init(GLMap *map)
 {
 	GLint status;
 
-	static const GLchar *vertex_shader =
-		SHADER_VERSION
-        "precision mediump float;\n"
-
-		"uniform mat4 ProjMtx;\n"
-
-		"in vec2 Position;\n"
-
-		"void main() {\n"
-		"   gl_Position = ProjMtx * vec4(Position.xy, 0, 1);\n"
-		"}";
-	static const GLchar *fragment_shader =
-		SHADER_VERSION
-        "precision mediump float;\n"
-
-		"uniform vec4 MapColor;\n"
-		"out vec4 Out_Color;\n"
-
-		"void main() {\n"
-		"   Out_Color = MapColor;\n"
-		"}";
+	const GLchar *vertex_shader = _binary_simpleproj_vert_start;
+	const int vertex_shader_len = SYMSIZE(_binary_simpleproj_vert);
+	const GLchar *fragment_shader = _binary_simplecolor_frag_start;
+	const int fragment_shader_len = SYMSIZE(_binary_simplecolor_frag);
 
 	/* Program + shaders */
 	map->tile_program = glCreateProgram();
 	map->tile_vert_shader = glCreateShader(GL_VERTEX_SHADER);
 	map->tile_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(map->tile_vert_shader, 1, &vertex_shader, 0);
-	glShaderSource(map->tile_frag_shader, 1, &fragment_shader, 0);
+	glShaderSource(map->tile_vert_shader, 1, &vertex_shader, &vertex_shader_len);
+	glShaderSource(map->tile_frag_shader, 1, &fragment_shader, &fragment_shader_len);
 
 	glCompileShader(map->tile_vert_shader);
 	glGetShaderiv(map->tile_vert_shader, GL_COMPILE_STATUS, &status);
@@ -319,9 +310,9 @@ map_opengl_init(GLMap *map)
 	assert(status == GL_TRUE);
 
 	/* Uniforms + attributes */
-	map->u4m_proj = glGetUniformLocation(map->tile_program, "ProjMtx");
-	map->u4f_map_color = glGetUniformLocation(map->tile_program, "MapColor");
-	map->attrib_pos = glGetAttribLocation(map->tile_program, "Position");
+	map->u4m_proj = glGetUniformLocation(map->tile_program, "proj_mtx");
+	map->u4f_map_color = glGetUniformLocation(map->tile_program, "color");
+	map->attrib_pos = glGetAttribLocation(map->tile_program, "position");
 
 	/* Buffers, arrays, and layouts */
 	glGenVertexArrays(1, &map->vao);
@@ -348,43 +339,18 @@ track_opengl_init(GLMap *map)
 	GLuint attrib_track_pos;
 	GLint status;
 
-	static const GLchar *vertex_shader =
-		SHADER_VERSION
-        "precision mediump float;\n"
-
-		"uniform mat4 ProjMtx;\n"
-		"uniform float Zoom;\n"
-
-		"in vec2 Position;\n"
-
-		"void main() {\n"
-		"   float pi = 3.1415926536;\n"
-		"   float rads = Position.x * pi / 180.0;\n"
-		"   float x = Zoom * (Position.y + 180.0) / 360.0;\n"
-		"   float y = Zoom * (1.0 - log(tan(rads) + 1.0/cos(rads)) / pi) / 2.0;\n"
-		"   gl_Position = ProjMtx * vec4(x, y, 0, 1);\n"
-		"   gl_PointSize = 4.0f;\n"
-		//"   gl_Position = vec4(Position.xy, 0, 1);\n"
-		"}";
-	static const GLchar *fragment_shader =
-		SHADER_VERSION
-		"precision mediump float;\n"
-
-		"uniform vec4 TrackColor;\n"
-
-		"out vec4 Out_Color;\n"
-
-		"void main() {\n"
-		"   Out_Color = TrackColor;\n"
-		"}";
+	const GLchar *vertex_shader = _binary_worldproj_vert_start;
+	const int vertex_shader_len = SYMSIZE(_binary_worldproj_vert);
+	const GLchar *fragment_shader = _binary_simplecolor_frag_start;
+	const int fragment_shader_len = SYMSIZE(_binary_simplecolor_frag);
 
 	/* Program + shaders */
 	map->track_program = glCreateProgram();
 	map->track_vert_shader = glCreateShader(GL_VERTEX_SHADER);
 	map->track_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
 
-	glShaderSource(map->track_vert_shader, 1, &vertex_shader, 0);
-	glShaderSource(map->track_frag_shader, 1, &fragment_shader, 0);
+	glShaderSource(map->track_vert_shader, 1, &vertex_shader, &vertex_shader_len);
+	glShaderSource(map->track_frag_shader, 1, &fragment_shader, &fragment_shader_len);
 
 	glCompileShader(map->track_vert_shader);
 	glGetShaderiv(map->track_vert_shader, GL_COMPILE_STATUS, &status);
@@ -402,10 +368,10 @@ track_opengl_init(GLMap *map)
 	assert(status == GL_TRUE);
 
 	/* Uniforms + attributes */
-	map->u4m_track_proj = glGetUniformLocation(map->track_program, "ProjMtx");
-	map->u4f_track_color = glGetUniformLocation(map->track_program, "TrackColor");
-	map->u1f_zoom = glGetUniformLocation(map->track_program, "Zoom");
-	attrib_track_pos = glGetAttribLocation(map->track_program, "Position");
+	map->u4m_track_proj = glGetUniformLocation(map->track_program, "proj_mtx");
+	map->u1f_zoom = glGetUniformLocation(map->track_program, "zoom");
+	map->u4f_track_color = glGetUniformLocation(map->track_program, "color");
+	attrib_track_pos = glGetAttribLocation(map->track_program, "position");
 
 	glGenVertexArrays(1, &map->track_vao);
 	glBindVertexArray(map->track_vao);

@@ -33,6 +33,7 @@
 #define PACK( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
 #endif
 
+/* Math defines */
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define LEN(x) (sizeof(x)/sizeof(x[0]))
@@ -42,6 +43,9 @@
 #ifndef M_PI
 #define M_PI 3.1415926536
 #endif
+
+/* Symbol size that works for relocatable executables */
+#define SYMSIZE(x) (x##_end - x##_start)
 
 /**
  * strdup, but portable since it's not part of the C standard and has a

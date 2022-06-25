@@ -42,13 +42,12 @@ function(add_blobs out_var)
 	set(result)
 	foreach(IN_FILE ${ARGN})
 		get_filename_component(SRC_FILE ${IN_FILE} NAME)
-		get_filename_component(SRC_BASE_NAME ${IN_FILE} NAME_WE)
 		get_filename_component(SRC_DIR ${IN_FILE} DIRECTORY)
-		set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/${SRC_BASE_NAME}.o")
+		set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/${SRC_FILE}.o")
 
 		add_custom_command(
 			OUTPUT ${OUT_FILE}
-			COMMAND ld -r -b binary -o ${OUT_FILE} ${SRC_FILE}
+			COMMAND ${CMAKE_LINKER} --relocatable --format binary -o ${OUT_FILE} ${SRC_FILE}
 			DEPENDS ${IN_FILE}
 			WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/${SRC_DIR}"
 		)
@@ -63,6 +62,11 @@ endfunction()
 # Rules to embed font and map as binary, with stable symbol names
 set(BLOB_SRCS)
 if (ENABLE_GUI)
+	list(APPEND BLOB_SRCS
+		gui/shaders/simpleproj.vert
+		gui/shaders/worldproj.vert
+		gui/shaders/simplecolor.frag
+	)
 	list(APPEND BLOB_SRCS "assets/fonts/Roboto-Medium.ttf")
 	list(APPEND BLOB_SRCS "assets/tiles/tiledata.bin" "assets/tiles/tileindex.bin")
 endif()
