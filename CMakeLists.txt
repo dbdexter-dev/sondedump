@@ -65,6 +65,8 @@ if (ENABLE_GUI)
 	list(APPEND BLOB_SRCS
 		gui/shaders/simpleproj.vert
 		gui/shaders/worldproj.vert
+		gui/shaders/bezierproj.vert
+
 		gui/shaders/simplecolor.frag
 	)
 	list(APPEND BLOB_SRCS "assets/fonts/Roboto-Medium.ttf")
@@ -149,6 +151,9 @@ set(GUI_SOURCES
 	gui/widgets/type_select.c gui/widgets/type_select.h
 	gui/widgets/audio_dev_select.c gui/widgets/audio_dev_select.h
 	gui/widgets/gl_map.c gui/widgets/gl_map.h
+	gui/widgets/gl_skewt.c gui/widgets/gl_skewt.h
+
+	gui/shaders/shaders.h
 )
 
 set(EXEC_SOURCES

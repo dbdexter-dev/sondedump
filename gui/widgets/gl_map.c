@@ -11,6 +11,7 @@
 #include "gl_map.h"
 #include "style.h"
 #include "utils.h"
+#include "shaders/shaders.h"
 
 #define MODLT(x, y, mod) (((y) - (x) - 1 + (mod)) % (mod) < ((mod) / 2))
 #define MODGE(x, y, mod) (((x) - (y) + (mod)) % (mod) < ((mod) / 2))
@@ -22,14 +23,6 @@ typedef struct {
 /* Tile data and index will be linked into the final executable */
 extern const char _binary_tiledata_bin_start[];
 extern const char _binary_tileindex_bin_start[];
-
-extern const char _binary_simpleproj_vert_start[];
-extern const char _binary_simpleproj_vert_end[];
-extern const char _binary_worldproj_vert_start[];
-extern const char _binary_worldproj_vert_end[];
-extern const char _binary_simplecolor_frag_start[];
-extern const char _binary_simplecolor_frag_end[];
-
 
 static void map_opengl_init(GLMap *map);
 static void track_opengl_init(GLMap *map);

@@ -16,6 +16,6 @@ main()
 	float x = zoom * (position.y + 180.0) / 360.0;
 	float y = zoom * (1.0 - log(tan(rads) + 1.0/cos(rads)) / pi) / 2.0;
 
-	gl_Position = proj_mtx * vec4(x, y, 0, 1);
+	gl_Position = proj_mtx * vec4(x, y, 0.0, 1.0);
 	gl_PointSize = 4.0f;
 }
