@@ -74,11 +74,14 @@ if (ENABLE_GUI)
 
 	# Fonts
 	list(APPEND BLOB_SRCS
-		assets/fonts/Roboto-Medium.ttf)
+		assets/fonts/Roboto-Medium.ttf
+	)
 
 	# Tiles & vector graphics
 	list(APPEND BLOB_SRCS
-		assets/tiles/tiledata.bin assets/tiles/tileindex.bin)
+		assets/tiles/tiledata.bin assets/tiles/tileindex.bin
+		assets/tiles/skew-t.bin assets/tiles/skew-t_index.bin
+	)
 endif()
 
 

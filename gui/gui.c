@@ -20,11 +20,6 @@
 #define MAX_ELEMENT_MEMORY (128 * 1024)
 
 typedef struct {
-	float center_x, center_y, zoom;
-	float receiver_x, receiver_y;
-} MapState;
-
-typedef struct {
 	float scale;
 
 	int over_window;
@@ -113,6 +108,9 @@ gui_main(void *args)
 
 	/* Initialize skew-t plot */
 	gl_skewt_init(&skewt);
+	skewt.center_x = 0;
+	skewt.center_y = 0;
+	skewt.zoom = 1;
 
 #ifndef NDEBUG
 	printf("Starting xy: %f %f\n", center_x, center_y);
@@ -129,7 +127,7 @@ gui_main(void *args)
 	ui_state.dragging = 0;
 	ui_state.over_window = 0;
 	ui_state.config_open = 0;
-	active_visualization = GUI_MAP;
+	active_visualization = GUI_SKEW_T;
 
 	while (!_interrupted) {
 		/* When requested, bypass waitevent and go straight to event processing */
@@ -147,7 +145,16 @@ gui_main(void *args)
 			case SDL_QUIT:
 				goto cleanup;
 			case SDL_MOUSEWHEEL:
-				map.zoom += 0.1 * evt.wheel.y;
+				switch (active_visualization) {
+				case GUI_MAP:
+					map.zoom += 0.1 * evt.wheel.y;
+					break;
+				case GUI_SKEW_T:
+					skewt.zoom *= (1 + evt.wheel.y / 10.0f);
+					break;
+				default:
+					break;
+				}
 				break;
 			case SDL_MOUSEBUTTONDOWN:
 				ui_state.dragging = !ui_state.over_window;
@@ -157,8 +164,18 @@ gui_main(void *args)
 				break;
 			case SDL_MOUSEMOTION:
 				if (ui_state.dragging) {
-					map.center_x -= (float)evt.motion.xrel / MAP_TILE_WIDTH / powf(2, map.zoom);
-					map.center_y -= (float)evt.motion.yrel / MAP_TILE_HEIGHT / powf(2, map.zoom);
+					switch (active_visualization) {
+					case GUI_MAP:
+						map.center_x -= (float)evt.motion.xrel / MAP_TILE_WIDTH / powf(2, map.zoom);
+						map.center_y -= (float)evt.motion.yrel / MAP_TILE_HEIGHT / powf(2, map.zoom);
+						break;
+					case GUI_SKEW_T:
+						skewt.center_x -= (float)evt.motion.xrel / skewt.zoom;
+						skewt.center_y += (float)evt.motion.yrel / skewt.zoom;
+						break;
+					default:
+						break;
+					}
 				}
 				break;
 			case SDL_USEREVENT:
@@ -206,7 +223,7 @@ gui_main(void *args)
 		case GUI_TIMESERIES:
 			break;
 		case GUI_SKEW_T:
-			gl_skewt_raster(&skewt, width, height, 0, 0, 1);
+			gl_skewt_vector(&skewt, width, height);
 			break;
 		}
 

@@ -4,6 +4,8 @@
 #include <GLES2/gl2.h>
 
 typedef struct {
+	float center_x, center_y, zoom;
+
 	GLuint vao, vbo, ibo;
 	GLuint cp_vbo;
 	GLuint data_vao, data_vbo;
@@ -20,7 +22,7 @@ typedef struct {
 
 void gl_skewt_init(GLSkewT *ctx);
 void gl_skewt_deinit(GLSkewT *ctx);
-void gl_skewt_raster(GLSkewT *ctx, float width, float height, float center_x, float center_y, float zoom);
+void gl_skewt_vector(GLSkewT *ctx, float width, float height);
 
 
 #endif

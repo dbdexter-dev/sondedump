@@ -4,11 +4,11 @@
 #include <stddef.h>
 #include "decode.h"
 #include "gl_skewt.h"
+#include "shaders/shaders.h"
 #include "style.h"
 #include "utils.h"
-#include "shaders/shaders.h"
 
-#define VCOUNT 40
+#define VCOUNT 30
 
 typedef struct {
 	float t;
@@ -17,6 +17,18 @@ typedef struct {
 typedef struct {
 	float cp[4][2];
 } Bezier;
+
+typedef struct {
+	uint32_t offset;
+	uint32_t len;
+	float color[4];
+	float thickness;
+} BezierMetadata;
+
+extern const char _binary_skew_t_bin_start[];
+extern const char _binary_skew_t_bin_end[];
+extern const char _binary_skew_t_index_bin_start[];
+extern const char _binary_skew_t_index_bin_end[];
 
 static void chart_opengl_init(GLSkewT *ctx);
 static void data_opengl_init(GLSkewT *ctx);
@@ -40,20 +52,18 @@ gl_skewt_deinit(GLSkewT *ctx)
 }
 
 void
-gl_skewt_raster(GLSkewT *ctx, float width, float height, float x_center, float y_center, float zoom)
+gl_skewt_vector(GLSkewT *ctx, float width, float height)
 {
-	const float chart_color[] = STYLE_ACCENT_1_NORMALIZED;
+	const float zoom = ctx->zoom;
+	const float x_center = ctx->center_x;
+	const float y_center = ctx->center_y;
+	size_t i;
 
 	GLfloat proj[4][4] = {
 		{1.0f, 0.0f, 0.0f, 0.0f},
 		{0.0f, 1.0f, 0.0f, 0.0f},
 		{0.0f, 0.0f, 1.0f, 0.0f},
 		{0.0f, 0.0f, 0.0f, 1.0f},
-	};
-	Bezier control_points[] = {
-		{.cp = {{100, 100}, {200, 200}, {200, 200}, {400, 100}}},
-		{.cp = {{400, 100}, {-100, 200}, {-200, -800}, {0, 0}}},
-		{.cp = {{0, 0}, {0, 1000}, {-200, -800}, {500, 500}}}
 	};
 
 	proj[0][0] *= 2.0f / (float)width * zoom;
@@ -67,15 +77,25 @@ gl_skewt_raster(GLSkewT *ctx, float width, float height, float x_center, float y
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	glUniform4fv(ctx->u4f_color, 1, chart_color);
 	glUniformMatrix4fv(ctx->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
-	glUniform1f(ctx->u1f_thickness, 2.0);
-
-	/* Upload control points */
 	glBindBuffer(GL_ARRAY_BUFFER, ctx->cp_vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(control_points), control_points, GL_STREAM_DRAW);
 
-	glDrawElementsInstanced(GL_TRIANGLES, 6 * VCOUNT, GL_UNSIGNED_INT, 0, LEN(control_points));
+
+	/* For each color/thickness combination */
+	for (i=0; i < SYMSIZE(_binary_skew_t_index_bin) / sizeof(BezierMetadata); i++) {
+		/* Get metadata */
+		BezierMetadata *metadata = ((BezierMetadata*)_binary_skew_t_index_bin_start) + i;
+
+		/* Upload line info */
+		glUniform4fv(ctx->u4f_color, 1, metadata->color);
+		glUniform1f(ctx->u1f_thickness, metadata->thickness / 2.0);
+
+		/* Upload curves to GPU mem */
+		glBufferData(GL_ARRAY_BUFFER, metadata->len, _binary_skew_t_bin_start + metadata->offset, GL_STREAM_DRAW);
+		/* Render */
+		glDrawElementsInstanced(GL_TRIANGLES, 6 * VCOUNT, GL_UNSIGNED_INT, 0, metadata->len / sizeof(Bezier));
+	}
+
 
 	glDisable(GL_BLEND);
 
@@ -176,6 +196,7 @@ chart_opengl_init(GLSkewT *ctx)
 
 		glVertexAttribDivisor(attrib_p[i], 1);
 	}
+
 }
 
 static void

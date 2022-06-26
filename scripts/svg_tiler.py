@@ -7,6 +7,7 @@ from functools import reduce
 from tqdm import tqdm
 import re
 import struct
+from pprint import pprint
 
 '''
 USAGE:
@@ -93,11 +94,19 @@ class Tile:
 
 
 
+def html2tuple(html):
+    red = int(html[0:2], 16)
+    green = int(html[2:4], 16)
+    blue = int(html[4:6], 16)
+
+    return (red/255, green/255, blue/255)
+
 
 class Path:
-    def __init__(self, points, color):
+    def __init__(self, points, color, width=0):
         self.points = points
         self.color = color
+        self.width = width
 
     def from_string(data):
         m = re.search("stroke:rgb\(([^%]*)%,([^%]*)%,([^%]*)%\)", data[1])
@@ -113,12 +122,61 @@ class Path:
             if element == 'M':
                 tmp = tuple(float(x) for x in elements[i+1:i+3])
                 metapoints.append([tmp])
-            if element == 'L':
+            elif element == 'L':
                 metapoints[-1].append(tuple(float(x) for x in elements[i+1:i+3]))
             elif element == 'Z':
                 metapoints[-1].append(metapoints[-1][0])
 
         return list(map(lambda x: Path(x, color), metapoints))
+
+    def bezier_from_string(data):
+        try:
+            m = re.search("stroke:#([0-9a-f]*);stroke-width:([^;]*);", data[1])
+            color = html2tuple(m.group(1))
+            width = float(m.group(2))
+        except AttributeError:
+            return None
+
+        bezier = []
+        start = None
+        metapoints = []     # Collection of cubic beziers
+
+        elements = data[0].split(" ")
+        for i,element in enumerate(tqdm(elements)):
+            if element == 'M':
+                tmp = tuple(float(x) for x in elements[i+1:i+3])
+                start = tmp
+                bezier = [tmp]
+            elif element == 'L':
+                # Straight line to point
+                endpoint = tuple(float(x) for x in elements[i+1:i+3])
+                bezier.extend([endpoint] * 3)
+                metapoints.append(bezier)
+                bezier = [bezier[-1]]
+            elif element == 'H':
+                # Horizontal line to x coord
+                endpoint = (float(elements[i+1]), bezier[-1][1])
+                bezier.extend([endpoint] * 3)
+                metapoints.append(bezier)
+                bezier = [bezier[-1]]
+            elif element == 'V':
+                # Vertical line to y coord
+                endpoint = (bezier[-1][0], float(elements[i+1]))
+                bezier.extend([endpoint] * 3)
+                metapoints.append(bezier)
+                bezier = [bezier[-1]]
+            elif element == 'C':
+                # Cubic bezier
+                for j in range(0,6,2):
+                    bezier.append(tuple(float(x) for x in elements[i+1+j:i+3+j]))
+                metapoints.append(bezier)
+                bezier = [bezier[-1]]
+            elif element == 'Z':
+                bezier.extend([start] * 3)
+                metapoints.append(bezier)
+                bezier = [bezier[-1]]
+
+        return [Path(x, color, width) for x in metapoints]
 
 
     def tile(self, tile):
@@ -149,6 +207,41 @@ class Path:
 doc = minidom.parse(argv[1])
 path_strings = [(path.getAttribute('d'), path.getAttribute('style')) for path in doc.getElementsByTagName('path')]
 doc.unlink()
+
+
+paths = [Path.bezier_from_string(x) for x in path_strings]
+paths = [x for x in paths if x != None]
+paths = reduce(lambda arr,x : arr+x, paths)
+colors = set(map(lambda x: x.color, paths))
+widths = set(map(lambda x: x.width, paths))
+
+with open("skew-t_index.bin", "wb") as index:
+    with open("skew-t.bin", 'wb') as f:
+        for color in colors:
+            for width in widths:
+                current_paths = [x for x in paths if x.color == color and x.width == width]
+
+                if len(current_paths) == 0:
+                    continue
+
+                flattened_paths_1 = [x.points for x in current_paths]
+                flattened_paths_2 = reduce(lambda arr,x: arr+list(x), flattened_paths_1, [])
+                flattened_paths = reduce(lambda arr,x: arr+list(x), flattened_paths_2, [])
+
+                index.write(f.tell().to_bytes(4, 'little'))
+                index.write((4 * len(flattened_paths)).to_bytes(4, 'little'))
+                index.write(struct.pack('f'*3, *color))
+                index.write(struct.pack('f', 1.0))
+                index.write(struct.pack('f', width))
+
+                print(flattened_paths)
+
+                f.write(struct.pack('f'*len(flattened_paths), *flattened_paths))
+
+print("Conversion complete")
+input()
+
+
 
 paths = [Path.from_string(x) for x in path_strings]
 paths = reduce(lambda arr,x: arr+x, paths)
