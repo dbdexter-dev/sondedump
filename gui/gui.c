@@ -111,6 +111,9 @@ gui_main(void *args)
 	map.center_x = lon_to_x(0, 0);
 	map.center_y = lat_to_y(0, 0);
 
+	/* Initialize skew-t plot */
+	gl_skewt_init(&skewt);
+
 #ifndef NDEBUG
 	printf("Starting xy: %f %f\n", center_x, center_y);
 #endif

@@ -7,8 +7,16 @@ uniform vec2 control_points[4];
 uniform float thickness;
 
 /* abs(t) \in [0, 1], sign determines normal direction */
-in float t;
+in float in_t;
 
+out vec2 v_normal;
+flat out float v_thickness;
+
+/**
+ * Evaluate cubic bezier at given point
+ * @param t interpolation index, \in [0, 1]
+ * @param p control points
+ */
 vec2
 bezier(float t, vec2 p[4])
 {
@@ -25,6 +33,11 @@ bezier(float t, vec2 p[4])
 	return mix(p012, p123, t);
 }
 
+/**
+ * Evaluate bezier derivative at given point
+ * @param t interpolation index, \in [0, 1]
+ * @param p control points
+ */
 vec2
 bezier_deriv(float t, vec2 p[4])
 {
@@ -39,10 +52,18 @@ bezier_deriv(float t, vec2 p[4])
 void
 main()
 {
-	vec2 position = bezier(abs(t), control_points);
-	vec2 derivative = bezier_deriv(abs(t), control_points);
-	vec2 normal = normalize(vec2(-derivative.y, derivative.x)) * sign(t);
+	float abs_t = abs(in_t);
+	vec2 position = bezier(abs_t, control_points);
+
+	/* Compute curve normal at current position */
+	vec2 derivative = bezier_deriv(abs_t, control_points);
+	vec2 normal = normalize(vec2(-derivative.y, derivative.x)) * sign(in_t);
+
+	/* Apply offset to each point to create thickness */
 	vec2 delta = normal * thickness;
 
-	gl_Position = proj_mtx * vec4(position + delta, 0, 1);
+	/* Generate shader outputs */
+	v_normal = normal;
+	v_thickness = thickness;
+	gl_Position = proj_mtx * vec4(position + delta, 0.0, 1.0);
 }

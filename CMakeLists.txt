@@ -62,15 +62,23 @@ endfunction()
 # Rules to embed font and map as binary, with stable symbol names
 set(BLOB_SRCS)
 if (ENABLE_GUI)
+	# Shader sources
 	list(APPEND BLOB_SRCS
 		gui/shaders/simpleproj.vert
 		gui/shaders/worldproj.vert
 		gui/shaders/bezierproj.vert
 
 		gui/shaders/simplecolor.frag
+		gui/shaders/feathercolor.frag
 	)
-	list(APPEND BLOB_SRCS "assets/fonts/Roboto-Medium.ttf")
-	list(APPEND BLOB_SRCS "assets/tiles/tiledata.bin" "assets/tiles/tileindex.bin")
+
+	# Fonts
+	list(APPEND BLOB_SRCS
+		assets/fonts/Roboto-Medium.ttf)
+
+	# Tiles & vector graphics
+	list(APPEND BLOB_SRCS
+		assets/tiles/tiledata.bin assets/tiles/tileindex.bin)
 endif()
 
 
