@@ -5,6 +5,7 @@
 
 typedef struct {
 	GLuint vao, vbo, ibo;
+	GLuint cp_vbo;
 	GLuint data_vao, data_vbo;
 
 	GLuint chart_program;
@@ -12,7 +13,7 @@ typedef struct {
 	GLuint data_program;
 	GLuint data_vert_shader, data_frag_shader;
 
-	GLuint u4m_proj, u4f_color, u2f_control_points, u1f_thickness;
+	GLuint u4m_proj, u4f_color, u1f_thickness;
 	GLuint u4f_data_color, u4m_data_proj;
 
 } GLSkewT;

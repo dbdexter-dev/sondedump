@@ -14,6 +14,10 @@ typedef struct {
 	float t;
 } Vertex;
 
+typedef struct {
+	float cp[4][2];
+} Bezier;
+
 static void chart_opengl_init(GLSkewT *ctx);
 static void data_opengl_init(GLSkewT *ctx);
 
@@ -46,9 +50,11 @@ gl_skewt_raster(GLSkewT *ctx, float width, float height, float x_center, float y
 		{0.0f, 0.0f, 1.0f, 0.0f},
 		{0.0f, 0.0f, 0.0f, 1.0f},
 	};
-	GLfloat control_points[][2] = {{100, 100}, {200, 200}, {200, 200}, {400, 100}};
-	GLfloat control_points_2[][2] = {{400, 100}, {-100, 200}, {-200, -800}, {0, 0}};
-	GLfloat control_points_3[][2] = {{0, 0}, {0, 1000}, {-200, -800}, {500, 500}};
+	Bezier control_points[] = {
+		{.cp = {{100, 100}, {200, 200}, {200, 200}, {400, 100}}},
+		{.cp = {{400, 100}, {-100, 200}, {-200, -800}, {0, 0}}},
+		{.cp = {{0, 0}, {0, 1000}, {-200, -800}, {500, 500}}}
+	};
 
 	proj[0][0] *= 2.0f / (float)width * zoom;
 	proj[1][1] *= 2.0f / (float)height * zoom;
@@ -65,14 +71,12 @@ gl_skewt_raster(GLSkewT *ctx, float width, float height, float x_center, float y
 	glUniformMatrix4fv(ctx->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
 	glUniform1f(ctx->u1f_thickness, 2.0);
 
-	glUniform2fv(ctx->u2f_control_points, 4, (GLfloat*)control_points);
-	glDrawElements(GL_TRIANGLES, 6 * VCOUNT, GL_UNSIGNED_INT, 0);
+	/* Upload control points */
+	glBindBuffer(GL_ARRAY_BUFFER, ctx->cp_vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(control_points), control_points, GL_STREAM_DRAW);
 
-	glUniform2fv(ctx->u2f_control_points, 4, (GLfloat*)control_points_2);
-	glDrawElements(GL_TRIANGLES, 6 * VCOUNT, GL_UNSIGNED_INT, 0);
+	glDrawElementsInstanced(GL_TRIANGLES, 6 * VCOUNT, GL_UNSIGNED_INT, 0, LEN(control_points));
 
-	glUniform2fv(ctx->u2f_control_points, 4, (GLfloat*)control_points_3);
-	glDrawElements(GL_TRIANGLES, 6 * VCOUNT, GL_UNSIGNED_INT, 0);
 	glDisable(GL_BLEND);
 
 #if 0
@@ -110,7 +114,8 @@ chart_opengl_init(GLSkewT *ctx)
 	vertices[0].t = 1e-20;
 	vertices[1].t = -1e-20;
 
-	GLint status, attrib_t;
+	GLint status, attrib_t, attrib_p[4];
+	int i;
 
 	const GLchar *vertex_shader = _binary_bezierproj_vert_start;
 	const int vertex_shader_len = SYMSIZE(_binary_bezierproj_vert);
@@ -140,23 +145,37 @@ chart_opengl_init(GLSkewT *ctx)
 
 	ctx->u4m_proj = glGetUniformLocation(ctx->chart_program, "proj_mtx");
 	ctx->u4f_color = glGetUniformLocation(ctx->chart_program, "color");
-	ctx->u2f_control_points = glGetUniformLocation(ctx->chart_program, "control_points");
 	ctx->u1f_thickness = glGetUniformLocation(ctx->chart_program, "thickness");
 	attrib_t = glGetAttribLocation(ctx->chart_program, "in_t");
+	attrib_p[0] = glGetAttribLocation(ctx->chart_program, "in_p0");
+	attrib_p[1] = glGetAttribLocation(ctx->chart_program, "in_p1");
+	attrib_p[2] = glGetAttribLocation(ctx->chart_program, "in_p2");
+	attrib_p[3] = glGetAttribLocation(ctx->chart_program, "in_p3");
 
 	glGenVertexArrays(1, &ctx->vao);
 	glBindVertexArray(ctx->vao);
 	glGenBuffers(1, &ctx->vbo);
 	glGenBuffers(1, &ctx->ibo);
+	glGenBuffers(1, &ctx->cp_vbo);
 
+	/* Bind and upload the timeseries vbo and ibo */
 	glBindBuffer(GL_ARRAY_BUFFER, ctx->vbo);
 	glEnableVertexAttribArray(attrib_t);
 	glVertexAttribPointer(attrib_t, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, t));
 
-	glBufferData(GL_ARRAY_BUFFER, LEN(vertices) * sizeof(*vertices), vertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, LEN(ibo) * sizeof(*ibo), ibo, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ibo), ibo, GL_STATIC_DRAW);
+
+	/* Initialize the control points vbo */
+	glBindBuffer(GL_ARRAY_BUFFER, ctx->cp_vbo);
+	for (i=0; i < (int)LEN(attrib_p); i++) {
+		glEnableVertexAttribArray(attrib_p[i]);
+		glVertexAttribPointer(attrib_p[i], 2, GL_FLOAT, GL_FALSE, sizeof(Bezier), (void*)offsetof(Bezier, cp[i]));
+
+		glVertexAttribDivisor(attrib_p[i], 1);
+	}
 }
 
 static void
