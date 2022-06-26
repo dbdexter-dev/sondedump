@@ -25,6 +25,7 @@ one file is created for each lat/lon tile, for each color within the tile
 
 size = 65536
 tile_size = 1024
+PRIMITIVE_RESTART = 0xFFFF
 
 class Tile:
     def __init__(self, start, size):
@@ -130,8 +131,7 @@ class Path:
                 # Path is visible
                 (start, end) = tile.crop((prev_point, point))
 
-                if len(tiled_points) == 0 or tiled_points[-1] != start:
-                    tiled_points[-1].append(start)
+                tiled_points[-1].append(start)
                 tiled_points[-1].append(end)
 
             elif len(tiled_points[-1]) > 0:
@@ -142,7 +142,7 @@ class Path:
             prev_point = point
 
 
-        return None if len(tiled_points[0]) == 0 else [Path(x, self.color) for x in tiled_points]
+        return None if len(tiled_points) == 0 else [Path(x, self.color) for x in tiled_points if len(x) > 0]
 
 
 
@@ -164,8 +164,6 @@ tile_count = size // tile_size
 # ax.ylim((0, 20000))
 
 colors = set(map(lambda x: x.color, paths))
-print("Colors: {}".format(colors))
-input()
 
 for x in tqdm(range(0, size, tile_size), leave=False):
     for y in tqdm(range(0, size, tile_size), position=1, leave=False):
@@ -197,7 +195,31 @@ for x in tqdm(range(0, size, tile_size), leave=False):
                         verts.append(point)
                         idxs.append(len(verts) - 1)
 
-            if len(verts) > 0:
+
+            # Dedupe segments
+            for i in range(0, len(idxs), 2):
+                for j in range(0, i, 2):
+                    if idxs[i] == idxs[j] and idxs[i+1] == idxs[j+1]:
+                        idxs[i] = -1;
+                        idxs[i+1] = -1;
+                    elif idxs[i] == idxs[j+1] and idxs[i+1] == idxs[j]:
+                        idxs[i] = -1;
+                        idxs[i+1] = -1;
+            idxs = [x for x in idxs if x != -1]
+
+            # Convert to line segments split up with restart primitive markers
+            if len(idxs) > 0:
+                idxs_chain = [PRIMITIVE_RESTART, idxs[0], idxs[1]]
+                for i in range(2, len(idxs), 2):
+                    if idxs[i] != idxs_chain[-1]:
+                        idxs_chain.append(PRIMITIVE_RESTART)
+                        idxs_chain.append(idxs[i])
+                    idxs_chain.append(idxs[i+1])
+
+
+                idxs = idxs_chain
+
+            if len(idxs) > 0:
                 with open("binary_svgs/{}_{}_{}.bin".format(x//tile_size, y//tile_size, color_idx), 'wb') as f:
                     flattened_verts = reduce(lambda arr,x:arr+x, verts)
 

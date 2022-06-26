@@ -11,7 +11,7 @@ indices = []
 fdata = open("tiledata.bin", "wb")
 for x in range(tile_count):
     for y in range(tile_count):
-        for layer in range(2):
+        for layer in range(1):
 
             path = "binary_svgs/{}_{}_{}.bin".format(x, y, layer)
 
