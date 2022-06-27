@@ -80,7 +80,7 @@ if (ENABLE_GUI)
 	# Tiles & vector graphics
 	list(APPEND BLOB_SRCS
 		assets/tiles/tiledata.bin assets/tiles/tileindex.bin
-		assets/tiles/skew-t.bin assets/tiles/skew-t_index.bin
+		assets/tiles/skewt.bin assets/tiles/skewt_index.bin
 	)
 endif()
 

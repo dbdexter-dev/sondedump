@@ -4,12 +4,12 @@ precision mediump float;
 
 uniform mat4 proj_mtx;
 uniform float thickness;
+uniform float zoom;
 
 in vec2 in_p0, in_p1, in_p2, in_p3; /* control points, not an array cause ES profile */
 in float in_t;                      /* abs(t) \in [0, 1], sign determines normal direction */
 
 out vec2 v_normal;
-flat out float v_thickness;
 
 /**
  * Evaluate cubic bezier at given point
@@ -63,6 +63,5 @@ main()
 
 	/* Generate shader outputs */
 	v_normal = normal;
-	v_thickness = thickness;
 	gl_Position = proj_mtx * vec4(position + delta, 0.0, 1.0);
 }
