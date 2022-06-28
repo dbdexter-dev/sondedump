@@ -1,10 +1,10 @@
 #version 300 es
 
-precision mediump float;
+precision highp float;
 
-uniform mat4 proj_mtx;
-uniform float thickness;
-uniform float zoom;
+uniform mat4 u_proj_mtx;
+uniform float u_thickness;
+uniform float u_zoom;
 
 in vec2 in_p0, in_p1, in_p2, in_p3; /* control points, not an array cause ES profile */
 in float in_t;                      /* abs(t) \in [0, 1], sign determines normal direction */
@@ -34,8 +34,8 @@ bezier(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3)
 
 /**
  * Evaluate bezier derivative at given point
- * @param t interpolation index, \in [0, 1]
- * @param p control points
+ * @param t     interpolation index, \in [0, 1]
+ * @param p0..3 control points
  */
 vec2
 bezier_deriv(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3)
@@ -47,11 +47,11 @@ bezier_deriv(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3)
 	return 3.0 * (t*t) * a + 2.0 * t * b + c;
 }
 
-
 void
 main()
 {
-	float abs_t = abs(in_t);
+	/* Extract t from input */
+	float abs_t = abs(in_t) - 1.0;
 	vec2 position = bezier(abs_t, in_p0, in_p1, in_p2, in_p3);
 
 	/* Compute curve normal at current position */
@@ -59,9 +59,9 @@ main()
 	vec2 normal = normalize(vec2(-derivative.y, derivative.x)) * sign(in_t);
 
 	/* Apply offset to each point to create thickness */
-	vec2 delta = normal * thickness;
+	vec2 delta = normal * u_thickness;
 
 	/* Generate shader outputs */
 	v_normal = normal;
-	gl_Position = proj_mtx * vec4(position + delta, 0.0, 1.0);
+	gl_Position = u_proj_mtx * vec4(position + delta, 0.0, 1.0);
 }

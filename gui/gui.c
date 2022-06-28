@@ -171,7 +171,7 @@ gui_main(void *args)
 						break;
 					case GUI_SKEW_T:
 						skewt.center_x -= (float)evt.motion.xrel / skewt.zoom;
-						skewt.center_y += (float)evt.motion.yrel / skewt.zoom;
+						skewt.center_y -= (float)evt.motion.yrel / skewt.zoom;
 						break;
 					default:
 						break;

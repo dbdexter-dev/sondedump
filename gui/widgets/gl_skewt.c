@@ -59,10 +59,11 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	const float x_center = ctx->center_x;
 	const float y_center = ctx->center_y;
 	size_t i;
+	float thickness;
 
 	GLfloat proj[4][4] = {
 		{1.0f, 0.0f, 0.0f, 0.0f},
-		{0.0f, 1.0f, 0.0f, 0.0f},
+		{0.0f, -1.0f, 0.0f, 0.0f},
 		{0.0f, 0.0f, 1.0f, 0.0f},
 		{0.0f, 0.0f, 0.0f, 1.0f},
 	};
@@ -87,10 +88,12 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 		/* Get metadata */
 		BezierMetadata *metadata = ((BezierMetadata*)_binary_skewt_index_bin_start) + i;
 
+		thickness = 2.0 / zoom;
+
 		/* Upload line info */
 		glUniform4fv(ctx->u4f_color, 1, metadata->color);
-		glUniform1f(ctx->u1f_thickness, metadata->thickness / 2.0);
-		glUniform1f(ctx->u1f_frag_thickness, metadata->thickness / 2.0 * zoom);
+		glUniform1f(ctx->u1f_thickness, thickness);
+		glUniform1f(ctx->u1f_frag_thickness, thickness / 2.0 * zoom);
 
 		/* Upload curves to GPU mem */
 		glBufferData(GL_ARRAY_BUFFER, metadata->len, _binary_skewt_bin_start + metadata->offset, GL_STREAM_DRAW);
@@ -149,10 +152,10 @@ chart_opengl_init(GLSkewT *ctx)
 	assert(status == GL_TRUE);
 
 	/* Find uniforms + attributes */
-	ctx->u4m_proj = glGetUniformLocation(ctx->chart_program, "proj_mtx");
-	ctx->u4f_color = glGetUniformLocation(ctx->chart_program, "color");
-	ctx->u1f_thickness = glGetUniformLocation(ctx->chart_program, "thickness");
-	ctx->u1f_frag_thickness = glGetUniformLocation(ctx->chart_program, "frag_thickness");
+	ctx->u4m_proj = glGetUniformLocation(ctx->chart_program, "u_proj_mtx");
+	ctx->u4f_color = glGetUniformLocation(ctx->chart_program, "u_color");
+	ctx->u1f_thickness = glGetUniformLocation(ctx->chart_program, "u_thickness");
+	ctx->u1f_frag_thickness = glGetUniformLocation(ctx->chart_program, "u_aa_thickness");
 	attrib_t = glGetAttribLocation(ctx->chart_program, "in_t");
 	attrib_p[0] = glGetAttribLocation(ctx->chart_program, "in_p0");
 	attrib_p[1] = glGetAttribLocation(ctx->chart_program, "in_p1");
@@ -167,34 +170,29 @@ chart_opengl_init(GLSkewT *ctx)
 	glGenBuffers(1, &ctx->ibo);
 	glGenBuffers(1, &ctx->cp_vbo);
 
-	/* Bind and upload the timeseries vbo and ibo */
-	glBindBuffer(GL_ARRAY_BUFFER, ctx->vbo);
-	glEnableVertexAttribArray(attrib_t);
-	glVertexAttribPointer(attrib_t, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, t));
-
 	/* Generate vertices for Bezier tessellation (2x each line point, will be
-	 * expanded into a thick line by the vertex shader) */
+	 * expanded into a thick line by the vertex shader). Need +- 1.0 so that all
+	 * even t's are strictly positive and all odd t's are strictly negative */
 	for (i=0; i < (int)LEN(vertices); i+=2) {
-		vertices[i].t = (float)i/(LEN(vertices) - 2);
-		vertices[i+1].t = -(float)i/(LEN(vertices) - 2);
+		vertices[i].t = (float)i/(LEN(vertices) - 2) + 1.0;
+		vertices[i+1].t = -(float)i/(LEN(vertices) - 2) - 1.0;
 	}
-	/* We want sign() to return 1 or -1, not 0. Fix the two zeroes to ensure
-	 * this requirement */
-	vertices[0].t = 1e-20;
-	vertices[1].t = -1e-20;
 
 	/* Generate indices */
 	for (size_t i=0; i<LEN(ibo); i++) {
 		ibo[i] = i;
 	}
 
+	/* Bind and upload the timeseries vbo and ibo */
+	glBindBuffer(GL_ARRAY_BUFFER, ctx->vbo);
+	glEnableVertexAttribArray(attrib_t);
+	glVertexAttribPointer(attrib_t, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, t));
 
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->ibo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ibo), ibo, GL_STATIC_DRAW);
 
-	/* Initialize the control points vbo */
+	/* Describe the control points vbo */
 	glBindBuffer(GL_ARRAY_BUFFER, ctx->cp_vbo);
 	for (i=0; i < (int)LEN(attrib_p); i++) {
 		glEnableVertexAttribArray(attrib_p[i]);
@@ -202,7 +200,6 @@ chart_opengl_init(GLSkewT *ctx)
 
 		glVertexAttribDivisor(attrib_p[i], 1);
 	}
-
 }
 
 static void

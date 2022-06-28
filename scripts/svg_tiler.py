@@ -142,39 +142,51 @@ class Path:
         metapoints = []     # Collection of cubic beziers
 
         elements = data[0].split(" ")
+        debug = ""
         for i,element in enumerate(tqdm(elements)):
             if element == 'M':
                 tmp = tuple(float(x) for x in elements[i+1:i+3])
                 start = tmp
                 bezier = [tmp]
+                debug = " ".join(elements[i:i+3])
             elif element == 'L':
                 # Straight line to point
                 endpoint = tuple(float(x) for x in elements[i+1:i+3])
                 bezier.extend([endpoint] * 3)
                 metapoints.append(bezier)
                 bezier = [bezier[-1]]
+                debug += " ".join(elements[i:i+3])
             elif element == 'H':
                 # Horizontal line to x coord
                 endpoint = (float(elements[i+1]), bezier[-1][1])
                 bezier.extend([endpoint] * 3)
                 metapoints.append(bezier)
                 bezier = [bezier[-1]]
+                debug += " " + " ".join(elements[i:i+1])
             elif element == 'V':
                 # Vertical line to y coord
                 endpoint = (bezier[-1][0], float(elements[i+1]))
                 bezier.extend([endpoint] * 3)
                 metapoints.append(bezier)
                 bezier = [bezier[-1]]
+                debug += " " + " ".join(elements[i:i+1])
             elif element == 'C':
                 # Cubic bezier
                 for j in range(0,6,2):
                     bezier.append(tuple(float(x) for x in elements[i+1+j:i+3+j]))
                 metapoints.append(bezier)
                 bezier = [bezier[-1]]
+                debug += " " + " ".join(elements[i:i+6])
             elif element == 'Z':
-                bezier.extend([start] * 3)
-                metapoints.append(bezier)
-                bezier = [bezier[-1]]
+                if bezier[-1] != start:
+                    bezier.extend([start] * 3)
+                    metapoints.append(bezier)
+                    bezier = [bezier[-1]]
+                    debug += " " + elements[i]
+
+            if len(metapoints) > 0 and len(metapoints[-1]) > 0 and all([b == metapoints[-1][0] for b in metapoints[-1]]):
+                print("Uhhhhh...??? ", metapoints[-1], debug)
+                metapoints = metapoints[:-1]
 
         return [Path(x, color, width) for x in metapoints]
 
@@ -212,11 +224,25 @@ doc.unlink()
 paths = [Path.bezier_from_string(x) for x in path_strings]
 paths = [x for x in paths if x != None]
 paths = reduce(lambda arr,x : arr+x, paths)
+
+maxx = max(map(lambda x: max(map(lambda t: t[0], x)), [e.points for e in paths]))
+maxy = max(map(lambda x: max(map(lambda t: t[1], x)), [e.points for e in paths]))
+minx = min(map(lambda x: min(map(lambda t: t[0], x)), [e.points for e in paths]))
+miny = min(map(lambda x: min(map(lambda t: t[1], x)), [e.points for e in paths]))
+
+factor = max(maxx-minx, maxy-miny)
+
+
+for path in paths:
+    path.width /= factor;
+    path.points = list(map(lambda x: ((x[0] - minx)/factor, (x[1] - miny)/factor), path.points))
+
+
 colors = set(map(lambda x: x.color, paths))
 widths = set(map(lambda x: x.width, paths))
 
-with open("skew-t_index.bin", "wb") as index:
-    with open("skew-t.bin", 'wb') as f:
+with open("skewt_index.bin", "wb") as index:
+    with open("skewt.bin", 'wb') as f:
         for color in colors:
             for width in widths:
                 current_paths = [x for x in paths if x.color == color and x.width == width]
@@ -233,8 +259,6 @@ with open("skew-t_index.bin", "wb") as index:
                 index.write(struct.pack('f'*3, *color))
                 index.write(struct.pack('f', 1.0))
                 index.write(struct.pack('f', width))
-
-                print(flattened_paths)
 
                 f.write(struct.pack('f'*len(flattened_paths), *flattened_paths))
 
