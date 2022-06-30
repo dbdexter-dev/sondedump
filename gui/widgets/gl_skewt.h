@@ -16,7 +16,8 @@ typedef struct {
 	GLuint data_vert_shader, data_frag_shader;
 
 	GLuint u4m_proj, u4f_color, u1f_thickness, u1f_frag_thickness;
-	GLuint u4f_data_color, u4m_data_proj;
+	GLuint u4f_data_color, u1f_data_zoom, u4m_data_proj;
+	GLuint attrib_data_temp;
 
 } GLSkewT;
 

@@ -7,8 +7,9 @@
 
 typedef struct {
 	float lat, lon, alt;
+	float pressure;
 	float speed, hdg;
-	float temp, rh;
+	float temp, rh, dewpt;
 } GeoPoint;
 
 enum decoder { AUTO=0, DFM09, IMET4, IMS100, M10, RS41, END};

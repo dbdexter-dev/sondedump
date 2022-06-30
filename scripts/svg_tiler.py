@@ -101,6 +101,13 @@ def html2tuple(html):
 
     return (red/255, green/255, blue/255)
 
+def bezierstraight(start, end):
+    p0 = start
+    p1 = (start[0]*2/3+end[0]*1/3, start[1]*2/3+end[1]*1/3)
+    p2 = (start[0]*1/3+end[0]*2/3, start[1]*1/3+end[1]*2/3)
+    p3 = end
+    return [p0, p1, p2, p3]
+
 
 class Path:
     def __init__(self, points, color, width=0):
@@ -135,7 +142,22 @@ class Path:
             color = html2tuple(m.group(1))
             width = float(m.group(2))
         except AttributeError:
-            return None
+            color = (0.5, 0.5, 0.5)
+            width = 1
+
+        pathid = int(data[2][4:])
+        print(pathid)
+
+        if data[3] != None and data[3] != "":
+            color = html2tuple(data[3][1:])
+        else:
+            try:
+                m = re.search("fill:#([0-9a-f]*)", data[1])
+                color = html2tuple(m.group(1))
+            except AttributeError:
+                color = (0.5, 0.5, 0.5)
+        width = 1
+
 
         bezier = []
         start = None
@@ -151,22 +173,28 @@ class Path:
                 debug = " ".join(elements[i:i+3])
             elif element == 'L':
                 # Straight line to point
+                startpoint = bezier[-1];
                 endpoint = tuple(float(x) for x in elements[i+1:i+3])
-                bezier.extend([endpoint] * 3)
+
+                bezier.extend(bezierstraight(startpoint, endpoint)[1:])
                 metapoints.append(bezier)
                 bezier = [bezier[-1]]
                 debug += " ".join(elements[i:i+3])
             elif element == 'H':
                 # Horizontal line to x coord
+                startpoint = bezier[-1]
                 endpoint = (float(elements[i+1]), bezier[-1][1])
-                bezier.extend([endpoint] * 3)
+
+                bezier.extend(bezierstraight(startpoint, endpoint)[1:])
                 metapoints.append(bezier)
                 bezier = [bezier[-1]]
                 debug += " " + " ".join(elements[i:i+1])
             elif element == 'V':
                 # Vertical line to y coord
+                startpoint = bezier[-1]
                 endpoint = (bezier[-1][0], float(elements[i+1]))
-                bezier.extend([endpoint] * 3)
+
+                bezier.extend(bezierstraight(startpoint, endpoint)[1:])
                 metapoints.append(bezier)
                 bezier = [bezier[-1]]
                 debug += " " + " ".join(elements[i:i+1])
@@ -178,8 +206,11 @@ class Path:
                 bezier = [bezier[-1]]
                 debug += " " + " ".join(elements[i:i+6])
             elif element == 'Z':
+                startpoint = bezier[-1]
+                endpoint = start
+
                 if bezier[-1] != start:
-                    bezier.extend([start] * 3)
+                    bezier.extend(bezierstraight(startpoint, endpoint)[1:])
                     metapoints.append(bezier)
                     bezier = [bezier[-1]]
                     debug += " " + elements[i]
@@ -187,6 +218,21 @@ class Path:
             if len(metapoints) > 0 and len(metapoints[-1]) > 0 and all([b == metapoints[-1][0] for b in metapoints[-1]]):
                 print("Uhhhhh...??? ", metapoints[-1], debug)
                 metapoints = metapoints[:-1]
+
+        # Convert paths to strokes
+        if pathid < 30000:
+            for i,curve in enumerate(metapoints[:-1]):
+                next_curve = metapoints[i+1]
+                if pathid == 6302:
+                    print(curve, next_curve)
+                if math.sqrt((curve[-1][0]-next_curve[-1][0])**2 + (curve[-1][1]-next_curve[-1][1])**2) < 2:
+                    print("Pruning: ", curve[-1], next_curve[-1])
+                    metapoints = metapoints[:i+1]
+                    break
+
+        if pathid == 6302:
+            print(metapoints)
+            input()
 
         return [Path(x, color, width) for x in metapoints]
 
@@ -217,7 +263,7 @@ class Path:
 
 
 doc = minidom.parse(argv[1])
-path_strings = [(path.getAttribute('d'), path.getAttribute('style')) for path in doc.getElementsByTagName('path')]
+path_strings = [(path.getAttribute('d'), path.getAttribute('style'), path.getAttribute('id'), path.getAttribute('fill')) for path in doc.getElementsByTagName('path')]
 doc.unlink()
 
 
@@ -232,6 +278,9 @@ miny = min(map(lambda x: min(map(lambda t: t[1], x)), [e.points for e in paths])
 
 factor = max(maxx-minx, maxy-miny)
 
+print((maxx-minx)/factor, (maxy-miny)/factor)
+input()
+
 
 for path in paths:
     path.width /= factor;
@@ -240,6 +289,11 @@ for path in paths:
 
 colors = set(map(lambda x: x.color, paths))
 widths = set(map(lambda x: x.width, paths))
+
+flattened_paths_1 = [x.points for x in paths]
+flattened_paths_2 = reduce(lambda arr,x: arr+list(x), flattened_paths_1, [])
+xs = [x[0] for x in flattened_paths_2]
+ys = [x[1] for x in flattened_paths_2]
 
 with open("skewt_index.bin", "wb") as index:
     with open("skewt.bin", 'wb') as f:

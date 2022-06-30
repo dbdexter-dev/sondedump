@@ -59,12 +59,13 @@ endfunction()
 
 
 
-# Rules to embed font and map as binary, with stable symbol names
+# Rules to embed binary blobs with stable symbol names
 set(BLOB_SRCS)
 if (ENABLE_GUI)
 	# Shader sources
 	list(APPEND BLOB_SRCS
 		gui/shaders/simpleproj.vert
+		gui/shaders/skewtproj.vert
 		gui/shaders/worldproj.vert
 		gui/shaders/bezierproj.vert
 

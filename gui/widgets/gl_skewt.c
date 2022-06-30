@@ -8,7 +8,7 @@
 #include "style.h"
 #include "utils.h"
 
-#define VCOUNT 30
+#define VCOUNT 16
 
 typedef struct {
 	float t;
@@ -58,8 +58,12 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	const float zoom = ctx->zoom;
 	const float x_center = ctx->center_x;
 	const float y_center = ctx->center_y;
+	const int data_count = get_data_count();
 	size_t i;
 	float thickness;
+	float temperature_color[] = {1.0, 0.0, 0.0, 1.0};
+	float dewpt_color[] = {0.0, 0.0, 1.0, 1.0};
+
 
 	GLfloat proj[4][4] = {
 		{1.0f, 0.0f, 0.0f, 0.0f},
@@ -73,7 +77,7 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	proj[3][0] = proj[0][0] * (-x_center);
 	proj[3][1] = proj[1][1] * (-y_center);
 
-	/* Draw background */
+	/* Draw background {{{ */
 	glUseProgram(ctx->chart_program);
 	glBindVertexArray(ctx->vao);
 	glEnable(GL_BLEND);
@@ -81,7 +85,6 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 
 	glUniformMatrix4fv(ctx->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
 	glBindBuffer(GL_ARRAY_BUFFER, ctx->cp_vbo);
-
 
 	/* For each color/thickness combination */
 	for (i=0; i < SYMSIZE(_binary_skewt_index_bin) / sizeof(BezierMetadata); i++) {
@@ -102,16 +105,48 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 		 * tessellation) */
 		glDrawElementsInstanced(GL_TRIANGLE_STRIP, VCOUNT + 2, GL_UNSIGNED_INT, 0, metadata->len / sizeof(Bezier));
 	}
-
-
 	glDisable(GL_BLEND);
-
-#if 0
-	/* Draw data */
+	/* }}} */
+	/* Draw data {{{ */
 	glUseProgram(ctx->data_program);
 	glBindVertexArray(ctx->data_vao);
 	glBindBuffer(GL_ARRAY_BUFFER, ctx->data_vbo);
-#endif
+	glBufferData(GL_ARRAY_BUFFER, data_count * sizeof(GeoPoint), get_track_data(), GL_STREAM_DRAW);
+
+#define BG_HEIGHT_WIDTH_RATIO 0.839583
+#define TEMP_OFFSET (-122.5)
+#define TEMP_SCALE ((-24.5 - TEMP_OFFSET))
+#define PRESS_OFFSET (logf(100))
+#define PRESS_SCALE ((logf(1050) - PRESS_OFFSET) / BG_HEIGHT_WIDTH_RATIO)
+#define Y_INTO_X_COEFF 0.92587511
+
+	float a = proj[0][0];
+	float b = proj[1][1];
+	float c = proj[3][0];
+	float d = proj[3][1];
+
+	proj[0][0] = a / TEMP_SCALE;
+	proj[1][0] = -a * Y_INTO_X_COEFF / PRESS_SCALE;
+	proj[3][0] = c - a * TEMP_OFFSET / TEMP_SCALE + a * Y_INTO_X_COEFF * PRESS_OFFSET / PRESS_SCALE;
+	proj[1][1] = b / PRESS_SCALE;
+	proj[3][1] = -b * PRESS_OFFSET / PRESS_SCALE + d;
+	proj[2][2] = 1;
+	proj[3][3] = 1;
+
+	/* Upload transformation matrix */
+	glUniformMatrix4fv(ctx->u4m_data_proj, 1, GL_FALSE, (GLfloat*)proj);
+
+	/* Draw dew point */
+	glUniform4fv(ctx->u4f_data_color, 1, dewpt_color);
+	glVertexAttribPointer(ctx->attrib_data_temp, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, dewpt));
+	glDrawArrays(GL_POINTS, 0, data_count);
+
+	/* Draw air temperature */
+	glUniform4fv(ctx->u4f_data_color, 1, temperature_color);
+	glVertexAttribPointer(ctx->attrib_data_temp, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, temp));
+	glDrawArrays(GL_POINTS, 0, data_count);
+
+	/* }}} */
 }
 
 /* Static functions {{{ */
@@ -205,5 +240,52 @@ chart_opengl_init(GLSkewT *ctx)
 static void
 data_opengl_init(GLSkewT *ctx)
 {
+	GLuint attrib_alt;
+	GLint status;
+
+	const GLchar *vertex_shader = _binary_skewtproj_vert_start;
+	const int vertex_shader_len = SYMSIZE(_binary_skewtproj_vert);
+	const GLchar *fragment_shader = _binary_simplecolor_frag_start;
+	const int fragment_shader_len = SYMSIZE(_binary_simplecolor_frag);
+
+	/* Program + shaders */
+	ctx->data_program = glCreateProgram();
+	ctx->data_vert_shader = glCreateShader(GL_VERTEX_SHADER);
+	ctx->data_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
+
+	glShaderSource(ctx->data_vert_shader, 1, &vertex_shader, &vertex_shader_len);
+	glShaderSource(ctx->data_frag_shader, 1, &fragment_shader, &fragment_shader_len);
+
+	glCompileShader(ctx->data_vert_shader);
+	glGetShaderiv(ctx->data_vert_shader, GL_COMPILE_STATUS, &status);
+	assert(status == GL_TRUE);
+
+	glCompileShader(ctx->data_frag_shader);
+	glGetShaderiv(ctx->data_frag_shader, GL_COMPILE_STATUS, &status);
+	assert(status == GL_TRUE);
+
+	glAttachShader(ctx->data_program, ctx->data_vert_shader);
+	glAttachShader(ctx->data_program, ctx->data_frag_shader);
+	glLinkProgram(ctx->data_program);
+
+	glGetProgramiv(ctx->data_program, GL_LINK_STATUS, &status);
+	assert(status == GL_TRUE);
+
+	/* Uniforms + attributes */
+	ctx->u4m_data_proj = glGetUniformLocation(ctx->data_program, "proj_mtx");
+	ctx->u4f_data_color = glGetUniformLocation(ctx->data_program, "color");
+
+	ctx->attrib_data_temp = glGetAttribLocation(ctx->data_program, "in_temp");
+	attrib_alt = glGetAttribLocation(ctx->data_program, "in_altitude");
+
+	glGenVertexArrays(1, &ctx->data_vao);
+	glBindVertexArray(ctx->data_vao);
+	glGenBuffers(1, &ctx->data_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, ctx->data_vbo);
+
+	glEnableVertexAttribArray(ctx->attrib_data_temp);
+	glEnableVertexAttribArray(attrib_alt);
+
+	glVertexAttribPointer(attrib_alt, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, pressure));
 }
 /* }}} */

@@ -108,8 +108,8 @@ gui_main(void *args)
 
 	/* Initialize skew-t plot */
 	gl_skewt_init(&skewt);
-	skewt.center_x = 0.5;
-	skewt.center_y = 0.5;
+	skewt.center_x = 0;
+	skewt.center_y = 0;
 	skewt.zoom = width;
 
 #ifndef NDEBUG

@@ -209,6 +209,9 @@ decode(const float *srcbuf, size_t len)
 						track[sample_count].alt = l_printable->alt;
 						track[sample_count].lat = l_printable->lat;
 						track[sample_count].lon = l_printable->lon;
+						track[sample_count].dewpt = dewpt(l_printable->temp, l_printable->rh);
+						track[sample_count].pressure = l_printable->pressure;
+
 						sample_count++;
 
 						if (sample_count >= reserved_count) {

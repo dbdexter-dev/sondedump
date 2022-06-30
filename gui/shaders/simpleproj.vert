@@ -8,5 +8,5 @@ in vec2 position;
 void
 main()
 {
-	gl_Position = proj_mtx * vec4(position.xy, 0.0, 1.0);
+	gl_Position = proj_mtx * vec4(position, 0.0, 1.0);
 }
