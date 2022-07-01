@@ -118,7 +118,8 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 #define TEMP_SCALE ((-24.5 - TEMP_OFFSET))
 #define PRESS_OFFSET (logf(100))
 #define PRESS_SCALE ((logf(1050) - PRESS_OFFSET) / BG_HEIGHT_WIDTH_RATIO)
-#define Y_INTO_X_COEFF 0.92587511
+#define SKEW_ANGLE 47.21
+#define Y_INTO_X_COEFF tanf((90 - SKEW_ANGLE) * M_PI/180.0)
 
 	float a = proj[0][0];
 	float b = proj[1][1];
