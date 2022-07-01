@@ -2,16 +2,21 @@
 #include <GLES3/gl3.h>
 #include <math.h>
 #include <stddef.h>
+#include <string.h>
 #include "decode.h"
 #include "gl_skewt.h"
 #include "shaders/shaders.h"
 #include "style.h"
 #include "utils.h"
 
+#define BEZIER_VERTEX_COUNT(steps) (2 * ((steps) + 1))
+
 #define VCOUNT 16
+#define LINE_THICKNESS 1
 
 typedef struct {
-	float t;
+	float position[2];
+	float normal[2];
 } Vertex;
 
 typedef struct {
@@ -32,6 +37,9 @@ extern const char _binary_skewt_index_bin_end[];
 
 static void chart_opengl_init(GLSkewT *ctx);
 static void data_opengl_init(GLSkewT *ctx);
+static void bezier_tessellate(Vertex *dst, int steps, const float ctrl_points[4][2]);
+static void bezier(float dst[2], float t, const float ctrl_points[4][2]);
+static void bezier_deriv(float dst[2], float t, const float ctrl_points[4][2]);
 
 void
 gl_skewt_init(GLSkewT *ctx)
@@ -43,10 +51,12 @@ gl_skewt_init(GLSkewT *ctx)
 void
 gl_skewt_deinit(GLSkewT *ctx)
 {
+	unsigned int i;
 	if (ctx->vao) glDeleteVertexArrays(1, &ctx->vao);
 	if (ctx->vbo) glDeleteBuffers(1, &ctx->vbo);
-	if (ctx->ibo) glDeleteBuffers(1, &ctx->ibo);
-	if (ctx->cp_vbo) glDeleteBuffers(1, &ctx->cp_vbo);
+	for (i=0; i<LEN(ctx->ibo); i++) {
+		if (ctx->ibo[i]) glDeleteBuffers(1, &ctx->ibo[i]);
+	}
 	if (ctx->chart_vert_shader) glDeleteProgram(ctx->chart_vert_shader);
 	if (ctx->chart_frag_shader) glDeleteProgram(ctx->chart_frag_shader);
 	if (ctx->chart_program) glDeleteProgram(ctx->chart_program);
@@ -81,30 +91,31 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	glUseProgram(ctx->chart_program);
 	glBindVertexArray(ctx->vao);
 	glEnable(GL_BLEND);
+	glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glUniformMatrix4fv(ctx->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
-	glBindBuffer(GL_ARRAY_BUFFER, ctx->cp_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, ctx->vbo);
 
 	/* For each color/thickness combination */
 	for (i=0; i < SYMSIZE(_binary_skewt_index_bin) / sizeof(BezierMetadata); i++) {
 		/* Get metadata */
 		BezierMetadata *metadata = ((BezierMetadata*)_binary_skewt_index_bin_start) + i;
+		unsigned int vertex_count = BEZIER_VERTEX_COUNT(VCOUNT) * (metadata->len / sizeof(Bezier));
+		unsigned int index_count = vertex_count + (metadata->len / sizeof(Bezier));
 
-		thickness = 2.0 / zoom;
+		thickness = 2.0 * LINE_THICKNESS / zoom;
 
-		/* Upload line info */
+		/* Upload line group metadata  */
 		glUniform4fv(ctx->u4f_color, 1, metadata->color);
 		glUniform1f(ctx->u1f_thickness, thickness);
 		glUniform1f(ctx->u1f_frag_thickness, thickness / 2.0 * zoom);
 
-		/* Upload curves to GPU mem */
-		glBufferData(GL_ARRAY_BUFFER, metadata->len, _binary_skewt_bin_start + metadata->offset, GL_STREAM_DRAW);
-		/* Render (could be drawArrays for now but maybe not in the future, and
-		 * the memory requirements for the index buffer are tiny even at high
-		 * tessellation) */
-		glDrawElementsInstanced(GL_TRIANGLE_STRIP, VCOUNT + 2, GL_UNSIGNED_INT, 0, metadata->len / sizeof(Bezier));
+		/* Render line group */
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->ibo[i]);
+		glDrawElements(GL_TRIANGLE_STRIP, index_count, GL_UNSIGNED_INT, 0);
 	}
+	glDisable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
 	glDisable(GL_BLEND);
 	/* }}} */
 	/* Draw data {{{ */
@@ -118,7 +129,7 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 #define TEMP_SCALE ((-24.5 - TEMP_OFFSET))
 #define PRESS_OFFSET (logf(100))
 #define PRESS_SCALE ((logf(1050) - PRESS_OFFSET) / BG_HEIGHT_WIDTH_RATIO)
-#define Y_INTO_X_COEFF 0.92587511
+#define Y_INTO_X_COEFF (tanf(42.77*M_PI/180))
 
 	float a = proj[0][0];
 	float b = proj[1][1];
@@ -153,11 +164,13 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 static void
 chart_opengl_init(GLSkewT *ctx)
 {
-	Vertex vertices[VCOUNT + 2];
-	unsigned int ibo[LEN(vertices)];
+	Vertex *vertices;
+	Bezier *bez;
+	BezierMetadata *metadata;
+	unsigned int *indices;
 
-	GLint status, attrib_t, attrib_p[4];
-	int i;
+	GLint status, attrib_pos, attrib_normal;
+	unsigned int i, j, k, vertex_count, vertex_offset;
 
 	const GLchar *vertex_shader = _binary_bezierproj_vert_start;
 	const int vertex_shader_len = SYMSIZE(_binary_bezierproj_vert);
@@ -191,50 +204,71 @@ chart_opengl_init(GLSkewT *ctx)
 	ctx->u4f_color = glGetUniformLocation(ctx->chart_program, "u_color");
 	ctx->u1f_thickness = glGetUniformLocation(ctx->chart_program, "u_thickness");
 	ctx->u1f_frag_thickness = glGetUniformLocation(ctx->chart_program, "u_aa_thickness");
-	attrib_t = glGetAttribLocation(ctx->chart_program, "in_t");
-	attrib_p[0] = glGetAttribLocation(ctx->chart_program, "in_p0");
-	attrib_p[1] = glGetAttribLocation(ctx->chart_program, "in_p1");
-	attrib_p[2] = glGetAttribLocation(ctx->chart_program, "in_p2");
-	attrib_p[3] = glGetAttribLocation(ctx->chart_program, "in_p3");
+	attrib_pos = glGetAttribLocation(ctx->chart_program, "in_position");
+	attrib_normal = glGetAttribLocation(ctx->chart_program, "in_normal");
 
+	memset(ctx->ibo, 0, sizeof(ctx->vbo));
 
 	/* Allocate buffers */
 	glGenVertexArrays(1, &ctx->vao);
 	glBindVertexArray(ctx->vao);
 	glGenBuffers(1, &ctx->vbo);
-	glGenBuffers(1, &ctx->ibo);
-	glGenBuffers(1, &ctx->cp_vbo);
-
-	/* Generate vertices for Bezier tessellation (2x each line point, will be
-	 * expanded into a thick line by the vertex shader). Need +- 1.0 so that all
-	 * even t's are strictly positive and all odd t's are strictly negative */
-	for (i=0; i < (int)LEN(vertices); i+=2) {
-		vertices[i].t = (float)i/(LEN(vertices) - 2) + 1.0;
-		vertices[i+1].t = -(float)i/(LEN(vertices) - 2) - 1.0;
-	}
-
-	/* Generate indices */
-	for (size_t i=0; i<LEN(ibo); i++) {
-		ibo[i] = i;
-	}
-
-	/* Bind and upload the timeseries vbo and ibo */
 	glBindBuffer(GL_ARRAY_BUFFER, ctx->vbo);
-	glEnableVertexAttribArray(attrib_t);
-	glVertexAttribPointer(attrib_t, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, t));
 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ibo), ibo, GL_STATIC_DRAW);
-
-	/* Describe the control points vbo */
-	glBindBuffer(GL_ARRAY_BUFFER, ctx->cp_vbo);
-	for (i=0; i < (int)LEN(attrib_p); i++) {
-		glEnableVertexAttribArray(attrib_p[i]);
-		glVertexAttribPointer(attrib_p[i], 2, GL_FLOAT, GL_FALSE, sizeof(Bezier), (void*)offsetof(Bezier, cp[i]));
-
-		glVertexAttribDivisor(attrib_p[i], 1);
+	vertex_count = 0;
+	for (i=0; i < SYMSIZE(_binary_skewt_index_bin) / sizeof(BezierMetadata); i++) {
+		metadata = ((BezierMetadata*)_binary_skewt_index_bin_start) + i;
+		vertex_count += BEZIER_VERTEX_COUNT(VCOUNT) * (metadata->len / sizeof(Bezier));
 	}
+
+	/* Allocate GPU mem for all vertices */
+	glBufferData(GL_ARRAY_BUFFER, sizeof(*vertices) * vertex_count, NULL, GL_STATIC_DRAW);
+
+	/* Describe vertex geometry */
+	glEnableVertexAttribArray(attrib_pos);
+	glVertexAttribPointer(attrib_pos, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+	glEnableVertexAttribArray(attrib_normal);
+	glVertexAttribPointer(attrib_normal, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+
+	/* Tessellate curves */
+	vertex_offset = 0;
+	unsigned int index_offset = 0;
+	for (i=0; i < SYMSIZE(_binary_skewt_index_bin) / sizeof(BezierMetadata); i++) {
+		metadata = ((BezierMetadata*)_binary_skewt_index_bin_start) + i;
+		vertex_count = BEZIER_VERTEX_COUNT(VCOUNT) * (metadata->len / sizeof(Bezier));
+		vertices = malloc(sizeof(*vertices) * vertex_count);
+
+        /* One index per vertex plus one at the end of the curve to restart */
+		indices = malloc(sizeof(*indices) * (vertex_count + metadata->len / sizeof(Bezier)));
+
+		/* Tessellate bezier segments */
+		for (j=0; j<metadata->len / sizeof(Bezier); j++) {
+			/* Retrieve control points */
+			bez = ((Bezier*)(_binary_skewt_bin_start + metadata->offset)) + j;
+
+			/* Tessellate bezier */
+			bezier_tessellate(vertices + j*BEZIER_VERTEX_COUNT(VCOUNT), VCOUNT, bez->cp);
+
+			/* Generate indices */
+			for (k=0; k<BEZIER_VERTEX_COUNT(VCOUNT); k++) {
+				indices[j * (BEZIER_VERTEX_COUNT(VCOUNT) + 1) + k] = index_offset++;
+			}
+			/* Restart index */
+			indices[j * (BEZIER_VERTEX_COUNT(VCOUNT) + 1) + k] = 0xFFFFFFFF;
+		}
+
+		/* Upload results to the GPU */
+		glBufferSubData(GL_ARRAY_BUFFER, vertex_offset, sizeof(*vertices) * vertex_count, vertices);
+		vertex_offset += sizeof(*vertices) * vertex_count;
+
+		glGenBuffers(1, &ctx->ibo[i]);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->ibo[i]);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(*indices) * (vertex_count + metadata->len/sizeof(Bezier)), indices, GL_STATIC_DRAW);
+
+		free(vertices);
+		free(indices);
+	}
+
 }
 
 static void
@@ -287,5 +321,67 @@ data_opengl_init(GLSkewT *ctx)
 	glEnableVertexAttribArray(attrib_alt);
 
 	glVertexAttribPointer(attrib_alt, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, pressure));
+}
+
+static void
+bezier_tessellate(Vertex *dst, int steps, const float ctrl_points[4][2])
+{
+	float deriv[2];
+	float norm;
+	float t;
+	int i;
+
+	for (i=0; i<=steps; i++) {
+		t = (float)i / steps;
+		bezier(dst->position, t, ctrl_points);
+		bezier_deriv(deriv, t, ctrl_points);
+
+		norm = sqrtf(deriv[0]*deriv[0] + deriv[1]*deriv[1]);
+
+		dst->normal[0] = -deriv[1] / norm;
+		dst->normal[1] = deriv[0] / norm;
+
+		dst++;
+
+		/* Companion vertex has the same everything but opposite normal */
+		memcpy(dst->position, (dst-1)->position, sizeof(dst->position));
+		dst->normal[0] = -(dst-1)->normal[0];
+		dst->normal[1] = -(dst-1)->normal[1];
+
+		dst++;
+	}
+}
+
+static void
+bezier(float dst[2], float t, const float ctrl_points[4][2])
+{
+	const float t2 = t * t;
+	const float t3 = t * t2;
+	int i;
+
+
+	for (i=0; i<2; i++) {
+		dst[i] = ctrl_points[0][i]
+		       + 3.0 * t * (ctrl_points[1][i] - ctrl_points[0][i])
+		       + 3.0 * t2 * (ctrl_points[0][i] - 2.0 * ctrl_points[1][i] + ctrl_points[2][i])
+		       + t3 * (ctrl_points[3][i] - 3.0 * ctrl_points[2][i] + 3.0 * ctrl_points[1][i] - ctrl_points[0][i]);
+	}
+}
+
+static void
+bezier_deriv(float dst[2], float t, const float ctrl_points[4][2])
+{
+	const float t2 = t * t;
+	int i;
+
+	for (i=0; i<2; i++) {
+		float a = ctrl_points[3][i] - 3.0 * ctrl_points[2][i] + 3.0 * ctrl_points[1][i] - ctrl_points[0][i];
+		float b = 3.0 * (ctrl_points[0][i] - 2.0 * ctrl_points[1][i] + ctrl_points[2][i]);
+		float c = 3.0 * (ctrl_points[1][i] - ctrl_points[0][i]);
+
+		dst[i] = 3.0 * t2 * a
+		       + 2.0 * t * b
+		       + c;
+	}
 }
 /* }}} */

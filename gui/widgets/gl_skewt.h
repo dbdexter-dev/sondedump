@@ -6,9 +6,8 @@
 typedef struct {
 	float center_x, center_y, zoom;
 
-	GLuint vao, vbo, ibo;
-	GLuint cp_vbo;          /* Bezier control points */
-	GLuint data_vao, data_vbo;
+	GLuint vao, vbo, ibo[16];           /* Bezier background */
+	GLuint data_vao, data_vbo;          /* Data points */
 
 	GLuint chart_program;
 	GLuint chart_vert_shader, chart_frag_shader;
