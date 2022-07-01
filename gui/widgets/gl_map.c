@@ -133,11 +133,10 @@ gl_map_vector(GLMap *map, int width, int height)
 	/* }}} */
 
 	/* Cleanup */
-    glUseProgram(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-    //glDisable(GL_BLEND);
+	glUseProgram(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
 }
 
 /* Static functions {{{ */

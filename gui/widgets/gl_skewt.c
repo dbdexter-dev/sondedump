@@ -165,6 +165,11 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 
 	/* }}} */
 
+	/* Cleanup */
+	glUseProgram(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
 }
 
 /* Static functions {{{ */

@@ -20,7 +20,10 @@
 #define MAX_ELEMENT_MEMORY (128 * 1024)
 
 typedef struct {
-	float scale;
+	struct {
+		float x, y;
+	} mouse;
+	float scale, old_scale;
 
 	int over_window;
 	int config_open;
@@ -58,7 +61,6 @@ gui_main(void *args)
 {
 	(void)args;
 
-	float old_scale;
 	struct nk_context *ctx;
 	SDL_Window *win;
 	SDL_GLContext glContext;
@@ -103,7 +105,7 @@ gui_main(void *args)
 
 	/* Initialize map */
 	gl_map_init(&map);
-	map.zoom = 2.0;
+	map.zoom = 3.0;
 	map.center_x = lon_to_x(0, 0);
 	map.center_y = lat_to_y(0, 0);
 
@@ -114,7 +116,7 @@ gui_main(void *args)
 	skewt.zoom = MIN(width, height);
 
 	/* Initialize nuklear */
-	ui_state.scale = old_scale = 1;
+	ui_state.scale = ui_state.old_scale = 1;
 	ctx = nk_sdl_init(win);
 	gui_load_fonts(ctx, ui_state.scale);
 	gui_set_style_default(ctx);
@@ -144,10 +146,18 @@ gui_main(void *args)
 			case SDL_MOUSEWHEEL:
 				switch (ui_state.active_widget) {
 				case GUI_MAP:
-					map.zoom += 0.1 * evt.wheel.y;
+					map.center_x += (ui_state.mouse.x - width/2.0) / MAP_TILE_WIDTH / powf(2, map.zoom);
+					map.center_y += (ui_state.mouse.y - height/2.0) / MAP_TILE_HEIGHT / powf(2, map.zoom);
+					map.zoom += 0.1 * evt.wheel.preciseY;
+					map.center_x -= (ui_state.mouse.x - width/2.0) / MAP_TILE_WIDTH / powf(2, map.zoom);
+					map.center_y -= (ui_state.mouse.y - height/2.0) / MAP_TILE_HEIGHT / powf(2, map.zoom);
 					break;
 				case GUI_SKEW_T:
-					skewt.zoom *= (1 + evt.wheel.y / 10.0f);
+					skewt.center_x += (ui_state.mouse.x - width/2.0) / skewt.zoom;
+					skewt.center_y += (ui_state.mouse.y - height/2.0) / skewt.zoom;
+					skewt.zoom *= (1 + evt.wheel.preciseY / 10.0f);
+					skewt.center_x -= (ui_state.mouse.x - width/2.0) / skewt.zoom;
+					skewt.center_y -= (ui_state.mouse.y - height/2.0) / skewt.zoom;
 					break;
 				default:
 					break;
@@ -174,6 +184,8 @@ gui_main(void *args)
 						break;
 					}
 				}
+				ui_state.mouse.x = evt.motion.x;
+				ui_state.mouse.y = evt.motion.y;
 				break;
 			case SDL_USEREVENT:
 				break;
@@ -188,9 +200,9 @@ gui_main(void *args)
 		nk_input_end(ctx);
 
 		/* Re-render fonts on ui scale change */
-		if (ui_state.scale != old_scale) {
+		if (ui_state.scale != ui_state.old_scale) {
 			gui_load_fonts(ctx, ui_state.scale);
-			old_scale = ui_state.scale;
+			ui_state.old_scale = ui_state.scale;
 		}
 
 		/* If the sonde type has changed, update title */
@@ -210,12 +222,6 @@ gui_main(void *args)
 		overview_window(ctx, &map, &ui_state);
 		/* Config */
 		if (ui_state.config_open) config_window(ctx, &ui_state);
-
-		/* Re-render fonts on ui scale change */
-		if (ui_state.scale != old_scale) {
-			gui_load_fonts(ctx, ui_state.scale);
-			old_scale = ui_state.scale;
-		}
 
 		/* Render */
 		glViewport(0, 0, width, height);
