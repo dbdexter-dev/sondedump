@@ -26,6 +26,8 @@ typedef struct {
 	int config_open;
 	int dragging;
 	int force_refresh;
+
+	enum graph active_widget;
 } UIState;
 
 static void *gui_main(void *args);
@@ -67,7 +69,6 @@ gui_main(void *args)
 
 	GLMap map;
 	GLSkewT skewt;
-	enum graph active_visualization;
 	UIState ui_state;
 	const char *gl_version;
 
@@ -108,8 +109,8 @@ gui_main(void *args)
 
 	/* Initialize skew-t plot */
 	gl_skewt_init(&skewt);
-	skewt.center_x = 0;
-	skewt.center_y = 0;
+	skewt.center_x = 0.5;
+	skewt.center_y = 0.5;
 	skewt.zoom = width;
 
 #ifndef NDEBUG
@@ -127,7 +128,7 @@ gui_main(void *args)
 	ui_state.dragging = 0;
 	ui_state.over_window = 0;
 	ui_state.config_open = 0;
-	active_visualization = GUI_SKEW_T;
+	ui_state.active_widget = GUI_SKEW_T;
 
 	while (!_interrupted) {
 		/* When requested, bypass waitevent and go straight to event processing */
@@ -145,7 +146,7 @@ gui_main(void *args)
 			case SDL_QUIT:
 				goto cleanup;
 			case SDL_MOUSEWHEEL:
-				switch (active_visualization) {
+				switch (ui_state.active_widget) {
 				case GUI_MAP:
 					map.zoom += 0.1 * evt.wheel.y;
 					break;
@@ -164,7 +165,7 @@ gui_main(void *args)
 				break;
 			case SDL_MOUSEMOTION:
 				if (ui_state.dragging) {
-					switch (active_visualization) {
+					switch (ui_state.active_widget) {
 					case GUI_MAP:
 						map.center_x -= (float)evt.motion.xrel / MAP_TILE_WIDTH / powf(2, map.zoom);
 						map.center_y -= (float)evt.motion.yrel / MAP_TILE_HEIGHT / powf(2, map.zoom);
@@ -216,7 +217,7 @@ gui_main(void *args)
 		glClearColor(0, 0, 0, 1);
 
 		/* Draw background map */
-		switch (active_visualization) {
+		switch (ui_state.active_widget) {
 		case GUI_MAP:
 			gl_map_vector(&map, width, height);
 			break;
@@ -269,6 +270,11 @@ overview_window(struct nk_context *ctx, GLMap *map, UIState *state)
 		/* Sonde type selection */
 		widget_type_select(ctx, state->scale);
 
+		/* UI graph selection */
+		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 2);
+		if (nk_option_label(ctx, "World map", state->active_widget == GUI_MAP)) state->active_widget = GUI_MAP;
+		if (nk_option_label(ctx, "Skew-T", state->active_widget == GUI_SKEW_T)) state->active_widget = GUI_SKEW_T;
+
 		nk_layout_row_dynamic(ctx, 400 * state->scale, 1);
 		if (nk_group_begin(ctx, "Data", NK_WINDOW_NO_SCROLLBAR)) {
 			/* Raw data */
@@ -276,6 +282,7 @@ overview_window(struct nk_context *ctx, GLMap *map, UIState *state)
 
 			nk_group_end(ctx);
 		}
+
 
 		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * 1.2 * state->scale, 1);
 		if (nk_button_label(ctx, "Re-center map")) {
