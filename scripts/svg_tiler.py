@@ -220,19 +220,13 @@ class Path:
                 metapoints = metapoints[:-1]
 
         # Convert paths to strokes
-        if pathid < 30000:
+        STROKE_THR = 2.0
+        if pathid < 19000:
             for i,curve in enumerate(metapoints[:-1]):
                 next_curve = metapoints[i+1]
-                if pathid == 6302:
-                    print(curve, next_curve)
-                if math.sqrt((curve[-1][0]-next_curve[-1][0])**2 + (curve[-1][1]-next_curve[-1][1])**2) < 2:
-                    print("Pruning: ", curve[-1], next_curve[-1])
+                if math.sqrt((curve[-1][0]-next_curve[-1][0])**2 + (curve[-1][1]-next_curve[-1][1])**2) < STROKE_THR:
                     metapoints = metapoints[:i+1]
                     break
-
-        if pathid == 6302:
-            print(metapoints)
-            input()
 
         return [Path(x, color, width) for x in metapoints]
 
@@ -287,8 +281,14 @@ for path in paths:
     path.points = list(map(lambda x: ((x[0] - minx)/factor, (x[1] - miny)/factor), path.points))
 
 
-colors = set(map(lambda x: x.color, paths))
-widths = set(map(lambda x: x.width, paths))
+colors = list(set(map(lambda x: x.color, paths)))
+widths = list(set(map(lambda x: x.width, paths)))
+
+print("Colors: {}".format(colors))
+cperm = [int(x) for x in input("Permutation: ").split(" ")]
+
+colors = [colors[x] for x in cperm]
+
 
 flattened_paths_1 = [x.points for x in paths]
 flattened_paths_2 = reduce(lambda arr,x: arr+list(x), flattened_paths_1, [])
@@ -297,7 +297,7 @@ ys = [x[1] for x in flattened_paths_2]
 
 with open("skewt_index.bin", "wb") as index:
     with open("skewt.bin", 'wb') as f:
-        for color in colors:
+        for ci,color in enumerate(colors):
             for width in widths:
                 current_paths = [x for x in paths if x.color == color and x.width == width]
 
@@ -308,8 +308,11 @@ with open("skewt_index.bin", "wb") as index:
                 flattened_paths_2 = reduce(lambda arr,x: arr+list(x), flattened_paths_1, [])
                 flattened_paths = reduce(lambda arr,x: arr+list(x), flattened_paths_2, [])
 
+                tessellation = 16 if ci < 3 else 2
+
                 index.write(f.tell().to_bytes(4, 'little'))
                 index.write((4 * len(flattened_paths)).to_bytes(4, 'little'))
+                index.write(tessellation.to_bytes(4, 'little'))
                 index.write(struct.pack('f'*3, *color))
                 index.write(struct.pack('f', 1.0))
                 index.write(struct.pack('f', width))

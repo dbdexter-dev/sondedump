@@ -164,14 +164,13 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	glDrawArrays(GL_POINTS, 0, data_count);
 
 	/* }}} */
+
 }
 
 /* Static functions {{{ */
 static void
 chart_opengl_init(GLSkewT *ctx)
 {
-	Vertex vertices[VCOUNT + 2];
-
 	GLint status, attrib_t, attrib_p[4];
 	int i;
 

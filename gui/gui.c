@@ -103,7 +103,7 @@ gui_main(void *args)
 
 	/* Initialize map */
 	gl_map_init(&map);
-	map.zoom = 7.0;
+	map.zoom = 2.0;
 	map.center_x = lon_to_x(0, 0);
 	map.center_y = lat_to_y(0, 0);
 
@@ -124,7 +124,7 @@ gui_main(void *args)
 	ui_state.dragging = 0;
 	ui_state.over_window = 0;
 	ui_state.config_open = 0;
-	ui_state.active_widget = GUI_SKEW_T;
+	ui_state.active_widget = GUI_MAP;
 
 	while (!_interrupted) {
 		/* When requested, bypass waitevent and go straight to event processing */
@@ -187,6 +187,12 @@ gui_main(void *args)
 		} while (SDL_PollEvent(&evt));
 		nk_input_end(ctx);
 
+		/* Re-render fonts on ui scale change */
+		if (ui_state.scale != old_scale) {
+			gui_load_fonts(ctx, ui_state.scale);
+			old_scale = ui_state.scale;
+		}
+
 		/* If the sonde type has changed, update title */
 		if (last_slot != get_slot()) {
 			last_slot = get_slot();
@@ -200,8 +206,12 @@ gui_main(void *args)
 		/* Compose nuklear GUI elements */
 		ui_state.over_window = 0;
 
+		/* Main window */
 		overview_window(ctx, &map, &ui_state);
+		/* Config */
 		if (ui_state.config_open) config_window(ctx, &ui_state);
+
+		/* Re-render fonts on ui scale change */
 		if (ui_state.scale != old_scale) {
 			gui_load_fonts(ctx, ui_state.scale);
 			old_scale = ui_state.scale;
@@ -267,21 +277,28 @@ overview_window(struct nk_context *ctx, GLMap *map, UIState *state)
 		widget_type_select(ctx, state->scale);
 
 		/* UI graph selection */
-		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 2);
-		if (nk_option_label(ctx, "World map", state->active_widget == GUI_MAP)) state->active_widget = GUI_MAP;
-		if (nk_option_label(ctx, "Skew-T", state->active_widget == GUI_SKEW_T)) state->active_widget = GUI_SKEW_T;
+		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 3);
+		if (nk_option_label(ctx, "World map", state->active_widget == GUI_MAP)) {
+			state->active_widget = GUI_MAP;
+		}
+		if (nk_option_label(ctx, "Sensor history", state->active_widget == GUI_TIMESERIES)) {
+			state->active_widget = GUI_TIMESERIES;
+		}
+		if (nk_option_label(ctx, "Skew-T", state->active_widget == GUI_SKEW_T)) {
+			state->active_widget = GUI_SKEW_T;
+		}
 
+		/* Raw live data */
 		nk_layout_row_dynamic(ctx, 400 * state->scale, 1);
 		if (nk_group_begin(ctx, "Data", NK_WINDOW_NO_SCROLLBAR)) {
-			/* Raw data */
 			widget_data(ctx, state->scale);
 
 			nk_group_end(ctx);
 		}
 
-
+		/* Reset view */
 		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * 1.2 * state->scale, 1);
-		if (nk_button_label(ctx, "Re-center map")) {
+		if (nk_button_label(ctx, "Re-center")) {
 			if (get_data_count() > 0) {
 				last_point = get_track_data() + get_data_count() - 1;
 				map->center_x = lon_to_x(last_point->lon, 0);
@@ -315,7 +332,7 @@ config_window(struct nk_context *ctx, UIState *state)
 	const int label_len = 120;
 	const char *title = "Settings";
 	const enum nk_panel_flags win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
-	                                    | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE;
+	                                    | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE | NK_WINDOW_CLOSABLE;
 	struct nk_rect bounds;
 	float border;
 	static char lat[32], lon[32], alt[32];
@@ -360,20 +377,21 @@ config_window(struct nk_context *ctx, UIState *state)
 
 			nk_tree_pop(ctx);
 		}
-	}
 
-	nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 2);
-	if (nk_button_label(ctx, "Cancel")) {
-		state->config_open = 0;
-		/* TODO undo settings */
-	}
-	if (nk_button_label(ctx, "Save")) {
-		state->config_open = 0;
-		/* TODO copy settings */
-	}
+		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 2);
+		if (nk_button_label(ctx, "Cancel")) {
+			state->config_open = 0;
+		}
+		if (nk_button_label(ctx, "Save")) {
+			state->config_open = 0;
+			/* TODO copy settings */
+		}
 
-	nk_window_fit_to_content(ctx);
-	state->over_window |= nk_window_is_hovered(ctx);
+		nk_window_fit_to_content(ctx);
+		state->over_window |= nk_window_is_hovered(ctx);
+	} else {
+		state->config_open = 0;
+	}
 
 	nk_end(ctx);
 }
