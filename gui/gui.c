@@ -111,11 +111,7 @@ gui_main(void *args)
 	gl_skewt_init(&skewt);
 	skewt.center_x = 0.5;
 	skewt.center_y = 0.5;
-	skewt.zoom = width;
-
-#ifndef NDEBUG
-	printf("Starting xy: %f %f\n", center_x, center_y);
-#endif
+	skewt.zoom = MIN(width, height);
 
 	/* Initialize nuklear */
 	ui_state.scale = old_scale = 1;

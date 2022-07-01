@@ -21,6 +21,7 @@ typedef struct {
 typedef struct {
 	uint32_t offset;
 	uint32_t len;
+	uint32_t tessellation;
 	float color[4];
 	float thickness;
 } BezierMetadata;
@@ -45,7 +46,6 @@ gl_skewt_deinit(GLSkewT *ctx)
 {
 	if (ctx->vao) glDeleteVertexArrays(1, &ctx->vao);
 	if (ctx->vbo) glDeleteBuffers(1, &ctx->vbo);
-	if (ctx->ibo) glDeleteBuffers(1, &ctx->ibo);
 	if (ctx->cp_vbo) glDeleteBuffers(1, &ctx->cp_vbo);
 	if (ctx->chart_vert_shader) glDeleteProgram(ctx->chart_vert_shader);
 	if (ctx->chart_frag_shader) glDeleteProgram(ctx->chart_frag_shader);
@@ -59,10 +59,13 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	const float x_center = ctx->center_x;
 	const float y_center = ctx->center_y;
 	const int data_count = get_data_count();
-	size_t i;
+	BezierMetadata *metadata;
+	Vertex *vertices;
 	float thickness;
 	float temperature_color[] = {1.0, 0.0, 0.0, 1.0};
 	float dewpt_color[] = {0.0, 0.0, 1.0, 1.0};
+	size_t i, j;
+	unsigned int vertex_count;
 
 
 	GLfloat proj[4][4] = {
@@ -84,14 +87,27 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glUniformMatrix4fv(ctx->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
-	glBindBuffer(GL_ARRAY_BUFFER, ctx->cp_vbo);
 
 	/* For each color/thickness combination */
 	for (i=0; i < SYMSIZE(_binary_skewt_index_bin) / sizeof(BezierMetadata); i++) {
 		/* Get metadata */
-		BezierMetadata *metadata = ((BezierMetadata*)_binary_skewt_index_bin_start) + i;
-
+		metadata = ((BezierMetadata*)_binary_skewt_index_bin_start) + i;
 		thickness = 2.0 / zoom;
+		vertex_count = 2 * metadata->tessellation + 2;
+
+		/* Generate vertices for Bezier tessellation (2x each line point, will be
+		 * expanded into a thick line by the vertex shader). Need +- 1.0 so that all
+		 * even t's are strictly positive and all odd t's are strictly negative */
+		vertices = malloc(vertex_count * sizeof(*vertices));
+		for (j=0; j<vertex_count; j+=2) {
+			vertices[j].t = (float)j/(vertex_count-2) + 1.0;
+			vertices[j+1].t = -(float)j/(vertex_count-2) - 1.0;
+		}
+
+		/* Upload interpolation buffer */
+		glBindBuffer(GL_ARRAY_BUFFER, ctx->vbo);
+		glBufferData(GL_ARRAY_BUFFER, vertex_count * sizeof(*vertices), vertices, GL_STATIC_DRAW);
+		free(vertices);
 
 		/* Upload line info */
 		glUniform4fv(ctx->u4f_color, 1, metadata->color);
@@ -99,11 +115,11 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 		glUniform1f(ctx->u1f_frag_thickness, thickness / 2.0 * zoom);
 
 		/* Upload curves to GPU mem */
+		glBindBuffer(GL_ARRAY_BUFFER, ctx->cp_vbo);
 		glBufferData(GL_ARRAY_BUFFER, metadata->len, _binary_skewt_bin_start + metadata->offset, GL_STREAM_DRAW);
-		/* Render (could be drawArrays for now but maybe not in the future, and
-		 * the memory requirements for the index buffer are tiny even at high
-		 * tessellation) */
-		glDrawElementsInstanced(GL_TRIANGLE_STRIP, VCOUNT + 2, GL_UNSIGNED_INT, 0, metadata->len / sizeof(Bezier));
+
+		/* Render */
+		glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, vertex_count, metadata->len / sizeof(Bezier));
 	}
 	glDisable(GL_BLEND);
 	/* }}} */
@@ -155,7 +171,6 @@ static void
 chart_opengl_init(GLSkewT *ctx)
 {
 	Vertex vertices[VCOUNT + 2];
-	unsigned int ibo[LEN(vertices)];
 
 	GLint status, attrib_t, attrib_p[4];
 	int i;
@@ -203,30 +218,12 @@ chart_opengl_init(GLSkewT *ctx)
 	glGenVertexArrays(1, &ctx->vao);
 	glBindVertexArray(ctx->vao);
 	glGenBuffers(1, &ctx->vbo);
-	glGenBuffers(1, &ctx->ibo);
 	glGenBuffers(1, &ctx->cp_vbo);
 
-	/* Generate vertices for Bezier tessellation (2x each line point, will be
-	 * expanded into a thick line by the vertex shader). Need +- 1.0 so that all
-	 * even t's are strictly positive and all odd t's are strictly negative */
-	for (i=0; i < (int)LEN(vertices); i+=2) {
-		vertices[i].t = (float)i/(LEN(vertices) - 2) + 1.0;
-		vertices[i+1].t = -(float)i/(LEN(vertices) - 2) - 1.0;
-	}
-
-	/* Generate indices */
-	for (size_t i=0; i<LEN(ibo); i++) {
-		ibo[i] = i;
-	}
-
-	/* Bind and upload the timeseries vbo and ibo */
+	/* Bind and describe the timeseries vbo */
 	glBindBuffer(GL_ARRAY_BUFFER, ctx->vbo);
 	glEnableVertexAttribArray(attrib_t);
 	glVertexAttribPointer(attrib_t, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, t));
-
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(ibo), ibo, GL_STATIC_DRAW);
 
 	/* Describe the control points vbo */
 	glBindBuffer(GL_ARRAY_BUFFER, ctx->cp_vbo);
@@ -234,6 +231,7 @@ chart_opengl_init(GLSkewT *ctx)
 		glEnableVertexAttribArray(attrib_p[i]);
 		glVertexAttribPointer(attrib_p[i], 2, GL_FLOAT, GL_FALSE, sizeof(Bezier), (void*)offsetof(Bezier, cp[i]));
 
+		/* Instanced drawing ftw */
 		glVertexAttribDivisor(attrib_p[i], 1);
 	}
 }
