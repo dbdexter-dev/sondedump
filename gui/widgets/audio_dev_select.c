@@ -1,10 +1,11 @@
 #ifndef NDEBUG
 #include <stdio.h>
 #endif
-#include "gui/style.h"
-#include "io/audio.h"
 #include "audio_dev_select.h"
 #include "decode.h"
+#include "gui/style.h"
+#include "io/audio.h"
+#include "log/log.h"
 
 static int _selected_idx = 0;
 
@@ -40,10 +41,11 @@ widget_audio_dev_select(struct nk_context *ctx, float scale)
 
 	if (prev_selected != _selected_idx) {
 		samplerate = audio_open_device(_selected_idx);
-		if (samplerate < 0) return;
-#ifndef NDEBUG
-		printf("Samplerate: %d\n", samplerate);
-#endif
+		if (samplerate < 0) {
+			log_error("Failed to switch audio device");
+			return;
+		}
+		log_info("New samplerate: %d", samplerate);
 		decoder_set_samplerate(samplerate);
 	}
 	nk_layout_row_end(ctx);

@@ -18,6 +18,7 @@ do_log_error(const char *tag, const char *fmt, ...)
 	va_start(args, fmt);
 	vprintf(fmt, args);
 	va_end(args);
+	printf("\n");
 }
 
 void
@@ -30,6 +31,7 @@ do_log_warn(const char *tag, const char *fmt, ...)
 	va_start(args, fmt);
 	vprintf(fmt, args);
 	va_end(args);
+	printf("\n");
 }
 
 void
@@ -42,6 +44,7 @@ do_log_info(const char *tag, const char *fmt, ...)
 	va_start(args, fmt);
 	vprintf(fmt, args);
 	va_end(args);
+	printf("\n");
 }
 
 void
@@ -54,4 +57,5 @@ do_log_debug(const char *tag, const char *fmt, ...)
 	va_start(args, fmt);
 	vprintf(fmt, args);
 	va_end(args);
+	printf("\n");
 }

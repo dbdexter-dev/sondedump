@@ -164,7 +164,7 @@ update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, i
 		return;
 	}
 
-	log_debug("Detected viewport change to %dx%d\n", x_count, y_count);
+	log_debug("Detected viewport change to %dx%d", x_count, y_count);
 
 	map->vram_tile_metadata.x_start = MAX(0, x_start);
 	map->vram_tile_metadata.y_start = MAX(0, y_start);
@@ -190,7 +190,7 @@ update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, i
 				continue;
 			}
 
-			log_debug("Attempting to load (%d,%d)...\n", actual_x, actual_y);
+			log_debug("Attempting to load (%d,%d)...", actual_x, actual_y);
 
 			changed = 1;
 
@@ -230,7 +230,7 @@ update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, i
 
 			ibo_len += len;
 			ibo_offset = max_ibo + 1;
-			log_debug("New IBO offset: %u\n", ibo_offset);
+			log_debug("New IBO offset: %u", ibo_offset);
 		}
 	}
 

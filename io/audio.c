@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "audio.h"
+#include "log/log.h"
 #include "utils.h"
 
 static PaError print_error(PaError err);
@@ -36,7 +37,7 @@ audio_init()
 
 	/* Query devices */
 	if ((dev_count = Pa_GetDeviceCount()) < 0) {
-		fprintf(stderr, "[ERROR] Pa_GetDeviceCount returned %d\n", dev_count);
+		log_error("Pa_GetDeviceCount returned %d", dev_count);
 		return dev_count;
 	}
 
@@ -100,7 +101,7 @@ audio_open_device(int device_idx)
 		}
 	}
 	if (samplerate < 0) {
-		fprintf(stderr, "[ERROR] Could not initialize specified device with sane parameters\n");
+		log_error("Could not initialize specified device with sane parameters");
 		_state.stream = NULL;
 		return -1;
 	}
@@ -172,7 +173,7 @@ audio_get_device_names(void)
 static PaError
 print_error(PaError err)
 {
-	fprintf(stderr, "Portaudio error: %s\n", Pa_GetErrorText(err));
+	log_error("Portaudio error: %s", Pa_GetErrorText(err));
 	return err;
 }
 

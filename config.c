@@ -55,7 +55,7 @@ config_load_from_file(Config *config)
 
 	/* Open config */
 	if (!(fd = fopen(config_path(), "r"))) {
-		log_warn("Could not find %s\n", config_path());
+		log_warn("Could not find %s, proceeding with defaults", config_path());
 		return 1;
 	}
 
@@ -67,19 +67,18 @@ config_load_from_file(Config *config)
 		len += fread(confdata, 1, CHUNKSIZE, fd);
 	}
 
-
-	log_debug("Read config (size %ld): %s\n", len, confdata);
+	log_debug("Read config (size %ld): %s", len, confdata);
 
 	/* Parse */
 	jsmn_init(&parser);
 	token_count = jsmn_parse(&parser, confdata, len, tokens, MAX_JSON_TOKENS);
 	if (token_count < 0) {
-		log_error("Invalid configuration file (jsmn error code %d)\n", token_count);
+		log_error("Invalid configuration file (jsmn error code %d)", token_count);
 		return 2;
 	}
 
 	if (tokens[0].type != JSMN_OBJECT) {
-		log_error("Invalid configuration file (top-level object not found)\n");
+		log_error("Invalid configuration file (top-level object not found)");
 		return 3;
 	}
 
@@ -102,7 +101,7 @@ config_load_from_file(Config *config)
 					sscanf(confdata + tokens[i+1].start, "%f", &config->ui_scale);
 					break;
 				default:
-					log_warn("Unknown config key: %s\n", confdata + tokens[i].start);
+					log_warn("Unknown config key: %s", confdata + tokens[i].start);
 					break;
 				}
 			}
@@ -118,10 +117,10 @@ config_save_to_file(const Config *config)
 {
 	FILE *fd;
 
-	log_debug("Saving to %s...\n", config_path());
+	log_info("Saving to %s...", config_path());
 
 	if (!(fd = fopen(config_path(), "w"))) {
-		fprintf(stderr, "[config] failed to write config.\n");
+		log_error("Failed to write %s\n", config_path());
 		return 1;
 	}
 

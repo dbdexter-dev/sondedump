@@ -14,6 +14,7 @@
 #include "io/gpx.h"
 #include "io/kml.h"
 #include "io/wavfile.h"
+#include "log/log.h"
 #include "physics.h"
 #include "utils.h"
 #ifdef ENABLE_TUI
@@ -139,14 +140,14 @@ main(int argc, char *argv[])
 			case 't':
 				active_decoder = ascii_to_decoder(optarg);
 				if (active_decoder < 0) {
-					fprintf(stderr, "Unsupported type: %s\n", optarg);
+					log_error("Unsupported type: %s", optarg);
 					usage(argv[0]);
 					return 1;
 				}
 				break;
 			case 'r':
 				if (sscanf(optarg, "%f,%f,%f", &receiver_lat, &receiver_lon, &receiver_alt) < 3) {
-					fprintf(stderr, "Invalid receiver coordinates\n");
+					log_error("Invalid receiver coordinates");
 					usage(argv[0]);
 					return 1;
 				}
@@ -178,7 +179,7 @@ main(int argc, char *argv[])
 #ifdef ENABLE_AUDIO
 		/* Initialize audio backend */
 		if (audio_init()) {
-			fprintf(stderr, "Error while initializing audio subsystem, exiting...\n");
+			log_error("Error while initializing audio subsystem, exiting...");
 			return 1;
 		}
 
@@ -221,7 +222,7 @@ main(int argc, char *argv[])
 				break;
 		}
 #else
-		fprintf(stderr, "No input file specified\n");
+		log_error("No input file specified");
 		usage(argv[0]);
 		return 1;
 #endif
@@ -236,13 +237,13 @@ main(int argc, char *argv[])
 	} else {
 #endif
 	if (!(_wav = fopen(input_fname, "rb"))) {
-		fprintf(stderr, "Could not open input file\n");
+		log_error("Could not open input file");
 		return 1;
 	}
 	read_wrapper = wav_read_wrapper;
 	if (wav_parse(_wav, &samplerate, &_bps)) {
-		fprintf(stderr, "Could not recognize input file type\n");
-		fprintf(stderr, "Will assume raw, mono, 32 bit float, 48kHz\n");
+		log_warn("Could not recognize input file type");
+		log_warn("Will assume raw, mono, 32 bit float, 48kHz");
 		samplerate = 48000;
 
 		read_wrapper = &raw_read_wrapper;
@@ -254,29 +255,29 @@ main(int argc, char *argv[])
 	/* Open CSV output */
 	if (csv_fname) {
 		if (!(csv_fd = fopen(csv_fname, "wb"))) {
-			fprintf(stderr, "Error creating CSV file %s\n", csv_fname);
+			log_error("Error creating CSV file %s", csv_fname);
 		}
 		fprintf(csv_fd, "Temperature,RH,Pressure,Altitude,Latitude,Longitude,Speed,Heading,Climb\n");
 	}
 
 	/* Open GPX/KML output */
 	if (kml_fname && kml_init(&kml, kml_fname, 0)) {
-		fprintf(stderr, "Error creating KML file %s\n", kml_fname);
+		log_error("Error creating KML file %s", kml_fname);
 		return 1;
 	}
 	if (live_kml_fname && kml_init(&live_kml, live_kml_fname, 1)) {
-		fprintf(stderr, "Error creating KML file %s\n", live_kml_fname);
+		log_error("Error creating KML file %s", live_kml_fname);
 		return 1;
 	}
 	if (gpx_fname && gpx_init(&gpx, gpx_fname)) {
-		fprintf(stderr, "Error creating GPX file %s\n", gpx_fname);
+		log_error("Error creating GPX file %s", gpx_fname);
 		return 1;
 	}
 
 	/* Initialize decoder */
 	set_active_decoder(active_decoder);
 	if (decoder_init(samplerate)) {
-		fprintf(stderr, "Error while initializing decoder subsystem, exiting...\n");
+		log_error("Error while initializing decoder subsystem");
 		return 1;
 	}
 
@@ -428,6 +429,9 @@ usage(const char *pname)
 			"                                m10: MeteoModem M10/M20\n"
 			"                                ims100: Meisei iMS-100\n"
 			"                                imet4: InterMet iMet-4\n"
+#ifdef ENABLE_GUI
+			"   -g, --gui                    Initialize GUI\n"
+#endif
 	        "\n"
 	        "   -h, --help                   Print this help screen\n"
 	        "   -v, --version                Print version info\n"
@@ -468,6 +472,9 @@ version(void)
 #endif
 #ifdef ENABLE_TUI
 			" +ncurses"
+#endif
+#ifdef ENABLE_GUI
+			" +gui"
 #endif
 			"\n");
 }

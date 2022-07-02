@@ -98,12 +98,12 @@ gui_main(void *args)
 	glContext = SDL_GL_CreateContext(win);
 	gl_version = (const char*)glGetString(GL_VERSION);
 	if (gl_version) {
-		log_info("Created OpenGL context: %s\n", gl_version);
+		log_info("Created OpenGL context: %s", gl_version);
 	} else {
-		log_error("Unable to create OpenGL context: %s\n", SDL_GetError());
+		log_error("Unable to create OpenGL context: %s", SDL_GetError());
 	}
 	if (strcmp(SDL_GetError(), "")) {
-		log_error("SDL context creation failed: %s\n", SDL_GetError());
+		log_error("SDL context creation failed: %s", SDL_GetError());
 	}
 	SDL_GetWindowSize(win, &width, &height);
 	glViewport(0, 0, width, height);
@@ -420,11 +420,14 @@ config_window(struct nk_context *ctx, UIState *state, Config *conf)
 		if (nk_button_label(ctx, "Cancel")) {
 			state->config_open = 0;
 
+			log_debug("Reverting config");
 			/* Restore UI scale */
 			state->scale = conf->ui_scale;
 		}
 		if (nk_button_label(ctx, "Save")) {
 			state->config_open = 0;
+
+			log_debug("Copying config to main struct");
 
 			/* Save config to struct */
 			conf->ui_scale = state->scale;
@@ -437,6 +440,8 @@ config_window(struct nk_context *ctx, UIState *state, Config *conf)
 		state->over_window |= nk_window_is_hovered(ctx);
 	} else {
 		state->config_open = 0;
+
+		log_debug("Reverting config");
 
 		/* Restore UI scale */
 		state->scale = conf->ui_scale;
