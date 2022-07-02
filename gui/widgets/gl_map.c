@@ -268,7 +268,7 @@ mipmap(float zoom)
 static void
 map_opengl_init(GLMap *map)
 {
-	GLint status;
+	GLint status, attrib_pos_x, attrib_pos_y;
 
 	const GLchar *vertex_shader = _binary_simpleproj_vert_start;
 	const int vertex_shader_len = SYMSIZE(_binary_simpleproj_vert);
@@ -298,9 +298,10 @@ map_opengl_init(GLMap *map)
 	assert(status == GL_TRUE);
 
 	/* Uniforms + attributes */
-	map->u4m_proj = glGetUniformLocation(map->tile_program, "proj_mtx");
-	map->u4f_map_color = glGetUniformLocation(map->tile_program, "color");
-	map->attrib_pos = glGetAttribLocation(map->tile_program, "position");
+	map->u4m_proj = glGetUniformLocation(map->tile_program, "u_proj_mtx");
+	map->u4f_map_color = glGetUniformLocation(map->tile_program, "u_color");
+	attrib_pos_x = glGetAttribLocation(map->tile_program, "in_position_x");
+	attrib_pos_y = glGetAttribLocation(map->tile_program, "in_position_y");
 
 	/* Buffers, arrays, and layouts */
 	glGenVertexArrays(1, &map->vao);
@@ -311,8 +312,10 @@ map_opengl_init(GLMap *map)
 	glBindBuffer(GL_ARRAY_BUFFER, map->vbo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, map->ibo);
 
-	glEnableVertexAttribArray(map->attrib_pos);
-	glVertexAttribPointer(map->attrib_pos, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, x));
+	glEnableVertexAttribArray(attrib_pos_x);
+	glEnableVertexAttribArray(attrib_pos_y);
+	glVertexAttribPointer(attrib_pos_x, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, x));
+	glVertexAttribPointer(attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, y));
 
 	memset(&map->vram_tile_metadata, 0, sizeof(map->vram_tile_metadata));
 }
@@ -320,7 +323,7 @@ map_opengl_init(GLMap *map)
 static void
 track_opengl_init(GLMap *map)
 {
-	GLuint attrib_track_pos;
+	GLuint attrib_pos_x, attrib_pos_y;
 	GLint status;
 
 	const GLchar *vertex_shader = _binary_worldproj_vert_start;
@@ -352,17 +355,20 @@ track_opengl_init(GLMap *map)
 	assert(status == GL_TRUE);
 
 	/* Uniforms + attributes */
-	map->u4m_track_proj = glGetUniformLocation(map->track_program, "proj_mtx");
-	map->u1f_zoom = glGetUniformLocation(map->track_program, "zoom");
-	map->u4f_track_color = glGetUniformLocation(map->track_program, "color");
-	attrib_track_pos = glGetAttribLocation(map->track_program, "position");
+	map->u4m_track_proj = glGetUniformLocation(map->track_program, "u_proj_mtx");
+	map->u1f_zoom = glGetUniformLocation(map->track_program, "u_zoom");
+	map->u4f_track_color = glGetUniformLocation(map->track_program, "u_color");
+	attrib_pos_x = glGetAttribLocation(map->track_program, "in_position_x");
+	attrib_pos_y = glGetAttribLocation(map->track_program, "in_position_y");
 
 	glGenVertexArrays(1, &map->track_vao);
 	glBindVertexArray(map->track_vao);
 	glGenBuffers(1, &map->track_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, map->track_vbo);
 
-	glEnableVertexAttribArray(attrib_track_pos);
-	glVertexAttribPointer(attrib_track_pos, 2, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, lat));
+	glEnableVertexAttribArray(attrib_pos_x);
+	glEnableVertexAttribArray(attrib_pos_y);
+	glVertexAttribPointer(attrib_pos_x, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, lat));
+	glVertexAttribPointer(attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, lon));
 }
 /* }}} */

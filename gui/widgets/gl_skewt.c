@@ -59,11 +59,11 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	const float x_center = ctx->center_x;
 	const float y_center = ctx->center_y;
 	const int data_count = get_data_count();
+	const float temperature_color[] = {1.0, 0.0, 0.0, 1.0};
+	const float dewpt_color[] = {0.0, 0.0, 1.0, 1.0};
 	BezierMetadata *metadata;
 	Vertex *vertices;
 	float thickness;
-	float temperature_color[] = {1.0, 0.0, 0.0, 1.0};
-	float dewpt_color[] = {0.0, 0.0, 1.0, 1.0};
 	size_t i, j;
 	unsigned int vertex_count;
 
@@ -217,7 +217,6 @@ chart_opengl_init(GLSkewT *ctx)
 	attrib_p[2] = glGetAttribLocation(ctx->chart_program, "in_p2");
 	attrib_p[3] = glGetAttribLocation(ctx->chart_program, "in_p3");
 
-
 	/* Allocate buffers */
 	glGenVertexArrays(1, &ctx->vao);
 	glBindVertexArray(ctx->vao);
@@ -275,8 +274,8 @@ data_opengl_init(GLSkewT *ctx)
 	assert(status == GL_TRUE);
 
 	/* Uniforms + attributes */
-	ctx->u4m_data_proj = glGetUniformLocation(ctx->data_program, "proj_mtx");
-	ctx->u4f_data_color = glGetUniformLocation(ctx->data_program, "color");
+	ctx->u4m_data_proj = glGetUniformLocation(ctx->data_program, "u_proj_mtx");
+	ctx->u4f_data_color = glGetUniformLocation(ctx->data_program, "u_color");
 
 	ctx->attrib_data_temp = glGetAttribLocation(ctx->data_program, "in_temp");
 	attrib_alt = glGetAttribLocation(ctx->data_program, "in_altitude");

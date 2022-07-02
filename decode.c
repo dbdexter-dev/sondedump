@@ -202,6 +202,7 @@ decode(const float *srcbuf, size_t len)
 					}
 
 					if (isnormal(printable->alt)) {
+						track[sample_count].id = sample_count;
 						track[sample_count].temp = l_printable->temp;
 						track[sample_count].rh = l_printable->rh;
 						track[sample_count].hdg = l_printable->heading;

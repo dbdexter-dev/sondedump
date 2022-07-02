@@ -164,6 +164,7 @@ set(GUI_SOURCES
 	gui/widgets/audio_dev_select.c gui/widgets/audio_dev_select.h
 	gui/widgets/gl_map.c gui/widgets/gl_map.h
 	gui/widgets/gl_skewt.c gui/widgets/gl_skewt.h
+	gui/widgets/gl_timeseries.c gui/widgets/gl_timeseries.h
 
 	gui/shaders/shaders.h
 )

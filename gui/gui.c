@@ -15,6 +15,7 @@
 #include "widgets/type_select.h"
 #include "widgets/gl_map.h"
 #include "widgets/gl_skewt.h"
+#include "widgets/gl_timeseries.h"
 
 #define MAX_VERTEX_MEMORY (512 * 1024)
 #define MAX_ELEMENT_MEMORY (128 * 1024)
@@ -71,6 +72,7 @@ gui_main(void *args)
 
 	GLMap map;
 	GLSkewT skewt;
+	GLTimeseries timeseries;
 	UIState ui_state;
 	const char *gl_version;
 
@@ -114,6 +116,9 @@ gui_main(void *args)
 	skewt.center_x = 0.5;
 	skewt.center_y = 0.5;
 	skewt.zoom = MIN(width, height);
+
+	/* Initialize timeseries plot */
+	gl_timeseries_init(&timeseries);
 
 	/* Initialize nuklear */
 	ui_state.scale = ui_state.old_scale = 1;
@@ -228,12 +233,13 @@ gui_main(void *args)
 		glClear(GL_COLOR_BUFFER_BIT);
 		glClearColor(0, 0, 0, 1);
 
-		/* Draw background map */
+		/* Draw background widget */
 		switch (ui_state.active_widget) {
 		case GUI_MAP:
 			gl_map_vector(&map, width, height);
 			break;
 		case GUI_TIMESERIES:
+			gl_timeseries(&timeseries);
 			break;
 		case GUI_SKEW_T:
 			gl_skewt_vector(&skewt, width, height);
@@ -250,6 +256,8 @@ gui_main(void *args)
 cleanup:
 	_interrupted = 1;
 	gl_map_deinit(&map);
+	gl_skewt_deinit(&skewt);
+	gl_timeseries_deinit(&timeseries);
 	nk_sdl_shutdown();
 	SDL_GL_DeleteContext(glContext);
 	SDL_DestroyWindow(win);

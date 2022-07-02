@@ -1,7 +1,7 @@
 #ifndef gl_map_h
 #define gl_map_h
 
-#include <GLES2/gl2.h>
+#include <GLES3/gl3.h>
 
 #define MAP_TILE_WIDTH 1024
 #define MAP_TILE_HEIGHT 1024
@@ -27,8 +27,6 @@ typedef struct {
 
 	GLuint u4f_map_color, u4m_proj;
 	GLuint u1f_zoom, u4f_track_color, u4m_track_proj;
-
-	GLuint attrib_pos;
 } GLMap;
 
 void gl_map_init(GLMap *map);

@@ -6,6 +6,7 @@
 #define decoder_iface_t ParserStatus(*)(void*, SondeData*, const float*, size_t)
 
 typedef struct {
+	unsigned int id;
 	float lat, lon, alt;
 	float pressure;
 	float speed, hdg;
