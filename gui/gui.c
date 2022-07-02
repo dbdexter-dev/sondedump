@@ -3,6 +3,7 @@
 #include <SDL2/SDL_opengles2.h>
 #include <GLES3/gl3.h>
 #include <pthread.h>
+#include "config.h"
 #include "decode.h"
 #include "gui.h"
 #include "utils.h"
@@ -31,12 +32,14 @@ typedef struct {
 	int dragging;
 	int force_refresh;
 
+	char lat[32], lon[32], alt[32];
+
 	enum graph active_widget;
 } UIState;
 
 static void *gui_main(void *args);
-static void overview_window(struct nk_context *ctx, GLMap *map, UIState *state);
-static void config_window(struct nk_context *ctx, UIState *state);
+static void overview_window(struct nk_context *ctx, GLMap *map, UIState *state, const Config *conf);
+static void config_window(struct nk_context *ctx, UIState *state, Config *conf);
 
 static pthread_t _tid;
 extern volatile int _interrupted;
@@ -74,6 +77,7 @@ gui_main(void *args)
 	GLSkewT skewt;
 	GLTimeseries timeseries;
 	UIState ui_state;
+	Config config;
 	const char *gl_version;
 
 
@@ -105,6 +109,9 @@ gui_main(void *args)
 	SDL_GetWindowSize(win, &width, &height);
 	glViewport(0, 0, width, height);
 
+	/* Load config */
+	config_load_from_file(&config);
+
 	/* Initialize map */
 	gl_map_init(&map);
 	map.zoom = 3.0;
@@ -121,7 +128,7 @@ gui_main(void *args)
 	gl_timeseries_init(&timeseries);
 
 	/* Initialize nuklear */
-	ui_state.scale = ui_state.old_scale = 1;
+	ui_state.scale = ui_state.old_scale = config.ui_scale;
 	ctx = nk_sdl_init(win);
 	gui_load_fonts(ctx, ui_state.scale);
 	gui_set_style_default(ctx);
@@ -225,9 +232,9 @@ gui_main(void *args)
 
 		ui_state.over_window = 0;
 		/* Main window */
-		overview_window(ctx, &map, &ui_state);
+		overview_window(ctx, &map, &ui_state, &config);
 		/* Config */
-		if (ui_state.config_open) config_window(ctx, &ui_state);
+		if (ui_state.config_open) config_window(ctx, &ui_state, &config);
 
 		/* Render */
 		glViewport(0, 0, width, height);
@@ -263,6 +270,9 @@ cleanup:
 	SDL_GL_DeleteContext(glContext);
 	SDL_DestroyWindow(win);
 	SDL_Quit();
+
+	/* Save config */
+	config_save_to_file(&config);
 	return NULL;
 }
 
@@ -275,7 +285,7 @@ gui_force_update(void)
 
 /* Static functions {{{ */
 static void
-overview_window(struct nk_context *ctx, GLMap *map, UIState *state)
+overview_window(struct nk_context *ctx, GLMap *map, UIState *state, const Config *conf)
 {
 	struct nk_vec2 position;
 	const char *title = "Overview";
@@ -323,6 +333,10 @@ overview_window(struct nk_context *ctx, GLMap *map, UIState *state)
 
 		if (nk_button_label(ctx, "Configure...")) {
 			state->config_open = 1;
+			sprintf(state->lat, "%.6f", conf->receiver.lat);
+			sprintf(state->lon, "%.6f", conf->receiver.lon);
+			sprintf(state->alt, "%.0f", conf->receiver.alt);
+
 		}
 	}
 	/* Resize according to the scale factor */
@@ -342,7 +356,7 @@ overview_window(struct nk_context *ctx, GLMap *map, UIState *state)
 }
 
 static void
-config_window(struct nk_context *ctx, UIState *state)
+config_window(struct nk_context *ctx, UIState *state, Config *conf)
 {
 	const int label_len = 120;
 	const char *title = "Settings";
@@ -350,7 +364,6 @@ config_window(struct nk_context *ctx, UIState *state)
 	                                    | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE | NK_WINDOW_CLOSABLE;
 	struct nk_rect bounds;
 	float border;
-	static char lat[32], lon[32], alt[32];
 
 	if (nk_begin(ctx, title, nk_rect(0, 0, PANEL_WIDTH * state->scale, 0), win_flags)) {
 		border = nk_window_get_panel(ctx)->border;
@@ -374,19 +387,19 @@ config_window(struct nk_context *ctx, UIState *state)
 			nk_label(ctx, "Latitude ('N):", NK_TEXT_LEFT);
 			bounds = nk_layout_widget_bounds(ctx);
 			nk_layout_row_push(ctx, bounds.w - label_len * state->scale - 2 * border);
-			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, lat, LEN(lat), nk_filter_float);
+			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, state->lat, LEN(state->lat), nk_filter_float);
 
 			/* Longitude text box */
 			nk_layout_row_push(ctx, label_len * state->scale);
 			nk_label(ctx, "Longitude ('E):", NK_TEXT_LEFT);
 			nk_layout_row_push(ctx, bounds.w - label_len * state->scale - 2 * border);
-			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, lon, LEN(lon), nk_filter_float);
+			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, state->lon, LEN(state->lon), nk_filter_float);
 
 			/* Altitude text box */
 			nk_layout_row_push(ctx, label_len * state->scale);
 			nk_label(ctx, "Altitude (m):", NK_TEXT_LEFT);
 			nk_layout_row_push(ctx, bounds.w - label_len * state->scale - 2 * border);
-			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, alt, LEN(alt), nk_filter_float);
+			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, state->alt, LEN(state->alt), nk_filter_float);
 
 			nk_layout_row_end(ctx);
 
@@ -396,10 +409,17 @@ config_window(struct nk_context *ctx, UIState *state)
 		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 2);
 		if (nk_button_label(ctx, "Cancel")) {
 			state->config_open = 0;
+
+			state->scale = conf->ui_scale;
 		}
 		if (nk_button_label(ctx, "Save")) {
 			state->config_open = 0;
-			/* TODO copy settings */
+
+			/* Save config to struct */
+			conf->ui_scale = state->scale;
+			conf->receiver.lat = atof(state->lat);
+			conf->receiver.lon = atof(state->lon);
+			conf->receiver.alt = atof(state->alt);
 		}
 
 		nk_window_fit_to_content(ctx);

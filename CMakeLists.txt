@@ -137,9 +137,12 @@ set(LIBRARY_SOURCES
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h
 
+	libs/jsmn/jsmn.c libs/jsmn/jsmn.h
+
 	bitops.c bitops.h
 	physics.c physics.h
 	utils.c utils.h
+	config.c config.h
 )
 
 set(TUI_SOURCES
@@ -158,7 +161,6 @@ set(GUI_SOURCES
 	gui/style.c gui/style.h
 	gui/gui.c gui/gui.h
 
-	#gui/widgets/chart.c gui/widgets/chart.h
 	gui/widgets/data.c gui/widgets/data.h
 	gui/widgets/type_select.c gui/widgets/type_select.h
 	gui/widgets/audio_dev_select.c gui/widgets/audio_dev_select.h
