@@ -3,12 +3,10 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef NDEBUG
-#include <stdio.h>
-#endif
 #include <GLES3/gl3.h>
 #include "decode.h"
 #include "gl_map.h"
+#include "log/log.h"
 #include "style.h"
 #include "utils.h"
 #include "shaders/shaders.h"
@@ -28,42 +26,42 @@ static void map_opengl_init(GLMap *map);
 static void track_opengl_init(GLMap *map);
 static int mipmap(float zoom);
 
-static void update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, int zoom);
+static void update_buffers(GLMap *ctx, int x_start, int y_start, int x_count, int y_count, int zoom);
 
 
 void
-gl_map_init(GLMap *map)
+gl_map_init(GLMap *ctx)
 {
 	/* Background map program, buffers, uniforms... */
-	map_opengl_init(map);
+	map_opengl_init(ctx);
 
 	/* Ground track program, buffers, uniforms... */
-	track_opengl_init(map);
+	track_opengl_init(ctx);
 }
 
 void
-gl_map_deinit(GLMap *map)
+gl_map_deinit(GLMap *ctx)
 {
-	if (map->vao) glDeleteVertexArrays(1, &map->vao);
-	if (map->vbo) glDeleteBuffers(1, &map->vbo);
-	if (map->ibo) glDeleteBuffers(1, &map->ibo);
-	if (map->tile_vert_shader) glDeleteProgram(map->tile_vert_shader);
-	if (map->tile_frag_shader) glDeleteProgram(map->tile_frag_shader);
-	if (map->tile_program) glDeleteProgram(map->tile_program);
+	if (ctx->vao) glDeleteVertexArrays(1, &ctx->vao);
+	if (ctx->vbo) glDeleteBuffers(1, &ctx->vbo);
+	if (ctx->ibo) glDeleteBuffers(1, &ctx->ibo);
+	if (ctx->tile_vert_shader) glDeleteProgram(ctx->tile_vert_shader);
+	if (ctx->tile_frag_shader) glDeleteProgram(ctx->tile_frag_shader);
+	if (ctx->tile_program) glDeleteProgram(ctx->tile_program);
 
-	if (map->track_vao) glDeleteVertexArrays(1, &map->track_vao);
-	if (map->track_vbo) glDeleteBuffers(1, &map->track_vbo);
-	if (map->track_vert_shader) glDeleteProgram(map->track_vert_shader);
-	if (map->track_frag_shader) glDeleteProgram(map->track_frag_shader);
-	if (map->track_program) glDeleteProgram(map->track_program);
+	if (ctx->track_vao) glDeleteVertexArrays(1, &ctx->track_vao);
+	if (ctx->track_vbo) glDeleteBuffers(1, &ctx->track_vbo);
+	if (ctx->track_vert_shader) glDeleteProgram(ctx->track_vert_shader);
+	if (ctx->track_frag_shader) glDeleteProgram(ctx->track_frag_shader);
+	if (ctx->track_program) glDeleteProgram(ctx->track_program);
 }
 
 void
-gl_map_vector(GLMap *map, int width, int height, const GeoPoint *data, size_t len)
+gl_map_vector(GLMap *ctx, int width, int height, const GeoPoint *data, size_t len)
 {
-	float center_x = map->center_x;
-	float center_y = map->center_y;
-	float zoom = map->zoom;
+	float center_x = ctx->center_x;
+	float center_y = ctx->center_y;
+	float zoom = ctx->zoom;
 
 	const float digital_zoom = powf(2, zoom - mipmap(zoom));
 	const int x_size = 1 << mipmap(zoom);
@@ -102,22 +100,22 @@ gl_map_vector(GLMap *map, int width, int height, const GeoPoint *data, size_t le
 
 
 	/* Load missing vertex buffers */
-	update_buffers(map, x_start, y_start, x_count, y_count, mipmap(zoom));
+	update_buffers(ctx, x_start, y_start, x_count, y_count, mipmap(zoom));
 
 	/* Draw map {{{ */
-	glUseProgram(map->tile_program);
-	glBindVertexArray(map->vao);
-	glUniformMatrix4fv(map->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
+	glUseProgram(ctx->tile_program);
+	glBindVertexArray(ctx->vao);
+	glUniformMatrix4fv(ctx->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
 
 	glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
-	glUniform4fv(map->u4f_map_color, 1, map_color);
-	glDrawElements(GL_LINE_STRIP, map->vram_tile_metadata.vertex_count, GL_UNSIGNED_INT, 0);
+	glUniform4fv(ctx->u4f_map_color, 1, map_color);
+	glDrawElements(GL_LINE_STRIP, ctx->vram_tile_metadata.vertex_count, GL_UNSIGNED_INT, 0);
 	glDisable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
 	/* }}} */
 	/* Draw ground track {{{ */
-	glUseProgram(map->track_program);
-	glBindVertexArray(map->track_vao);
-	glBindBuffer(GL_ARRAY_BUFFER, map->track_vbo);
+	glUseProgram(ctx->track_program);
+	glBindVertexArray(ctx->track_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, ctx->track_vbo);
 	glBufferData(GL_ARRAY_BUFFER, len * sizeof(GeoPoint), data, GL_STREAM_DRAW);
 
 	/* Shader converts (lat,lon) to (x,y): translate so that the center of the
@@ -125,9 +123,9 @@ gl_map_vector(GLMap *map, int width, int height, const GeoPoint *data, size_t le
 	proj[3][0] = proj[0][0] * -center_x;
 	proj[3][1] = proj[1][1] * -center_y;
 
-	glUniformMatrix4fv(map->u4m_track_proj, 1, GL_FALSE, (GLfloat*)proj);
-	glUniform4fv(map->u4f_track_color, 1, track_color);
-	glUniform1f(map->u1f_zoom, 1 << mipmap(zoom));
+	glUniformMatrix4fv(ctx->u4m_track_proj, 1, GL_FALSE, (GLfloat*)proj);
+	glUniform4fv(ctx->u4f_track_color, 1, track_color);
+	glUniform1f(ctx->u1f_zoom, 1 << mipmap(zoom));
 
 	glDrawArrays(GL_POINTS, 0, len);
 	/* }}} */
@@ -166,9 +164,7 @@ update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, i
 		return;
 	}
 
-#ifndef NDEBUG
-	printf("Detected viewport change to %dx%d\n", x_count, y_count);
-#endif
+	log_debug("Detected viewport change to %dx%d\n", x_count, y_count);
 
 	map->vram_tile_metadata.x_start = MAX(0, x_start);
 	map->vram_tile_metadata.y_start = MAX(0, y_start);
@@ -194,9 +190,7 @@ update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, i
 				continue;
 			}
 
-#ifndef NDEBUG
-			printf("Attempting to load (%d,%d)...\n", actual_x, actual_y);
-#endif
+			log_debug("Attempting to load (%d,%d)...\n", actual_x, actual_y);
 
 			changed = 1;
 
@@ -236,9 +230,7 @@ update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, i
 
 			ibo_len += len;
 			ibo_offset = max_ibo + 1;
-#ifndef NDEBUG
-			printf("New IBO offset: %u\n", ibo_offset);
-#endif
+			log_debug("New IBO offset: %u\n", ibo_offset);
 		}
 	}
 

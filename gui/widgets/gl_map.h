@@ -31,8 +31,13 @@ typedef struct {
 	GLuint u1f_zoom, u4f_track_color, u4m_track_proj;
 } GLMap;
 
-void gl_map_init(GLMap *map);
-void gl_map_vector(GLMap *map, int width, int height, const GeoPoint *data, size_t len);
-void gl_map_deinit(GLMap *map);
+/**
+ * Initialize a OpenGL-based world map plot
+ *
+ * @param ctx map context, will be configured by the init function
+ */
+void gl_map_init(GLMap *ctx);
+void gl_map_vector(GLMap *ctx, int width, int height, const GeoPoint *data, size_t len);
+void gl_map_deinit(GLMap *ctx);
 
 #endif

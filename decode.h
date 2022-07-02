@@ -9,7 +9,6 @@ typedef struct {
 	unsigned int id;
 	float lat, lon, alt;
 	float pressure;
-	float speed, hdg;
 	float temp, rh, dewpt;
 } GeoPoint;
 
@@ -24,9 +23,15 @@ ParserStatus decode(const float *samples, size_t len);
  */
 void         decoder_set_samplerate(int samplerate);
 
+/**
+ * Getter/setter for the currently active decoder
+ */
 enum decoder get_active_decoder(void);
 void         set_active_decoder(enum decoder decoder);
 
+/**
+ * Get a pointer to the data decoded so far
+ */
 PrintableData *get_data(void);
 int            get_slot(void);
 

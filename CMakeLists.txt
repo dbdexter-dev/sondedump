@@ -57,7 +57,9 @@ function(add_blobs out_var)
 	set(${out_var} "${result}" PARENT_SCOPE)
 endfunction()
 
-
+# Used by the log_*() functions to retrieve the base name of the source file
+string(LENGTH "${CMAKE_SOURCE_DIR}/" SOURCE_BASE_PATH_SIZE)
+add_definitions("-DSOURCE_BASE_PATH_SIZE=${SOURCE_BASE_PATH_SIZE}")
 
 # Rules to embed binary blobs with stable symbol names
 set(BLOB_SRCS)
@@ -137,12 +139,11 @@ set(LIBRARY_SOURCES
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h
 
-	libs/jsmn/jsmn.c libs/jsmn/jsmn.h
+	log/log.c log/log.h
 
 	bitops.c bitops.h
 	physics.c physics.h
 	utils.c utils.h
-	config.c config.h
 )
 
 set(TUI_SOURCES
@@ -175,6 +176,9 @@ set(EXEC_SOURCES
 	io/gpx.c io/gpx.h
 	io/kml.c io/kml.h
 	io/wavfile.c io/wavfile.h
+
+	libs/jsmn/jsmn.c libs/jsmn/jsmn.h
+	config.c config.h
 
 	decode.c decode.h
 	main.c

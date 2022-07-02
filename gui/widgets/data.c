@@ -14,7 +14,7 @@ extern const int _decoder_count;
 int
 widget_data(struct nk_context *ctx, float scale)
 {
-	char tmp[64];
+	char tmp[128];
 
 	PrintableData *printable = get_data();
 
@@ -77,7 +77,10 @@ widget_data(struct nk_context *ctx, float scale)
 	sprintf(tmp, "%.1f hPa", printable->pressure);
 	nk_label(ctx, tmp, NK_TEXT_LEFT);
 
-	/* Sonde type selection */
+	nk_label(ctx, "Aux. data: ", NK_TEXT_RIGHT);
+	sprintf(tmp, "%s", printable->xdata);
+	nk_label(ctx, tmp, NK_TEXT_LEFT);
+
 	nk_label(ctx, "Calibration:", NK_TEXT_RIGHT);
 	sprintf(tmp, "%.0f%%", printable->calib_percent);
 	nk_label(ctx, tmp, NK_TEXT_LEFT);

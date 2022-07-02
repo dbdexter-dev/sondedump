@@ -23,8 +23,29 @@ typedef struct {
 
 } GLSkewT;
 
+/**
+ * Initialize a OpenGL-based skew-t plot
+ *
+ * @param ctx skew-t context, will be configured by the init function
+ */
 void gl_skewt_init(GLSkewT *ctx);
+
+/**
+ * Deinitialize a skew-t plot
+ *
+ * @param ctx context to deinitialize
+ */
 void gl_skewt_deinit(GLSkewT *ctx);
+
+/**
+ * Draw a skew-t plot, together with recorded data
+ *
+ * @param ctx       skew-t context
+ * @param width     viewport width, in pixels
+ * @param height    viewport height, in pixels
+ * @param data      data to display
+ * @param len       number of elements to display in the data array
+ */
 void gl_skewt_vector(GLSkewT *ctx, int width, int height, const GeoPoint *data, size_t len);
 
 

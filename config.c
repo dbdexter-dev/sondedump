@@ -3,6 +3,7 @@
 #include <string.h>
 #include "config.h"
 #define JSMN_HEADER
+#include "log/log.h"
 #include "libs/jsmn/jsmn.h"
 #include "utils.h"
 
@@ -54,6 +55,7 @@ config_load_from_file(Config *config)
 
 	/* Open config */
 	if (!(fd = fopen(config_path(), "r"))) {
+		log_warn("Could not find %s\n", config_path());
 		return 1;
 	}
 
@@ -66,20 +68,18 @@ config_load_from_file(Config *config)
 	}
 
 
-#ifndef NDEBUG
-	printf("Read config (size %ld): %s\n", len, confdata);
-#endif
+	log_debug("Read config (size %ld): %s\n", len, confdata);
 
 	/* Parse */
 	jsmn_init(&parser);
 	token_count = jsmn_parse(&parser, confdata, len, tokens, MAX_JSON_TOKENS);
 	if (token_count < 0) {
-		fprintf(stderr, "Invalid configuration file (jsmn error code %d)\n", token_count);
+		log_error("Invalid configuration file (jsmn error code %d)\n", token_count);
 		return 2;
 	}
 
 	if (tokens[0].type != JSMN_OBJECT) {
-		fprintf(stderr, "Invalid configuration file (top-level object not found)\n");
+		log_error("Invalid configuration file (top-level object not found)\n");
 		return 3;
 	}
 
@@ -102,9 +102,7 @@ config_load_from_file(Config *config)
 					sscanf(confdata + tokens[i+1].start, "%f", &config->ui_scale);
 					break;
 				default:
-#ifndef NDEBUG
-					fprintf(stderr, "Unknown config key: %s\n", confdata + tokens[i].start);
-#endif
+					log_warn("Unknown config key: %s\n", confdata + tokens[i].start);
 					break;
 				}
 			}
@@ -120,9 +118,7 @@ config_save_to_file(const Config *config)
 {
 	FILE *fd;
 
-#ifndef NDEBUG
-	printf("[config] saving to %s...\n", config_path());
-#endif
+	log_debug("Saving to %s...\n", config_path());
 
 	if (!(fd = fopen(config_path(), "w"))) {
 		fprintf(stderr, "[config] failed to write config.\n");
@@ -140,16 +136,31 @@ config_save_to_file(const Config *config)
 	return 0;
 }
 
+/* Static functions {{{ */
+/**
+ * Compare a string with the tokenized value returned by jsmn
+ *
+ * @param json  full json string passed to jsmn
+ * @param token token returned by jsmn, hopefully pointing to a valid string
+ * @param s     string to compare to the token
+ * @return      0 on match, non-zero on mismatch or invalid jsmn token type
+ */
 static int
 json_cmp(const char *json, jsmntok_t *token, const char *s)
 {
-	if (token->type == JSMN_STRING && strlen(s) == token->end - token->start) {
+	if (token->type == JSMN_STRING && (int)strlen(s) == token->end - token->start) {
 		return strncmp(json + token->start, s, token->end - token->start);
 	}
 	return 1;
 }
 
-/* FIXME heavily untested outside of __linux__ */
+/**
+ * Get the OS-specific default configuration file path
+ *
+ * @return the absolute path where the config should be written. This path is
+ * guaranteed to exist (bar the actual file)
+ * FIXME heavily untested outside of __linux__
+ */
 static char*
 config_path(void)
 {
@@ -180,3 +191,4 @@ config_path(void)
 	strcat(confpath, CONFIG_FNAME);
 	return confpath;
 }
+/* }}} */

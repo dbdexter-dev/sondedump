@@ -6,6 +6,7 @@
 #include "config.h"
 #include "decode.h"
 #include "gui.h"
+#include "log/log.h"
 #include "utils.h"
 #include "nuklear/nuklear.h"
 #include "nuklear/nuklear_ext.h"
@@ -38,8 +39,8 @@ typedef struct {
 } UIState;
 
 static void *gui_main(void *args);
-static void overview_window(struct nk_context *ctx, GLMap *map, UIState *state, const Config *conf);
 static void config_window(struct nk_context *ctx, UIState *state, Config *conf);
+static void overview_window(struct nk_context *ctx, UIState *state, GLMap *map);
 
 static pthread_t _tid;
 extern volatile int _interrupted;
@@ -97,15 +98,13 @@ gui_main(void *args)
 	glContext = SDL_GL_CreateContext(win);
 	gl_version = (const char*)glGetString(GL_VERSION);
 	if (gl_version) {
-		printf("Created OpenGL context: %s\n", gl_version);
+		log_info("Created OpenGL context: %s\n", gl_version);
 	} else {
-		printf("Unable to create OpenGL context: %s\n", SDL_GetError());
+		log_error("Unable to create OpenGL context: %s\n", SDL_GetError());
 	}
-#ifndef NDEBUG
-	if (!strcmp(SDL_GetError(), "")) {
-		printf("SDL context creation failed: %s\n", SDL_GetError());
+	if (strcmp(SDL_GetError(), "")) {
+		log_error("SDL context creation failed: %s\n", SDL_GetError());
 	}
-#endif
 	SDL_GetWindowSize(win, &width, &height);
 	glViewport(0, 0, width, height);
 
@@ -232,7 +231,7 @@ gui_main(void *args)
 
 		ui_state.over_window = 0;
 		/* Main window */
-		overview_window(ctx, &map, &ui_state, &config);
+		overview_window(ctx, &ui_state, &map);
 		/* Config */
 		if (ui_state.config_open) config_window(ctx, &ui_state, &config);
 
@@ -285,7 +284,7 @@ gui_force_update(void)
 
 /* Static functions {{{ */
 static void
-overview_window(struct nk_context *ctx, GLMap *map, UIState *state, const Config *conf)
+overview_window(struct nk_context *ctx, UIState *state, GLMap *map)
 {
 	struct nk_vec2 position;
 	const char *title = "Overview";
@@ -321,9 +320,9 @@ overview_window(struct nk_context *ctx, GLMap *map, UIState *state, const Config
 			nk_group_end(ctx);
 		}
 
-		/* Reset view */
+		/* Reset map view */
 		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * 1.2 * state->scale, 1);
-		if (nk_button_label(ctx, "Re-center")) {
+		if (state->active_widget == GUI_MAP && nk_button_label(ctx, "Re-center")) {
 			if (get_data_count() > 0) {
 				last_point = get_track_data() + get_data_count() - 1;
 				map->center_x = lon_to_x(last_point->lon, 0);
@@ -331,27 +330,26 @@ overview_window(struct nk_context *ctx, GLMap *map, UIState *state, const Config
 			}
 		}
 
+		/* Open config window, pre-populating fields with the current config */
 		if (nk_button_label(ctx, "Configure...")) {
 			state->config_open = 1;
-			sprintf(state->lat, "%.6f", conf->receiver.lat);
-			sprintf(state->lon, "%.6f", conf->receiver.lon);
-			sprintf(state->alt, "%.0f", conf->receiver.alt);
-
 		}
+
+		/* Resize according to the scale factor */
+		ctx->current->bounds.w = PANEL_WIDTH * state->scale;
+		position = nk_window_get_position(ctx);
+
+		/* Resize to fit contents in the y direction */
+		nk_window_fit_to_content(ctx);
+
+		/* Bring window back in bounds */
+		position.x = MAX(0, position.x);
+		position.y = MAX(0, position.y);
+		nk_window_set_position(ctx, title, position);
+
+		state->over_window |= nk_window_is_hovered(ctx);
 	}
-	/* Resize according to the scale factor */
-	ctx->current->bounds.w = PANEL_WIDTH * state->scale;
-	position = nk_window_get_position(ctx);
 
-	/* Resize to fit contents in the y direction */
-	nk_window_fit_to_content(ctx);
-
-	/* Bring window back in bounds */
-	position.x = MAX(0, position.x);
-	position.y = MAX(0, position.y);
-	nk_window_set_position(ctx, "Overview", position);
-
-	state->over_window |= nk_window_is_hovered(ctx);
 	nk_end(ctx);
 }
 
@@ -365,9 +363,19 @@ config_window(struct nk_context *ctx, UIState *state, Config *conf)
 	struct nk_rect bounds;
 	float border;
 
+	/* On the first invocation, populate fields with data from the configuration */
+	if (state->config_open < 2) {
+		sprintf(state->lat, "%.6f", conf->receiver.lat);
+		sprintf(state->lon, "%.6f", conf->receiver.lon);
+		sprintf(state->alt, "%.0f", conf->receiver.alt);
+		state->config_open = 2;
+
+	}
+
 	if (nk_begin(ctx, title, nk_rect(0, 0, PANEL_WIDTH * state->scale, 0), win_flags)) {
 		border = nk_window_get_panel(ctx)->border;
 
+		/* Various purely display-related options */
 		if (nk_tree_push(ctx, NK_TREE_TAB, "Display options", NK_MAXIMIZED)) {
 			nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 1);
 
@@ -379,6 +387,7 @@ config_window(struct nk_context *ctx, UIState *state, Config *conf)
 			nk_tree_pop(ctx);
 		}
 
+		/* Ground station location configuration */
 		if (nk_tree_push(ctx, NK_TREE_TAB, "Ground station location", NK_MAXIMIZED)) {
 			nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 2);
 
@@ -406,10 +415,12 @@ config_window(struct nk_context *ctx, UIState *state, Config *conf)
 			nk_tree_pop(ctx);
 		}
 
+		/* Save/cancel */
 		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 2);
 		if (nk_button_label(ctx, "Cancel")) {
 			state->config_open = 0;
 
+			/* Restore UI scale */
 			state->scale = conf->ui_scale;
 		}
 		if (nk_button_label(ctx, "Save")) {
@@ -426,6 +437,9 @@ config_window(struct nk_context *ctx, UIState *state, Config *conf)
 		state->over_window |= nk_window_is_hovered(ctx);
 	} else {
 		state->config_open = 0;
+
+		/* Restore UI scale */
+		state->scale = conf->ui_scale;
 	}
 
 	nk_end(ctx);
