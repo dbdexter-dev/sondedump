@@ -4,6 +4,7 @@
 #include "gl_timeseries.h"
 #include "shaders/shaders.h"
 #include "utils.h"
+#include "style.h"
 
 static void timeseries_opengl_init(GLTimeseries *ctx);
 
@@ -32,10 +33,10 @@ gl_timeseries(GLTimeseries *ctx)
 	const float alt_bounds[] = {0, 40000-0};
 
 	const int data_count = get_data_count();
-	const float temperature_color[] = {1.0, 0.0, 0.0, 1.0};
-	const float dewpt_color[] = {0.0, 0.0, 1.0, 1.0};
-	const float alt_color[] = {0.0, 1.0, 0.0, 1.0};
-	const float rh_color[] = {1.0, 0.5, 0.0, 1.0};
+	const float temperature_color[] = STYLE_ACCENT_1_NORMALIZED;
+	const float dewpt_color[] = STYLE_ACCENT_0_NORMALIZED;
+	const float alt_color[] = STYLE_ACCENT_3_NORMALIZED;
+	const float rh_color[] = STYLE_ACCENT_2_NORMALIZED;
 	float p11;
 
 	GLfloat proj[4][4] = {

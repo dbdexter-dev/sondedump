@@ -292,10 +292,10 @@ overview_window(struct nk_context *ctx, GLMap *map, UIState *state)
 
 		/* UI graph selection */
 		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 3);
-		if (nk_option_label(ctx, "World map", state->active_widget == GUI_MAP)) {
+		if (nk_option_label(ctx, "Ground track", state->active_widget == GUI_MAP)) {
 			state->active_widget = GUI_MAP;
 		}
-		if (nk_option_label(ctx, "Sensor history", state->active_widget == GUI_TIMESERIES)) {
+		if (nk_option_label(ctx, "Sensor data", state->active_widget == GUI_TIMESERIES)) {
 			state->active_widget = GUI_TIMESERIES;
 		}
 		if (nk_option_label(ctx, "Skew-T", state->active_widget == GUI_SKEW_T)) {
@@ -360,7 +360,7 @@ config_window(struct nk_context *ctx, UIState *state)
 			/* UI scale configuration */
 			bounds = nk_layout_widget_bounds(ctx);
 			nk_layout_row_push(ctx, bounds.w);
-			nk_property_float(ctx, "#UI scale", 1, &state->scale, 5, 0.1, 0.1);
+			nk_property_float(ctx, "#UI scale", 0.5, &state->scale, 5, 0.1, 0.1);
 
 			nk_tree_pop(ctx);
 		}

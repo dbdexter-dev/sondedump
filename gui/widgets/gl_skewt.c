@@ -59,8 +59,8 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	const float x_center = ctx->center_x;
 	const float y_center = ctx->center_y;
 	const int data_count = get_data_count();
-	const float temperature_color[] = {1.0, 0.0, 0.0, 1.0};
-	const float dewpt_color[] = {0.0, 0.0, 1.0, 1.0};
+	const float temperature_color[] = STYLE_ACCENT_1_NORMALIZED;
+	const float dewpt_color[] = STYLE_ACCENT_0_NORMALIZED;
 	BezierMetadata *metadata;
 	Vertex *vertices;
 	float thickness;
