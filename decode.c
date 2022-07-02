@@ -32,6 +32,7 @@ static GeoPoint *track;
 static int reserved_count;
 static int sample_count;
 static int new_samplerate = -1;
+static time_t id_offset;
 
 int
 decoder_init(int samplerate)
@@ -54,6 +55,7 @@ decoder_init(int samplerate)
 	reserved_count = CHUNKSIZE;
 	sample_count = 0;
 
+	id_offset = time(NULL);
 
 	/* Initialize data double-buffer */
 	memset(printable, 0, sizeof(printable));
@@ -202,7 +204,7 @@ decode(const float *srcbuf, size_t len)
 					}
 
 					if (isnormal(printable->alt)) {
-						track[sample_count].id = sample_count;
+						track[sample_count].id = time(NULL) - id_offset;
 						track[sample_count].temp = l_printable->temp;
 						track[sample_count].rh = l_printable->rh;
 						track[sample_count].hdg = l_printable->heading;

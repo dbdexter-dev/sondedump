@@ -149,18 +149,19 @@ gui_main(void *args)
 			case SDL_QUIT:
 				goto cleanup;
 			case SDL_MOUSEWHEEL:
+				/* Zoom to where the cursor is */
 				switch (ui_state.active_widget) {
 				case GUI_MAP:
 					map.center_x += (ui_state.mouse.x - width/2.0) / MAP_TILE_WIDTH / powf(2, map.zoom);
 					map.center_y += (ui_state.mouse.y - height/2.0) / MAP_TILE_HEIGHT / powf(2, map.zoom);
-					map.zoom += 0.1 * evt.wheel.preciseY;
+					map.zoom += 0.1 * evt.wheel.y;
 					map.center_x -= (ui_state.mouse.x - width/2.0) / MAP_TILE_WIDTH / powf(2, map.zoom);
 					map.center_y -= (ui_state.mouse.y - height/2.0) / MAP_TILE_HEIGHT / powf(2, map.zoom);
 					break;
 				case GUI_SKEW_T:
 					skewt.center_x += (ui_state.mouse.x - width/2.0) / skewt.zoom;
 					skewt.center_y += (ui_state.mouse.y - height/2.0) / skewt.zoom;
-					skewt.zoom *= (1 + evt.wheel.preciseY / 10.0f);
+					skewt.zoom *= (1 + evt.wheel.y / 10.0f);
 					skewt.center_x -= (ui_state.mouse.x - width/2.0) / skewt.zoom;
 					skewt.center_y -= (ui_state.mouse.y - height/2.0) / skewt.zoom;
 					break;
@@ -176,6 +177,7 @@ gui_main(void *args)
 				break;
 			case SDL_MOUSEMOTION:
 				if (ui_state.dragging) {
+					/* Drag 1:1 with cursor movement */
 					switch (ui_state.active_widget) {
 					case GUI_MAP:
 						map.center_x -= (float)evt.motion.xrel / MAP_TILE_WIDTH / powf(2, map.zoom);
@@ -189,6 +191,7 @@ gui_main(void *args)
 						break;
 					}
 				}
+				/* Save current mouse position (used for zooming) */
 				ui_state.mouse.x = evt.motion.x;
 				ui_state.mouse.y = evt.motion.y;
 				break;
@@ -220,9 +223,7 @@ gui_main(void *args)
 		/* Update window size */
 		SDL_GetWindowSize(win, &width, &height);
 
-		/* Compose nuklear GUI elements */
 		ui_state.over_window = 0;
-
 		/* Main window */
 		overview_window(ctx, &map, &ui_state);
 		/* Config */
@@ -236,13 +237,13 @@ gui_main(void *args)
 		/* Draw background widget */
 		switch (ui_state.active_widget) {
 		case GUI_MAP:
-			gl_map_vector(&map, width, height);
+			gl_map_vector(&map, width, height, get_track_data(), get_data_count());
 			break;
 		case GUI_TIMESERIES:
-			gl_timeseries(&timeseries);
+			gl_timeseries(&timeseries, get_track_data(), get_data_count());
 			break;
 		case GUI_SKEW_T:
-			gl_skewt_vector(&skewt, width, height);
+			gl_skewt_vector(&skewt, width, height, get_track_data(), get_data_count());
 			break;
 		}
 

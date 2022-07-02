@@ -59,7 +59,7 @@ gl_map_deinit(GLMap *map)
 }
 
 void
-gl_map_vector(GLMap *map, int width, int height)
+gl_map_vector(GLMap *map, int width, int height, const GeoPoint *data, size_t len)
 {
 	float center_x = map->center_x;
 	float center_y = map->center_y;
@@ -118,7 +118,7 @@ gl_map_vector(GLMap *map, int width, int height)
 	glUseProgram(map->track_program);
 	glBindVertexArray(map->track_vao);
 	glBindBuffer(GL_ARRAY_BUFFER, map->track_vbo);
-	glBufferData(GL_ARRAY_BUFFER, get_data_count() * sizeof(GeoPoint), get_track_data(), GL_STREAM_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, len * sizeof(GeoPoint), data, GL_STREAM_DRAW);
 
 	/* Shader converts (lat,lon) to (x,y): translate so that the center of the
 	 * viewport is (0, 0) */
@@ -129,7 +129,7 @@ gl_map_vector(GLMap *map, int width, int height)
 	glUniform4fv(map->u4f_track_color, 1, track_color);
 	glUniform1f(map->u1f_zoom, 1 << mipmap(zoom));
 
-	glDrawArrays(GL_POINTS, 0, get_data_count());
+	glDrawArrays(GL_POINTS, 0, len);
 	/* }}} */
 
 	/* Cleanup */

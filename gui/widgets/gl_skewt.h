@@ -2,6 +2,8 @@
 #define gl_skewt_h
 
 #include <GLES3/gl3.h>
+#include <stdlib.h>
+#include "decode.h"
 
 typedef struct {
 	float center_x, center_y, zoom;
@@ -23,7 +25,7 @@ typedef struct {
 
 void gl_skewt_init(GLSkewT *ctx);
 void gl_skewt_deinit(GLSkewT *ctx);
-void gl_skewt_vector(GLSkewT *ctx, float width, float height);
+void gl_skewt_vector(GLSkewT *ctx, int width, int height, const GeoPoint *data, size_t len);
 
 
 #endif

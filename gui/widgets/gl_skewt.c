@@ -53,12 +53,11 @@ gl_skewt_deinit(GLSkewT *ctx)
 }
 
 void
-gl_skewt_vector(GLSkewT *ctx, float width, float height)
+gl_skewt_vector(GLSkewT *ctx, int width, int height, const GeoPoint *data, size_t len)
 {
 	const float zoom = ctx->zoom;
 	const float x_center = ctx->center_x;
 	const float y_center = ctx->center_y;
-	const int data_count = get_data_count();
 	const float temperature_color[] = STYLE_ACCENT_1_NORMALIZED;
 	const float dewpt_color[] = STYLE_ACCENT_0_NORMALIZED;
 	BezierMetadata *metadata;
@@ -127,7 +126,7 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	glUseProgram(ctx->data_program);
 	glBindVertexArray(ctx->data_vao);
 	glBindBuffer(GL_ARRAY_BUFFER, ctx->data_vbo);
-	glBufferData(GL_ARRAY_BUFFER, data_count * sizeof(GeoPoint), get_track_data(), GL_STREAM_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, len * sizeof(GeoPoint), data, GL_STREAM_DRAW);
 
 #define BG_HEIGHT_WIDTH_RATIO 0.839583
 #define TEMP_OFFSET (-122.5)
@@ -156,13 +155,12 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	/* Draw dew point */
 	glUniform4fv(ctx->u4f_data_color, 1, dewpt_color);
 	glVertexAttribPointer(ctx->attrib_data_temp, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, dewpt));
-	glDrawArrays(GL_POINTS, 0, data_count);
+	glDrawArrays(GL_POINTS, 0, len);
 
 	/* Draw air temperature */
 	glUniform4fv(ctx->u4f_data_color, 1, temperature_color);
 	glVertexAttribPointer(ctx->attrib_data_temp, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, temp));
-	glDrawArrays(GL_POINTS, 0, data_count);
-
+	glDrawArrays(GL_POINTS, 0, len);
 	/* }}} */
 
 	/* Cleanup */

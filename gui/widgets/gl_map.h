@@ -2,6 +2,8 @@
 #define gl_map_h
 
 #include <GLES3/gl3.h>
+#include <stdlib.h>
+#include "decode.h"
 
 #define MAP_TILE_WIDTH 1024
 #define MAP_TILE_HEIGHT 1024
@@ -30,7 +32,7 @@ typedef struct {
 } GLMap;
 
 void gl_map_init(GLMap *map);
-void gl_map_vector(GLMap *map, int width, int height);
+void gl_map_vector(GLMap *map, int width, int height, const GeoPoint *data, size_t len);
 void gl_map_deinit(GLMap *map);
 
 #endif
