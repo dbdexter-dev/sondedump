@@ -205,8 +205,6 @@ decode(const float *srcbuf, size_t len)
 					if (isnormal(printable->alt)) {
 						track[sample_count].temp = l_printable->temp;
 						track[sample_count].rh = l_printable->rh;
-						track[sample_count].hdg = l_printable->heading;
-						track[sample_count].speed = l_printable->speed;
 						track[sample_count].alt = l_printable->alt;
 						track[sample_count].lat = l_printable->lat;
 						track[sample_count].lon = l_printable->lon;

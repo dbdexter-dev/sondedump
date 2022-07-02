@@ -12,7 +12,7 @@ project(sondedump
 add_definitions(-DVERSION="${CMAKE_PROJECT_VERSION}")
 
 # Include modules for external libraries
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules/")
 
 if (NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE "Release")
@@ -133,7 +133,9 @@ if (NOT WIN32)
 endif()
 
 # Find Curses/Ncurses
-find_package(Curses)
+if (ENABLE_TUI)
+	find_package(Curses)
+endif()
 if (ENABLE_TUI AND CURSES_FOUND)
 	# Portable threads
 	find_package(Threads REQUIRED)
@@ -146,7 +148,9 @@ else()
 endif()
 
 # Find PortAudio
-find_package(Portaudio)
+if (ENABLE_AUDIO)
+	find_package(Portaudio)
+endif()
 if(ENABLE_AUDIO AND PORTAUDIO_FOUND)
 	add_definitions(-DENABLE_AUDIO)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${AUDIO_SOURCES})
