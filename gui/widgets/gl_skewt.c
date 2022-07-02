@@ -92,7 +92,7 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	for (i=0; i < SYMSIZE(_binary_skewt_index_bin) / sizeof(BezierMetadata); i++) {
 		/* Get metadata */
 		metadata = ((BezierMetadata*)_binary_skewt_index_bin_start) + i;
-		thickness = 2.0 / zoom;
+		thickness = 1.0 / zoom;
 		vertex_count = 2 * metadata->tessellation + 2;
 
 		/* Generate vertices for Bezier tessellation (2x each line point, will be
@@ -112,7 +112,7 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 		/* Upload line info */
 		glUniform4fv(ctx->u4f_color, 1, metadata->color);
 		glUniform1f(ctx->u1f_thickness, thickness);
-		glUniform1f(ctx->u1f_frag_thickness, thickness / 2.0 * zoom);
+		glUniform1f(ctx->u1f_frag_thickness, thickness * zoom);
 
 		/* Upload curves to GPU mem */
 		glBindBuffer(GL_ARRAY_BUFFER, ctx->cp_vbo);

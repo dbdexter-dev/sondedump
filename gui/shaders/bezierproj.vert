@@ -7,7 +7,7 @@ uniform float u_thickness;
 uniform float u_zoom;
 
 in vec2 in_p0, in_p1, in_p2, in_p3; /* control points, not an array cause ES profile */
-in float in_t;                      /* abs(t) \in [0, 1], sign determines normal direction */
+in float in_t;                      /* abs(t)-1 \in [0, 1], sign determines normal direction */
 
 out vec2 v_normal;
 
