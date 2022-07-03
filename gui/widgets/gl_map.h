@@ -3,15 +3,13 @@
 
 #include <GLES3/gl3.h>
 #include <stdlib.h>
+#include "config.h"
 #include "decode.h"
 
 #define MAP_TILE_WIDTH 1024
 #define MAP_TILE_HEIGHT 1024
 
 typedef struct {
-	float center_x, center_y, zoom;
-	float station_x, station_y;
-
 	struct {
 		int x_start, x_count;
 		int y_start, y_count;
@@ -50,11 +48,12 @@ void gl_map_deinit(GLMap *ctx);
  * Render the world map w/ ground track
  *
  * @param ctx       map context
+ * @param config    global config
  * @param width     viewport width, in pixels
  * @param height    viewport height, in pixels
  * @param data      data to display
  * @param len       number of elements to display in the data array
  */
-void gl_map_vector(GLMap *ctx, int width, int height, const GeoPoint *data, size_t len);
+void gl_map_vector(GLMap *ctx, const Config *conf, int width, int height, const GeoPoint *data, size_t len);
 
 #endif

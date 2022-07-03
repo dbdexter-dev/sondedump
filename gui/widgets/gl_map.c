@@ -57,11 +57,11 @@ gl_map_deinit(GLMap *ctx)
 }
 
 void
-gl_map_vector(GLMap *ctx, int width, int height, const GeoPoint *data, size_t len)
+gl_map_vector(GLMap *ctx, const Config *conf, int width, int height, const GeoPoint *data, size_t len)
 {
-	float center_x = ctx->center_x;
-	float center_y = ctx->center_y;
-	float zoom = ctx->zoom;
+	float center_x = conf->map.center_x;
+	float center_y = conf->map.center_y;
+	float zoom = conf->map.zoom;
 
 	const float digital_zoom = powf(2, zoom - mipmap(zoom));
 	const int x_size = 1 << mipmap(zoom);
@@ -71,7 +71,9 @@ gl_map_vector(GLMap *ctx, int width, int height, const GeoPoint *data, size_t le
 	const int y_count = ceilf((float)height / MAP_TILE_HEIGHT / digital_zoom) + 2;
 	const float track_color[] = STYLE_ACCENT_1_NORMALIZED;
 	const float map_color[] = STYLE_ACCENT_0_NORMALIZED;
+	const float receiver_color[] = STYLE_ACCENT_3_NORMALIZED;
 	int x_start, y_start;
+	GeoPoint receiver_loc;
 
 	GLfloat proj[4][4] = {
 		{1.0f, 0.0f, 0.0f, 0.0f},
@@ -128,6 +130,22 @@ gl_map_vector(GLMap *ctx, int width, int height, const GeoPoint *data, size_t le
 	glUniform1f(ctx->u1f_zoom, 1 << mipmap(zoom));
 
 	glDrawArrays(GL_POINTS, 0, len);
+	/* }}} */
+	/* Draw ground station {{{ */
+	glUseProgram(ctx->track_program);
+	receiver_loc.lat = conf->receiver.lat;
+	receiver_loc.lon = conf->receiver.lon;
+	glBindBuffer(GL_ARRAY_BUFFER, ctx->track_vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(GeoPoint), &receiver_loc, GL_STREAM_DRAW);
+
+	proj[3][0] = proj[0][0] * -center_x;
+	proj[3][1] = proj[1][1] * -center_y;
+
+	glUniformMatrix4fv(ctx->u4m_track_proj, 1, GL_FALSE, (GLfloat*)proj);
+	glUniform4fv(ctx->u4f_track_color, 1, receiver_color);
+	glUniform1f(ctx->u1f_zoom, 1 << mipmap(zoom));
+
+	glDrawArrays(GL_POINTS, 0, 1);
 	/* }}} */
 
 	/* Cleanup */

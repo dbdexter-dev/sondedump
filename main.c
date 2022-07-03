@@ -430,7 +430,7 @@ usage(const char *pname)
 			"                                ims100: Meisei iMS-100\n"
 			"                                imet4: InterMet iMet-4\n"
 #ifdef ENABLE_GUI
-			"   -g, --gui                    Initialize GUI\n"
+			"   -u, --gui                    Initialize GUI\n"
 #endif
 	        "\n"
 	        "   -h, --help                   Print this help screen\n"

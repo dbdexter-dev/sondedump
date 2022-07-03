@@ -7,6 +7,11 @@ typedef struct {
 	struct {
 		float lat, lon, alt;
 	} receiver;
+
+	struct {
+		float center_x, center_y, zoom;
+	} map;
+
 	float ui_scale;
 } Config;
 

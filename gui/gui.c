@@ -40,7 +40,7 @@ typedef struct {
 
 static void *gui_main(void *args);
 static void config_window(struct nk_context *ctx, UIState *state, Config *conf);
-static void overview_window(struct nk_context *ctx, UIState *state, GLMap *map, Config *conf);
+static void overview_window(struct nk_context *ctx, UIState *state, Config *conf);
 
 static pthread_t _tid;
 extern volatile int _interrupted;
@@ -117,9 +117,6 @@ gui_main(void *args)
 
 	/* Initialize map */
 	gl_map_init(&map);
-	map.zoom = 3.0;
-	map.center_x = lon_to_x(0, 0);
-	map.center_y = lat_to_y(0, 0);
 
 	/* Initialize skew-t plot */
 	gl_skewt_init(&skewt);
@@ -166,11 +163,17 @@ gui_main(void *args)
 				/* Zoom to where the cursor is */
 				switch (ui_state.active_widget) {
 				case GUI_MAP:
-					map.center_x += (ui_state.mouse.x - width/2.0) / MAP_TILE_WIDTH / powf(2, map.zoom);
-					map.center_y += (ui_state.mouse.y - height/2.0) / MAP_TILE_HEIGHT / powf(2, map.zoom);
-					map.zoom += 0.1 * evt.wheel.y;
-					map.center_x -= (ui_state.mouse.x - width/2.0) / MAP_TILE_WIDTH / powf(2, map.zoom);
-					map.center_y -= (ui_state.mouse.y - height/2.0) / MAP_TILE_HEIGHT / powf(2, map.zoom);
+					config.map.center_x += (ui_state.mouse.x - width/2.0)
+					                    / MAP_TILE_WIDTH / powf(2, config.map.zoom);
+					config.map.center_y += (ui_state.mouse.y - height/2.0)
+					                    / MAP_TILE_HEIGHT / powf(2, config.map.zoom);
+
+					config.map.zoom += 0.1 * evt.wheel.y;
+
+					config.map.center_x -= (ui_state.mouse.x - width/2.0)
+					                    / MAP_TILE_WIDTH / powf(2, config.map.zoom);
+					config.map.center_y -= (ui_state.mouse.y - height/2.0)
+					                    / MAP_TILE_HEIGHT / powf(2, config.map.zoom);
 					break;
 				case GUI_SKEW_T:
 					skewt.center_x += (ui_state.mouse.x - width/2.0) / skewt.zoom;
@@ -194,8 +197,8 @@ gui_main(void *args)
 					/* Drag 1:1 with cursor movement */
 					switch (ui_state.active_widget) {
 					case GUI_MAP:
-						map.center_x -= (float)evt.motion.xrel / MAP_TILE_WIDTH / powf(2, map.zoom);
-						map.center_y -= (float)evt.motion.yrel / MAP_TILE_HEIGHT / powf(2, map.zoom);
+						config.map.center_x -= (float)evt.motion.xrel / MAP_TILE_WIDTH / powf(2, config.map.zoom);
+						config.map.center_y -= (float)evt.motion.yrel / MAP_TILE_HEIGHT / powf(2, config.map.zoom);
 						break;
 					case GUI_SKEW_T:
 						skewt.center_x -= (float)evt.motion.xrel / skewt.zoom;
@@ -239,7 +242,7 @@ gui_main(void *args)
 
 		ui_state.over_window = 0;
 		/* Main window */
-		overview_window(ctx, &ui_state, &map, &config);
+		overview_window(ctx, &ui_state, &config);
 		/* Config */
 		if (ui_state.config_open) config_window(ctx, &ui_state, &config);
 
@@ -251,7 +254,7 @@ gui_main(void *args)
 		/* Draw background widget */
 		switch (ui_state.active_widget) {
 		case GUI_MAP:
-			gl_map_vector(&map, width, height, get_track_data(), get_data_count());
+			gl_map_vector(&map, &config, width, height, get_track_data(), get_data_count());
 			break;
 		case GUI_TIMESERIES:
 			gl_timeseries(&timeseries, get_track_data(), get_data_count());
@@ -292,7 +295,7 @@ gui_force_update(void)
 
 /* Static functions {{{ */
 static void
-overview_window(struct nk_context *ctx, UIState *state, GLMap *map, Config *conf)
+overview_window(struct nk_context *ctx, UIState *state, Config *conf)
 {
 	float size;
 	struct nk_vec2 position;
@@ -335,8 +338,8 @@ overview_window(struct nk_context *ctx, UIState *state, GLMap *map, Config *conf
 		if (state->active_widget == GUI_MAP && nk_button_label(ctx, "Re-center")) {
 			if (get_data_count() > 0) {
 				last_point = get_track_data() + get_data_count() - 1;
-				map->center_x = lon_to_x(last_point->lon, 0);
-				map->center_y = lat_to_y(last_point->lat, 0);
+				conf->map.center_x = lon_to_x(last_point->lon, 0);
+				conf->map.center_y = lat_to_y(last_point->lat, 0);
 			}
 		}
 

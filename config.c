@@ -26,14 +26,20 @@ static const char *config_keys_str[] = {
 	"ground_lat",
 	"ground_lon",
 	"ground_alt",
-	"ui_scale"
+	"ui_scale",
+	"map_x",
+	"map_y",
+	"map_zoom"
 };
 
 enum config_keys {
 	GROUND_LAT=0,
 	GROUND_LON=1,
 	GROUND_ALT=2,
-	UI_SCALE=3
+	UI_SCALE=3,
+	MAP_X=4,
+	MAP_Y=5,
+	MAP_ZOOM=6,
 };
 
 int
@@ -52,6 +58,9 @@ config_load_from_file(Config *config)
 	config->receiver.lon = 0;
 	config->receiver.alt = 0;
 	config->ui_scale = 1.0;
+	config->map.zoom = 3.0;
+	config->map.center_x = lon_to_x(0, 0);
+	config->map.center_y = lat_to_y(0, 0);
 
 	/* Open config */
 	if (!(fd = fopen(config_path(), "r"))) {
@@ -100,6 +109,15 @@ config_load_from_file(Config *config)
 				case UI_SCALE:
 					sscanf(confdata + tokens[i+1].start, "%f", &config->ui_scale);
 					break;
+				case MAP_X:
+					sscanf(confdata + tokens[i+1].start, "%f", &config->map.center_x);
+					break;
+				case MAP_Y:
+					sscanf(confdata + tokens[i+1].start, "%f", &config->map.center_y);
+					break;
+				case MAP_ZOOM:
+					sscanf(confdata + tokens[i+1].start, "%f", &config->map.zoom);
+					break;
 				default:
 					log_warn("Unknown config key: %s", confdata + tokens[i].start);
 					break;
@@ -130,7 +148,10 @@ config_save_to_file(const Config *config)
 	fprintf(fd, "\t\"%s\": %f,\n", config_keys_str[GROUND_LAT], config->receiver.lat);
 	fprintf(fd, "\t\"%s\": %f,\n", config_keys_str[GROUND_LON], config->receiver.lon);
 	fprintf(fd, "\t\"%s\": %f,\n", config_keys_str[GROUND_ALT], config->receiver.alt);
-	fprintf(fd, "\t\"%s\": %f\n", config_keys_str[UI_SCALE], config->ui_scale);
+	fprintf(fd, "\t\"%s\": %f,\n", config_keys_str[UI_SCALE], config->ui_scale);
+	fprintf(fd, "\t\"%s\": %f,\n", config_keys_str[MAP_X], config->map.center_x);
+	fprintf(fd, "\t\"%s\": %f,\n", config_keys_str[MAP_Y], config->map.center_y);
+	fprintf(fd, "\t\"%s\": %f\n", config_keys_str[MAP_ZOOM], config->map.zoom);
 	fprintf(fd, "}\n");
 
 	fclose(fd);
