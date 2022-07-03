@@ -165,6 +165,7 @@ set(GUI_SOURCES
 	gui/widgets/data.c gui/widgets/data.h
 	gui/widgets/type_select.c gui/widgets/type_select.h
 	gui/widgets/audio_dev_select.c gui/widgets/audio_dev_select.h
+	gui/widgets/export.c gui/widgets/export.h
 	gui/widgets/gl_map.c gui/widgets/gl_map.h
 	gui/widgets/gl_skewt.c gui/widgets/gl_skewt.h
 	gui/widgets/gl_timeseries.c gui/widgets/gl_timeseries.h

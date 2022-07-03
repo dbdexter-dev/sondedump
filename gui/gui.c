@@ -14,6 +14,7 @@
 #include "style.h"
 #include "widgets/audio_dev_select.h"
 #include "widgets/data.h"
+#include "widgets/export.h"
 #include "widgets/type_select.h"
 #include "widgets/gl_map.h"
 #include "widgets/gl_skewt.h"
@@ -28,8 +29,8 @@ typedef struct {
 	} mouse;
 	float scale, old_scale;
 
+	int config_open, export_open;
 	int over_window;
-	int config_open;
 	int dragging;
 	int force_refresh;
 
@@ -39,8 +40,9 @@ typedef struct {
 } UIState;
 
 static void *gui_main(void *args);
-static void config_window(struct nk_context *ctx, UIState *state, Config *conf);
+static void config_window(struct nk_context *ctx, UIState *state, Config *conf, float width, float height);
 static void overview_window(struct nk_context *ctx, UIState *state, Config *conf);
+static void export_window(struct nk_context *ctx, UIState *state, float width, float height);
 
 static pthread_t _tid;
 extern volatile int _interrupted;
@@ -241,10 +243,9 @@ gui_main(void *args)
 		SDL_GetWindowSize(win, &width, &height);
 
 		ui_state.over_window = 0;
-		/* Main window */
 		overview_window(ctx, &ui_state, &config);
-		/* Config */
-		if (ui_state.config_open) config_window(ctx, &ui_state, &config);
+		if (ui_state.export_open) export_window(ctx, &ui_state, width, height);
+		if (ui_state.config_open) config_window(ctx, &ui_state, &config, width, height);
 
 		/* Render */
 		glViewport(0, 0, width, height);
@@ -343,6 +344,11 @@ overview_window(struct nk_context *ctx, UIState *state, Config *conf)
 			}
 		}
 
+		if (nk_button_label(ctx, "Export...")) {
+			state->export_open = 1;
+			log_debug("Opening export window");
+		}
+
 		/* Open config window, pre-populating fields with the current config */
 		if (nk_button_label(ctx, "Configure...")) {
 			state->config_open = 1;
@@ -368,7 +374,7 @@ overview_window(struct nk_context *ctx, UIState *state, Config *conf)
 }
 
 static void
-config_window(struct nk_context *ctx, UIState *state, Config *conf)
+config_window(struct nk_context *ctx, UIState *state, Config *conf, float width, float height)
 {
 	const int label_len = 120;
 	const char *title = "Settings";
@@ -386,7 +392,7 @@ config_window(struct nk_context *ctx, UIState *state, Config *conf)
 
 	}
 
-	if (nk_begin(ctx, title, nk_rect(0, 0, PANEL_WIDTH * state->scale, 0), win_flags)) {
+	if (nk_begin(ctx, title, nk_rect(width/2, height/2, PANEL_WIDTH * state->scale, 0), win_flags)) {
 		border = nk_window_get_panel(ctx)->border;
 
 		/* Various purely display-related options */
@@ -459,6 +465,25 @@ config_window(struct nk_context *ctx, UIState *state, Config *conf)
 
 		/* Restore UI scale */
 		state->scale = conf->ui_scale;
+	}
+
+	nk_end(ctx);
+}
+
+static void
+export_window(struct nk_context *ctx, UIState *state, float width, float height)
+{
+	const char *title = "Export";
+	const enum nk_panel_flags win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
+	                                    | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE | NK_WINDOW_CLOSABLE;
+
+	if (nk_begin(ctx, title, nk_rect(width/2, height/2, PANEL_WIDTH * state->scale, 0), win_flags)) {
+		widget_export(ctx, state->scale);
+
+		nk_window_fit_to_content(ctx);
+		state->over_window |= nk_window_is_hovered(ctx);
+	} else {
+		state->export_open = 0;
 	}
 
 	nk_end(ctx);

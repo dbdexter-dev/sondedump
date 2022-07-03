@@ -39,7 +39,7 @@ enum ui {
 
 static void usage(const char *progname);
 static void version(void);
-static int printf_data(const char *fmt, PrintableData *data);
+static int printf_data(const char *fmt, const PrintableData *data);
 static int wav_read_wrapper(float *dst, size_t count);
 static int raw_read_wrapper(float *dst, size_t count);
 static void sigint_handler(int val);
@@ -83,7 +83,7 @@ static struct option longopts[] = {
 int
 main(int argc, char *argv[])
 {
-	PrintableData *printable;
+	const PrintableData *printable;
 	KMLFile kml, live_kml;
 	GPXFile gpx;
 	int samplerate;
@@ -481,7 +481,7 @@ version(void)
 
 
 static int
-printf_data(const char *fmt, PrintableData *data)
+printf_data(const char *fmt, const PrintableData *data)
 {
 	size_t i;
 	int escape_seq;

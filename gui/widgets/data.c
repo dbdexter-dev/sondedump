@@ -26,7 +26,7 @@ widget_data(struct nk_context *ctx, float lat, float lon, float alt, float scale
 	float az, el, range;
 	char tmp[128];
 
-	PrintableData *printable = get_data();
+	const PrintableData *printable = get_data();
 
 	nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * scale, 2);
 

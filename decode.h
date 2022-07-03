@@ -7,7 +7,9 @@
 
 typedef struct {
 	unsigned int id;
+	time_t utc_time;
 	float lat, lon, alt;
+	float spd, hdg, climb;
 	float pressure;
 	float temp, rh, dewpt;
 } GeoPoint;
@@ -32,7 +34,7 @@ void         set_active_decoder(enum decoder decoder);
 /**
  * Get a pointer to the data decoded so far
  */
-PrintableData *get_data(void);
+const PrintableData *get_data(void);
 int            get_slot(void);
 
 int             get_data_count(void);
