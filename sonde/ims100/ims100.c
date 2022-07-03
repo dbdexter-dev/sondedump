@@ -157,7 +157,6 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 			fflush(debug);
 		}
 #endif
-
 		if (dst->type != EMPTY) {
 			/* Fetch the ADC data carried by this frame based on its seq nr */
 			switch (ims100_frame_seq(&self->frame) & 0x3) {
@@ -183,6 +182,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 			dst->data.ptu.calibrated = IMS100_DATA_VALID(self->calib_bitmask, IMS100_CALIB_PTU_MASK);
 			dst->data.ptu.temp = ims100_frame_temp(&self->adc, &self->calib);
 			dst->data.ptu.rh = ims100_frame_rh(&self->adc, &self->calib);
+			dst->data.ptu.pressure = 0;
 		}
 
 		switch (ims100_frame_subtype(&self->frame)) {
