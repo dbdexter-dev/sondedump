@@ -40,7 +40,7 @@ typedef struct {
 
 static void *gui_main(void *args);
 static void config_window(struct nk_context *ctx, UIState *state, Config *conf);
-static void overview_window(struct nk_context *ctx, UIState *state, GLMap *map);
+static void overview_window(struct nk_context *ctx, UIState *state, GLMap *map, Config *conf);
 
 static pthread_t _tid;
 extern volatile int _interrupted;
@@ -72,6 +72,7 @@ gui_main(void *args)
 	SDL_Event evt;
 	int width, height;
 	int last_slot = get_slot();
+	int gl_error;
 	char title[64];
 
 	GLMap map;
@@ -84,7 +85,10 @@ gui_main(void *args)
 
 	/* Initialize SDL2 */
 	SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
-	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
+		log_error("SDL failed to initialize: %s", SDL_GetError());
+		return (void*)1;
+	}
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -98,9 +102,9 @@ gui_main(void *args)
 	glContext = SDL_GL_CreateContext(win);
 	gl_version = (const char*)glGetString(GL_VERSION);
 	if (gl_version) {
-		log_info("Created OpenGL context: %s", gl_version);
+		log_debug("Created OpenGL context: %s", gl_version);
 	} else {
-		log_error("Unable to create OpenGL context: %s", SDL_GetError());
+		log_error("Unable to create OpenGL context: %s (OpenGL status %d)", SDL_GetError(), glGetError());
 	}
 	if (strcmp(SDL_GetError(), "")) {
 		log_error("SDL context creation failed: %s", SDL_GetError());
@@ -140,6 +144,10 @@ gui_main(void *args)
 	ui_state.active_widget = GUI_MAP;
 
 	while (!_interrupted) {
+		/* Just make sure that everything is still fine */
+		gl_error = glGetError();
+		if (gl_error) log_warn("Detected OpenGL non-zero status: %d", gl_error);
+
 		/* When requested, bypass waitevent and go straight to event processing */
 		if (ui_state.force_refresh) {
 			ui_state.force_refresh--;
@@ -231,7 +239,7 @@ gui_main(void *args)
 
 		ui_state.over_window = 0;
 		/* Main window */
-		overview_window(ctx, &ui_state, &map);
+		overview_window(ctx, &ui_state, &map, &config);
 		/* Config */
 		if (ui_state.config_open) config_window(ctx, &ui_state, &config);
 
@@ -284,8 +292,9 @@ gui_force_update(void)
 
 /* Static functions {{{ */
 static void
-overview_window(struct nk_context *ctx, UIState *state, GLMap *map)
+overview_window(struct nk_context *ctx, UIState *state, GLMap *map, Config *conf)
 {
+	float size;
 	struct nk_vec2 position;
 	const char *title = "Overview";
 	const GeoPoint *last_point;
@@ -313,9 +322,10 @@ overview_window(struct nk_context *ctx, UIState *state, GLMap *map)
 		}
 
 		/* Raw live data */
-		nk_layout_row_dynamic(ctx, 400 * state->scale, 1);
+		size = widget_data_base_size(ctx, conf->receiver.lat, conf->receiver.lon, conf->receiver.alt);
+		nk_layout_row_dynamic(ctx, size * state->scale, 1);
 		if (nk_group_begin(ctx, "Data", NK_WINDOW_NO_SCROLLBAR)) {
-			widget_data(ctx, state->scale);
+			widget_data(ctx, conf->receiver.lat, conf->receiver.lon, conf->receiver.alt, state->scale);
 
 			nk_group_end(ctx);
 		}
@@ -333,6 +343,7 @@ overview_window(struct nk_context *ctx, UIState *state, GLMap *map)
 		/* Open config window, pre-populating fields with the current config */
 		if (nk_button_label(ctx, "Configure...")) {
 			state->config_open = 1;
+			log_debug("Opening config window");
 		}
 
 		/* Resize according to the scale factor */

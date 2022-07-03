@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include "decode.h"
 #include "gl_skewt.h"
+#include "log/log.h"
 #include "shaders/shaders.h"
 #include "style.h"
 #include "utils.h"
@@ -215,6 +216,11 @@ chart_opengl_init(GLSkewT *ctx)
 	attrib_p[2] = glGetAttribLocation(ctx->chart_program, "in_p2");
 	attrib_p[3] = glGetAttribLocation(ctx->chart_program, "in_p3");
 
+	log_debug("proj_mtx %d color %d thickness %d aa_thickness %d",
+			ctx->u4m_proj, ctx->u4f_color, ctx->u1f_thickness, ctx->u1f_frag_thickness);
+	log_debug("in_t %d in_p %d %d %d %d",
+		attrib_t, attrib_p[0], attrib_p[1], attrib_p[2], attrib_p[3]);
+
 	/* Allocate buffers */
 	glGenVertexArrays(1, &ctx->vao);
 	glBindVertexArray(ctx->vao);
@@ -277,6 +283,9 @@ data_opengl_init(GLSkewT *ctx)
 
 	ctx->attrib_data_temp = glGetAttribLocation(ctx->data_program, "in_temp");
 	attrib_alt = glGetAttribLocation(ctx->data_program, "in_altitude");
+
+	log_debug("proj_mtx %d color %d", ctx->u4m_data_proj, ctx->u4f_data_color);
+	log_debug("temp %d alt %d", ctx->attrib_data_temp, attrib_alt);
 
 	glGenVertexArrays(1, &ctx->data_vao);
 	glBindVertexArray(ctx->data_vao);

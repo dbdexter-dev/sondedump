@@ -3,6 +3,7 @@
 
 #include "nuklear/nuklear.h"
 
-int widget_data(struct nk_context *ctx, float scale);
+float widget_data_base_size(struct nk_context *ctx, float lat, float lon, float alt);
+int widget_data(struct nk_context *ctx, float lat, float lon, float alt, float scale);
 
 #endif

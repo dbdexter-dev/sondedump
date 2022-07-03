@@ -10,6 +10,7 @@
 
 typedef struct {
 	float center_x, center_y, zoom;
+	float station_x, station_y;
 
 	struct {
 		int x_start, x_count;
@@ -37,7 +38,23 @@ typedef struct {
  * @param ctx map context, will be configured by the init function
  */
 void gl_map_init(GLMap *ctx);
-void gl_map_vector(GLMap *ctx, int width, int height, const GeoPoint *data, size_t len);
+
+/**
+ * Deinitialize a OpenGL-based world map plot
+ *
+ * @param ctx map context to deinitialize
+ */
 void gl_map_deinit(GLMap *ctx);
+
+/**
+ * Render the world map w/ ground track
+ *
+ * @param ctx       map context
+ * @param width     viewport width, in pixels
+ * @param height    viewport height, in pixels
+ * @param data      data to display
+ * @param len       number of elements to display in the data array
+ */
+void gl_map_vector(GLMap *ctx, int width, int height, const GeoPoint *data, size_t len);
 
 #endif

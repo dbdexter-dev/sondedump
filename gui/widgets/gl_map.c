@@ -190,8 +190,6 @@ update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, i
 				continue;
 			}
 
-			log_debug("Attempting to load (%d,%d)...", actual_x, actual_y);
-
 			changed = 1;
 
 			/* Compute start of vbo/ibo data */
@@ -230,7 +228,6 @@ update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, i
 
 			ibo_len += len;
 			ibo_offset = max_ibo + 1;
-			log_debug("New IBO offset: %u", ibo_offset);
 		}
 	}
 
@@ -295,6 +292,9 @@ map_opengl_init(GLMap *map)
 	attrib_pos_x = glGetAttribLocation(map->tile_program, "in_position_x");
 	attrib_pos_y = glGetAttribLocation(map->tile_program, "in_position_y");
 
+	log_debug("proj_mtx %d color %d", map->u4m_proj, map->u4f_map_color);
+	log_debug("pos_x %d pos_y %d", attrib_pos_x, attrib_pos_y);
+
 	/* Buffers, arrays, and layouts */
 	glGenVertexArrays(1, &map->vao);
 	glBindVertexArray(map->vao);
@@ -352,6 +352,10 @@ track_opengl_init(GLMap *map)
 	map->u4f_track_color = glGetUniformLocation(map->track_program, "u_color");
 	attrib_pos_x = glGetAttribLocation(map->track_program, "in_position_x");
 	attrib_pos_y = glGetAttribLocation(map->track_program, "in_position_y");
+
+	log_debug("proj_mtx %d zoom %d color %d",
+			map->u4m_proj, map->u1f_zoom, map->u4f_track_color);
+	log_debug("pos_x %d pos_y %d", attrib_pos_x, attrib_pos_y);
 
 	glGenVertexArrays(1, &map->track_vao);
 	glBindVertexArray(map->track_vao);

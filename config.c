@@ -109,6 +109,8 @@ config_load_from_file(Config *config)
 	}
 	free(confdata);
 
+	log_info("Loaded config from %s", config_path());
+
 	return 0;
 }
 
