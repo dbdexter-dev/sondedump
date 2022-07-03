@@ -216,6 +216,9 @@ decode(const float *srcbuf, size_t len)
 						track[sample_count].alt = l_printable->alt;
 						track[sample_count].lat = l_printable->lat;
 						track[sample_count].lon = l_printable->lon;
+						track[sample_count].spd = l_printable->speed;
+						track[sample_count].hdg = l_printable->heading;
+						track[sample_count].climb = l_printable->climb;
 						track[sample_count].dewpt = dewpt(l_printable->temp, l_printable->rh);
 						track[sample_count].pressure = l_printable->pressure;
 						track[sample_count].utc_time = l_printable->utc_time;
