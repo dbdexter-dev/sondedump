@@ -236,7 +236,7 @@ freq_to_rh(float rh_freq, float ref_freq, float rh_temp, float air_temp, const f
 	rh_cal = rh_uncal - temp_correction * 100;
 
 	/* If air temp makes sense, use it to correct for different wv sat pressures */
-	if (air_temp < 100 && air_temp < -100)  {
+	if (air_temp < 100 && air_temp > -100)  {
 		return rh_cal * wv_sat_pressure(rh_temp) / wv_sat_pressure(air_temp);
 	}
 
