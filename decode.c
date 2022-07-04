@@ -33,7 +33,7 @@ static GeoPoint *track;
 static int reserved_count;
 static int sample_count;
 static int new_samplerate = -1;
-static time_t id_offset;
+static uint64_t id_offset;
 
 int
 decoder_init(int samplerate)

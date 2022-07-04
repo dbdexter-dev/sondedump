@@ -310,11 +310,6 @@ main(int argc, char *argv[])
 
 		/* Send them to decoder */
 		while (decode(srcbuf, LEN(srcbuf)) != PROCEED) {
-#ifdef ENABLE_GUI
-			if (ui == UI_GUI) {
-				gui_force_update();
-			}
-#endif
 			/* If no new data, immediately go to next iteration */
 			if (slot == get_slot()) {
 				continue;
@@ -326,6 +321,11 @@ main(int argc, char *argv[])
 				/* Print new data */
 				printf_data(output_fmt, printable);
 			}
+#ifdef ENABLE_GUI
+			else if (ui == UI_GUI) {
+				gui_force_update();
+			}
+#endif
 
 			/* If we are also calibrated enough, and CSV output is enabled, append
 			 * the new datapoint to the file */

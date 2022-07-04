@@ -52,6 +52,8 @@ widget_export(struct nk_context *ctx, float scale)
 	            nk_vec2(inner_bounds.w, LEN(format_names) * bounds.h + 10)
 	);
 
+	/* TODO exporting in the same thread is not really the best practice, but in
+	 * reality it takes so little time that it's probably fine */
 	nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * 1.2 * scale, 1);
 	if (nk_button_label(ctx, "Export")) {
 		log_debug("Exporting to %s (format %s)", fname, format_names[_selected_idx]);
@@ -65,7 +67,9 @@ widget_export(struct nk_context *ctx, float scale)
 
 			gpx_start_track(&gpx, get_data()->serial);
 			for (i=0; i<point_count; i++) {
-				gpx_add_trackpoint(&gpx, points[i].lat, points[i].lon, points[i].alt, points[i].spd, points[i].hdg, points[i].utc_time);
+				gpx_add_trackpoint(&gpx,
+				                    points[i].lat, points[i].lon, points[i].alt,
+				                    points[i].spd, points[i].hdg, points[i].utc_time);
 			}
 			gpx_stop_track(&gpx);
 			gpx_close(&gpx);
