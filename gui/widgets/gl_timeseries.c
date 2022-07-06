@@ -103,9 +103,9 @@ timeseries_opengl_init(GLTimeseries *ctx)
 {
 	GLint status;
 
-	const GLchar *vertex_shader = _binary_simpleproj_vert_start;
+	const GLchar *vertex_shader = _binary_simpleproj_vert;
 	const int vertex_shader_len = SYMSIZE(_binary_simpleproj_vert);
-	const GLchar *fragment_shader = _binary_simplecolor_frag_start;
+	const GLchar *fragment_shader = _binary_simplecolor_frag;
 	const int fragment_shader_len = SYMSIZE(_binary_simplecolor_frag);
 
 	ctx->program = glCreateProgram();

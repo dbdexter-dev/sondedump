@@ -38,24 +38,24 @@ if (is_arm EQUAL "0")
 endif()
 
 
-function(add_blobs out_var)
+function(embed_blobs out_var)
 	set(result)
 	foreach(IN_FILE ${ARGN})
 		get_filename_component(SRC_FILE ${IN_FILE} NAME)
-		get_filename_component(SRC_DIR ${IN_FILE} DIRECTORY)
-		set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/${SRC_FILE}.o")
+		set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/${SRC_FILE}.c")
 
 		add_custom_command(
 			OUTPUT ${OUT_FILE}
-			COMMAND ${CMAKE_LINKER} --relocatable --format binary -o ${OUT_FILE} ${SRC_FILE}
+			COMMAND ${CMAKE_COMMAND} -DIN_FILE=${IN_FILE} -DOUT_FILE=${OUT_FILE} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedBlob.cmake
 			DEPENDS ${IN_FILE}
 			WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/${SRC_DIR}"
 		)
+
 		list(APPEND result ${OUT_FILE})
 	endforeach()
-
 	set(${out_var} "${result}" PARENT_SCOPE)
 endfunction()
+
 
 # Used by the log_*() functions to retrieve the base name of the source file
 string(LENGTH "${CMAKE_SOURCE_DIR}/" SOURCE_BASE_PATH_SIZE)
@@ -166,6 +166,7 @@ set(GUI_SOURCES
 	gui/widgets/type_select.c gui/widgets/type_select.h
 	gui/widgets/audio_dev_select.c gui/widgets/audio_dev_select.h
 	gui/widgets/export.c gui/widgets/export.h
+
 	gui/widgets/gl_map.c gui/widgets/gl_map.h
 	gui/widgets/gl_skewt.c gui/widgets/gl_skewt.h
 	gui/widgets/gl_timeseries.c gui/widgets/gl_timeseries.h
@@ -254,7 +255,7 @@ else()
 endif()
 
 # Add binary blobs
-add_blobs(BLOB_BINS ${BLOB_SRCS})
+embed_blobs(BLOB_BINS ${BLOB_SRCS})
 
 # Main library target
 add_library(radiosonde STATIC ${LIBRARY_SOURCES})

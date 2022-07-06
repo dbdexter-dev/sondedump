@@ -19,8 +19,10 @@ typedef struct {
 } Vertex;
 
 /* Tile data and index will be linked into the final executable */
-extern const char _binary_tiledata_bin_start[];
-extern const char _binary_tileindex_bin_start[];
+extern const char _binary_tiledata_bin[];
+extern const unsigned long _binary_tiledata_bin_size;
+extern const char _binary_tileindex_bin[];
+extern const unsigned long _binary_tileindex_bin_size;
 
 static void map_opengl_init(GLMap *map);
 static void track_opengl_init(GLMap *map);
@@ -212,25 +214,25 @@ update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, i
 
 			/* Compute start of vbo/ibo data */
 			index_offset = actual_x * y_size + actual_y;
-			binary_offset = ((uint32_t*)_binary_tileindex_bin_start)[index_offset];
+			binary_offset = ((uint32_t*)_binary_tileindex_bin)[index_offset];
 
 			/* If tile is unavailable, draw as black and go to the next */
 			if (binary_offset < 0) continue;
 
 			/* Copy vbo data */
-			len = *(uint32_t*)(_binary_tiledata_bin_start + binary_offset);
+			len = *(uint32_t*)(_binary_tiledata_bin + binary_offset);
 			binary_offset += 4;
 
 			vbo_data = realloc(vbo_data, (vbo_len + len) * sizeof(*vbo_data));
-			memcpy(vbo_data + vbo_len, _binary_tiledata_bin_start + binary_offset, len * sizeof(*vbo_data));
+			memcpy(vbo_data + vbo_len, _binary_tiledata_bin + binary_offset, len * sizeof(*vbo_data));
 			vbo_len += len;
 			binary_offset += sizeof(*vbo_data) * len;
 
 			/* Read and unpack ibo data */
-			len = *(uint32_t*)(_binary_tiledata_bin_start + binary_offset);
+			len = *(uint32_t*)(_binary_tiledata_bin + binary_offset);
 			binary_offset += 4;
 
-			packed_ibo_data = (uint16_t*)(_binary_tiledata_bin_start + binary_offset);
+			packed_ibo_data = (uint16_t*)(_binary_tiledata_bin + binary_offset);
 
 			ibo_data = realloc(ibo_data, (ibo_len + len) * sizeof(*ibo_data));
 			for (i=0; i < (int)len; i++) {
@@ -277,9 +279,9 @@ map_opengl_init(GLMap *map)
 {
 	GLint status, attrib_pos_x, attrib_pos_y;
 
-	const GLchar *vertex_shader = _binary_simpleproj_vert_start;
+	const GLchar *vertex_shader = _binary_simpleproj_vert;
 	const int vertex_shader_len = SYMSIZE(_binary_simpleproj_vert);
-	const GLchar *fragment_shader = _binary_simplecolor_frag_start;
+	const GLchar *fragment_shader = _binary_simplecolor_frag;
 	const int fragment_shader_len = SYMSIZE(_binary_simplecolor_frag);
 
 	/* Program + shaders */
@@ -336,9 +338,9 @@ track_opengl_init(GLMap *map)
 	GLuint attrib_pos_x, attrib_pos_y;
 	GLint status;
 
-	const GLchar *vertex_shader = _binary_worldproj_vert_start;
+	const GLchar *vertex_shader = _binary_worldproj_vert;
 	const int vertex_shader_len = SYMSIZE(_binary_worldproj_vert);
-	const GLchar *fragment_shader = _binary_simplecolor_frag_start;
+	const GLchar *fragment_shader = _binary_simplecolor_frag;
 	const int fragment_shader_len = SYMSIZE(_binary_simplecolor_frag);
 
 	/* Program + shaders */

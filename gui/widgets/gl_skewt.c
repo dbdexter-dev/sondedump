@@ -27,10 +27,10 @@ typedef struct {
 	float thickness;
 } BezierMetadata;
 
-extern const char _binary_skewt_bin_start[];
-extern const char _binary_skewt_bin_end[];
-extern const char _binary_skewt_index_bin_start[];
-extern const char _binary_skewt_index_bin_end[];
+extern const char _binary_skewt_bin[];
+extern const unsigned long _binary_skewt_bin_size;
+extern const char _binary_skewt_index_bin[];
+extern const unsigned long _binary_skewt_index_bin_size;
 
 static void chart_opengl_init(GLSkewT *ctx);
 static void data_opengl_init(GLSkewT *ctx);
@@ -91,7 +91,7 @@ gl_skewt_vector(GLSkewT *ctx, int width, int height, const GeoPoint *data, size_
 	/* For each color/thickness combination */
 	for (i=0; i < SYMSIZE(_binary_skewt_index_bin) / sizeof(BezierMetadata); i++) {
 		/* Get metadata */
-		metadata = ((BezierMetadata*)_binary_skewt_index_bin_start) + i;
+		metadata = ((BezierMetadata*)_binary_skewt_index_bin) + i;
 		thickness = 1.0 / zoom;
 		vertex_count = 2 * metadata->tessellation + 2;
 
@@ -116,7 +116,7 @@ gl_skewt_vector(GLSkewT *ctx, int width, int height, const GeoPoint *data, size_
 
 		/* Upload curves to GPU mem */
 		glBindBuffer(GL_ARRAY_BUFFER, ctx->cp_vbo);
-		glBufferData(GL_ARRAY_BUFFER, metadata->len, _binary_skewt_bin_start + metadata->offset, GL_STREAM_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, metadata->len, _binary_skewt_bin + metadata->offset, GL_STREAM_DRAW);
 
 		/* Render */
 		glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, vertex_count, metadata->len / sizeof(Bezier));
@@ -178,9 +178,9 @@ chart_opengl_init(GLSkewT *ctx)
 	GLint status, attrib_t, attrib_p[4];
 	int i;
 
-	const GLchar *vertex_shader = _binary_bezierproj_vert_start;
+	const GLchar *vertex_shader = _binary_bezierproj_vert;
 	const int vertex_shader_len = SYMSIZE(_binary_bezierproj_vert);
-	const GLchar *fragment_shader = _binary_feathercolor_frag_start;
+	const GLchar *fragment_shader = _binary_feathercolor_frag;
 	const int fragment_shader_len = SYMSIZE(_binary_feathercolor_frag);
 
 	ctx->chart_program = glCreateProgram();
@@ -249,9 +249,9 @@ data_opengl_init(GLSkewT *ctx)
 	GLuint attrib_alt;
 	GLint status;
 
-	const GLchar *vertex_shader = _binary_skewtproj_vert_start;
+	const GLchar *vertex_shader = _binary_skewtproj_vert;
 	const int vertex_shader_len = SYMSIZE(_binary_skewtproj_vert);
-	const GLchar *fragment_shader = _binary_simplecolor_frag_start;
+	const GLchar *fragment_shader = _binary_simplecolor_frag;
 	const int fragment_shader_len = SYMSIZE(_binary_simplecolor_frag);
 
 	/* Program + shaders */

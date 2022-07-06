@@ -45,7 +45,7 @@
 #endif
 
 /* Symbol size that works for relocatable executables */
-#define SYMSIZE(x) (x##_end - x##_start)
+#define SYMSIZE(x) (x##_size)
 
 /**
  * strdup, but portable since it's not part of the C standard and has a
