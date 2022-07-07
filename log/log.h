@@ -2,13 +2,12 @@
 #define log_h
 
 #ifndef NDEBUG
-#define log_info(...) do_log_info(__FILE__, __VA_ARGS__)
 #define log_debug(...) do_log_debug(__FILE__, __VA_ARGS__)
 #else
-#define log_info(...)
 #define log_debug(...)
 #endif
 
+#define log_info(...) do_log_info(__FILE__, __VA_ARGS__)
 #define log_warn(...) do_log_warn(__FILE__, __VA_ARGS__)
 #define log_error(...) do_log_error(__FILE__, __VA_ARGS__)
 

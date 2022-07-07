@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <SDL2/SDL.h>
 #include "libs/glad/glad.h"
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include <windows.h>
 #else
 #include <pthread.h>
@@ -47,8 +47,8 @@ static void config_window(struct nk_context *ctx, UIState *state, Config *conf, 
 static void overview_window(struct nk_context *ctx, UIState *state, Config *conf);
 static void export_window(struct nk_context *ctx, UIState *state, float width, float height);
 
-#ifdef _WIN32
-typedef uint32_t pthread_t;
+#ifdef _MSC_VER
+typedef HANDLE pthread_t;
 #endif
 
 static pthread_t _tid;
@@ -58,8 +58,8 @@ void
 gui_init(void)
 {
 	_interrupted = 0;
-#ifdef _WIN32
-	CreateThread(NULL, 0, gui_main, NULL, 0, &_tid);
+#ifdef _MSC_VER
+	_tid = CreateThread(NULL, 0, gui_main, NULL, 0, NULL);
 #else
 	pthread_create(&_tid, NULL, gui_main, NULL);
 #endif
@@ -72,8 +72,8 @@ gui_deinit(void)
 
 	_interrupted = 1;
 	if (_tid) {
-#ifdef _WIN32
-		WaitForSingleObject(&_tid, (uint32_t)-1);
+#ifdef _MSC_VER
+		WaitForSingleObject(_tid, INFINITE);
 #else
 		pthread_join(_tid, &retval);
 #endif
@@ -170,6 +170,7 @@ gui_main(void *args)
 	ui_state.dragging = 0;
 	ui_state.over_window = 0;
 	ui_state.config_open = 0;
+	ui_state.export_open = 0;
 	ui_state.active_widget = GUI_MAP;
 
 	while (!_interrupted) {
