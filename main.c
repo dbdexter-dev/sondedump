@@ -14,6 +14,7 @@
 #include "io/gpx.h"
 #include "io/kml.h"
 #include "io/wavfile.h"
+#include "log/log.h"
 #include "physics.h"
 #include "utils.h"
 #ifdef ENABLE_TUI
