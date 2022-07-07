@@ -203,7 +203,7 @@ endif()
 
 # Find Curses/Ncurses
 if (ENABLE_TUI)
-	find_package(Curses)
+	find_package(Curses REQUIRED)
 endif()
 if (ENABLE_TUI AND CURSES_FOUND)
 	# Portable threads
@@ -218,7 +218,7 @@ endif()
 
 # Find PortAudio
 if (ENABLE_AUDIO)
-	find_package(Portaudio)
+	find_package(Portaudio REQUIRED)
 endif()
 if(ENABLE_AUDIO AND PORTAUDIO_FOUND)
 	add_definitions(-DENABLE_AUDIO)
@@ -231,8 +231,8 @@ endif()
 # Find OpenGL and SDL2
 if (ENABLE_GUI)
 	find_package(Threads REQUIRED)
-	find_package(OpenGL COMPONENTS OpenGL)
-	find_package(SDL2)
+	find_package(OpenGL COMPONENTS OpenGL REQUIRED)
+	find_package(SDL2 REQUIRED)
 endif()
 if (ENABLE_GUI AND SDL2_FOUND AND OPENGL_FOUND)
 	# Nuklear configuration, has to be consistent every time nuklear.h is included
