@@ -36,7 +36,10 @@ ims100_frame_error_correct(IMS100ECCFrame *frame, const RSDecoder *rs)
 	int errcount, errdelta;
 	uint8_t *const raw_frame = (uint8_t*)frame;
 	uint8_t staging[IMS100_MESSAGE_LEN/8+1];
-	uint8_t message[IMS100_REEDSOLOMON_N];
+	/* FIXME this should not need the +1, but Windows compiled versions get
+	 * angry because of some buffer overflow. Check BCH code, one of the roots
+	 * can be 63 which is past the end of buffer */
+	uint8_t message[IMS100_REEDSOLOMON_N + 1];
 
 	errcount = 0;
 	memset(message, 0, sizeof(message));
