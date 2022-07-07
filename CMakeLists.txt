@@ -134,7 +134,7 @@ endif()
 
 # Find Curses/Ncurses
 if (ENABLE_TUI)
-	find_package(Curses)
+	find_package(Curses REQUIRED)
 endif()
 if (ENABLE_TUI AND CURSES_FOUND)
 	# Portable threads
@@ -149,7 +149,7 @@ endif()
 
 # Find PortAudio
 if (ENABLE_AUDIO)
-	find_package(Portaudio)
+	find_package(Portaudio REQUIRED)
 endif()
 if(ENABLE_AUDIO AND PORTAUDIO_FOUND)
 	add_definitions(-DENABLE_AUDIO)
@@ -159,6 +159,40 @@ else()
 	set(PORTAUDIO_INCLUDE_DIRS "")
 endif()
 
+<<<<<<< HEAD
+=======
+# Find OpenGL and SDL2
+if (ENABLE_GUI)
+	find_package(Threads REQUIRED)
+	find_package(OpenGL COMPONENTS OpenGL REQUIRED)
+	find_package(SDL2 REQUIRED)
+endif()
+if (ENABLE_GUI AND SDL2_FOUND AND OPENGL_FOUND)
+	# Nuklear configuration, has to be consistent every time nuklear.h is included
+	add_definitions(
+		-DNK_INCLUDE_FIXED_TYPES
+		-DNK_INCLUDE_DEFAULT_ALLOCATOR
+		-DNK_INCLUDE_STANDARD_IO
+		-DNK_INCLUDE_STANDARD_VARARGS
+		-DNK_INCLUDE_FONT_BAKING
+		-DNK_INCLUDE_VERTEX_BUFFER_OUTPUT
+		-DNK_CHART_MAX_SLOT=8
+	)
+	add_definitions(-DENABLE_GUI)
+	set(EXEC_SOURCES ${EXEC_SOURCES} ${GUI_SOURCES})
+	set(INC_DIRS ${INC_DIRS} gui/)
+# Add binary blobs
+	embed_blobs(BLOB_BINS ${BLOB_SRCS})
+else()
+	set(SDL2_LIBRARIES "")
+	set(SDL2_INCLUDE_DIRS "")
+	set(SDL2_LIBRARY_DIRS "")
+	set(OPENGL_INCLUDE_DIRS "")
+	set(OPENGL_LIBRARIES "")
+endif()
+
+
+>>>>>>> 615c047 (Fixed some compilation warnings)
 # Main library target
 add_library(radiosonde STATIC ${LIBRARY_SOURCES})
 target_include_directories(radiosonde PUBLIC ${INC_DIRS})

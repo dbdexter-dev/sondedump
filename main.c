@@ -33,18 +33,9 @@ enum ui {
 	UI_TUI,
 };
 
-/* Sample input types */
-enum input {
-	INPUT_WAV,
-	INPUT_RAW,
-#ifdef ENABLE_AUDIO
-	INPUT_AUDIO
-#endif
-};
-
 static void usage(const char *progname);
 static void version(void);
-static int printf_data(const char *fmt, PrintableData *data);
+static int printf_data(const char *fmt, const PrintableData *data);
 static int wav_read_wrapper(float *dst, size_t count);
 static int raw_read_wrapper(float *dst, size_t count);
 static void sigint_handler(int val);
@@ -87,7 +78,7 @@ static struct option longopts[] = {
 int
 main(int argc, char *argv[])
 {
-	PrintableData *printable;
+	const PrintableData *printable;
 	KMLFile kml, live_kml;
 	GPXFile gpx = {.offset = 0};
 	int samplerate;
@@ -100,22 +91,27 @@ main(int argc, char *argv[])
 	float srcbuf[BUFLEN];
 
 	/* Command-line changeable parameters {{{ */
-	char *output_fmt = "[%f] %t'C %r%%    %l %o %am    %sm/s %h' %cm/s";
+	const char *output_fmt = "[%f] %t'C %r%%    %l %o %am    %sm/s %h' %cm/s";
 	const char *live_kml_fname = NULL;
 	const char *kml_fname = NULL;
 	const char *gpx_fname = NULL;
 	const char *csv_fname = NULL;
 	const char *input_fname = NULL;
 	enum ui ui = UI_TEXT;
+#ifdef ENABLE_TUI
 	int receiver_location_set = 0;
+#endif
 	enum decoder active_decoder = AUTO;
 	float receiver_lat = 0, receiver_lon = 0, receiver_alt = 0;
 #ifdef ENABLE_TUI
 	ui = UI_TUI;
 #endif
 #ifdef ENABLE_AUDIO
-	input_type = INPUT_AUDIO;
+	int input_from_audio = 0;
 	int audio_device = -1;
+	int audio_device_count = 0;
+	const char **audio_device_names;
+	int i;
 #endif
 	/* }}} */
 	/* Parse command-line args {{{ */
@@ -180,7 +176,7 @@ main(int argc, char *argv[])
 #ifdef ENABLE_AUDIO
 		/* Initialize audio backend */
 		if (audio_init()) {
-			fprintf(stderr, "Error while initializing audio subsystem, exiting...\n");
+			log_error("Error while initializing audio subsystem, exiting...");
 			return 1;
 		}
 
@@ -218,7 +214,7 @@ main(int argc, char *argv[])
 				break;
 		}
 #else
-		fprintf(stderr, "No input file specified\n");
+		log_error("No input file specified");
 		usage(argv[0]);
 		return 1;
 #endif
@@ -233,13 +229,13 @@ main(int argc, char *argv[])
 	} else {
 #endif
 	if (!(_wav = fopen(input_fname, "rb"))) {
-		fprintf(stderr, "Could not open input file\n");
+		log_error("Could not open input file");
 		return 1;
 	}
 	read_wrapper = wav_read_wrapper;
 	if (wav_parse(_wav, &samplerate, &_bps)) {
-		fprintf(stderr, "Could not recognize input file type\n");
-		fprintf(stderr, "Will assume raw, mono, 32 bit float, 48kHz\n");
+		log_warn("Could not recognize input file type");
+		log_warn("Will assume raw, mono, 32 bit float, 48kHz");
 		samplerate = 48000;
 
 		read_wrapper = &raw_read_wrapper;
@@ -251,29 +247,29 @@ main(int argc, char *argv[])
 	/* Open CSV output */
 	if (csv_fname) {
 		if (!(csv_fd = fopen(csv_fname, "wb"))) {
-			fprintf(stderr, "Error creating CSV file %s\n", csv_fname);
+			log_error("Error creating CSV file %s", csv_fname);
 		}
 		fprintf(csv_fd, "Temperature,RH,Pressure,Altitude,Latitude,Longitude,Speed,Heading,Climb\n");
 	}
 
 	/* Open GPX/KML output */
 	if (kml_fname && kml_init(&kml, kml_fname, 0)) {
-		fprintf(stderr, "Error creating KML file %s\n", kml_fname);
+		log_error("Error creating KML file %s", kml_fname);
 		return 1;
 	}
 	if (live_kml_fname && kml_init(&live_kml, live_kml_fname, 1)) {
-		fprintf(stderr, "Error creating KML file %s\n", live_kml_fname);
+		log_error("Error creating KML file %s", live_kml_fname);
 		return 1;
 	}
 	if (gpx_fname && gpx_init(&gpx, gpx_fname)) {
-		fprintf(stderr, "Error creating GPX file %s\n", gpx_fname);
+		log_error("Error creating GPX file %s", gpx_fname);
 		return 1;
 	}
 
 	/* Initialize decoder */
 	set_active_decoder(active_decoder);
 	if (decoder_init(samplerate)) {
-		fprintf(stderr, "Error while initializing decoder subsystem, exiting...\n");
+		log_error("Error while initializing decoder subsystem");
 		return 1;
 	}
 
@@ -461,7 +457,7 @@ version(void)
 
 
 static int
-printf_data(const char *fmt, PrintableData *data)
+printf_data(const char *fmt, const PrintableData *data)
 {
 	size_t i;
 	int escape_seq;
