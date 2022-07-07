@@ -96,14 +96,16 @@ main(int argc, char *argv[])
 	float srcbuf[BUFLEN];
 
 	/* Command-line changeable parameters {{{ */
-	char *output_fmt = "[%f] %t'C %r%%    %l %o %am    %sm/s %h' %cm/s";
+	const char *output_fmt = "[%f] %t'C %r%%    %l %o %am    %sm/s %h' %cm/s";
 	const char *live_kml_fname = NULL;
 	const char *kml_fname = NULL;
 	const char *gpx_fname = NULL;
 	const char *csv_fname = NULL;
 	const char *input_fname = NULL;
 	enum ui ui = UI_TEXT;
+#ifdef ENABLE_TUI
 	int receiver_location_set = 0;
+#endif
 	enum decoder active_decoder = AUTO;
 	float receiver_lat = 0, receiver_lon = 0, receiver_alt = 0;
 #ifdef ENABLE_TUI
@@ -151,7 +153,9 @@ main(int argc, char *argv[])
 					usage(argv[0]);
 					return 1;
 				}
+#ifdef ENABLE_TUI
 				receiver_location_set = 1;
+#endif
 				break;
 			case 'f':
 				output_fmt = optarg;

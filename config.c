@@ -137,7 +137,7 @@ config_save_to_file(const Config *config)
 {
 	FILE *fd;
 
-	log_info("Saving to %s...", config_path());
+	log_info("Saving config to %s...", config_path());
 
 	if (!(fd = fopen(config_path(), "w"))) {
 		log_error("Failed to write %s\n", config_path());
