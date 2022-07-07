@@ -1,17 +1,17 @@
 #include <assert.h>
-#include <GLES3/gl3.h>
 #include <math.h>
 #include <stddef.h>
 #include <string.h>
 #include "decode.h"
 #include "gl_skewt.h"
+#include "libs/glad/glad.h"
+#include "log/log.h"
 #include "shaders/shaders.h"
 #include "style.h"
 #include "utils.h"
 
 #define BEZIER_VERTEX_COUNT(steps) (2 * ((steps) + 1))
 
-#define VCOUNT 16
 #define LINE_THICKNESS 1
 
 typedef struct {
@@ -26,14 +26,15 @@ typedef struct {
 typedef struct {
 	uint32_t offset;
 	uint32_t len;
+	uint32_t tessellation;
 	float color[4];
 	float thickness;
 } BezierMetadata;
 
-extern const char _binary_skewt_bin_start[];
-extern const char _binary_skewt_bin_end[];
-extern const char _binary_skewt_index_bin_start[];
-extern const char _binary_skewt_index_bin_end[];
+extern const char _binary_skewt_bin[];
+extern const unsigned long _binary_skewt_bin_size;
+extern const char _binary_skewt_index_bin[];
+extern const unsigned long _binary_skewt_index_bin_size;
 
 static void chart_opengl_init(GLSkewT *ctx);
 static void data_opengl_init(GLSkewT *ctx);
@@ -63,16 +64,17 @@ gl_skewt_deinit(GLSkewT *ctx)
 }
 
 void
-gl_skewt_vector(GLSkewT *ctx, float width, float height)
+gl_skewt_vector(GLSkewT *ctx, int width, int height, const GeoPoint *data, size_t len)
 {
 	const float zoom = ctx->zoom;
 	const float x_center = ctx->center_x;
 	const float y_center = ctx->center_y;
-	const int data_count = get_data_count();
-	size_t i;
+	const float temperature_color[] = STYLE_ACCENT_1_NORMALIZED;
+	const float dewpt_color[] = STYLE_ACCENT_0_NORMALIZED;
+	unsigned int tessellation;
+	BezierMetadata *metadata;
 	float thickness;
-	float temperature_color[] = {1.0, 0.0, 0.0, 1.0};
-	float dewpt_color[] = {0.0, 0.0, 1.0, 1.0};
+	size_t i;
 
 
 	GLfloat proj[4][4] = {
@@ -95,21 +97,21 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glUniformMatrix4fv(ctx->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
-	glBindBuffer(GL_ARRAY_BUFFER, ctx->vbo);
 
 	/* For each color/thickness combination */
 	for (i=0; i < SYMSIZE(_binary_skewt_index_bin) / sizeof(BezierMetadata); i++) {
 		/* Get metadata */
-		BezierMetadata *metadata = ((BezierMetadata*)_binary_skewt_index_bin_start) + i;
-		unsigned int vertex_count = BEZIER_VERTEX_COUNT(VCOUNT) * (metadata->len / sizeof(Bezier));
+		metadata = ((BezierMetadata*)_binary_skewt_index_bin) + i;
+		tessellation = metadata->tessellation;
+		unsigned int vertex_count = BEZIER_VERTEX_COUNT(tessellation) * (metadata->len / sizeof(Bezier));
 		unsigned int index_count = vertex_count + (metadata->len / sizeof(Bezier));
 
-		thickness = 2.0 * LINE_THICKNESS / zoom;
+		thickness = 1.0 / zoom;
 
 		/* Upload line group metadata  */
 		glUniform4fv(ctx->u4f_color, 1, metadata->color);
 		glUniform1f(ctx->u1f_thickness, thickness);
-		glUniform1f(ctx->u1f_frag_thickness, thickness / 2.0 * zoom);
+		glUniform1f(ctx->u1f_frag_thickness, thickness * zoom);
 
 		/* Render line group */
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctx->ibo[i]);
@@ -122,14 +124,15 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	glUseProgram(ctx->data_program);
 	glBindVertexArray(ctx->data_vao);
 	glBindBuffer(GL_ARRAY_BUFFER, ctx->data_vbo);
-	glBufferData(GL_ARRAY_BUFFER, data_count * sizeof(GeoPoint), get_track_data(), GL_STREAM_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, len * sizeof(GeoPoint), data, GL_STREAM_DRAW);
 
 #define BG_HEIGHT_WIDTH_RATIO 0.839583
 #define TEMP_OFFSET (-122.5)
 #define TEMP_SCALE ((-24.5 - TEMP_OFFSET))
 #define PRESS_OFFSET (logf(100))
 #define PRESS_SCALE ((logf(1050) - PRESS_OFFSET) / BG_HEIGHT_WIDTH_RATIO)
-#define Y_INTO_X_COEFF (tanf(42.77*M_PI/180))
+#define SKEW_ANGLE 47.21
+#define Y_INTO_X_COEFF tanf((90 - SKEW_ANGLE) * M_PI/180.0)
 
 	float a = proj[0][0];
 	float b = proj[1][1];
@@ -150,14 +153,19 @@ gl_skewt_vector(GLSkewT *ctx, float width, float height)
 	/* Draw dew point */
 	glUniform4fv(ctx->u4f_data_color, 1, dewpt_color);
 	glVertexAttribPointer(ctx->attrib_data_temp, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, dewpt));
-	glDrawArrays(GL_POINTS, 0, data_count);
+	glDrawArrays(GL_POINTS, 0, len);
 
 	/* Draw air temperature */
 	glUniform4fv(ctx->u4f_data_color, 1, temperature_color);
 	glVertexAttribPointer(ctx->attrib_data_temp, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, temp));
-	glDrawArrays(GL_POINTS, 0, data_count);
-
+	glDrawArrays(GL_POINTS, 0, len);
 	/* }}} */
+
+	/* Cleanup */
+	glUseProgram(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
 }
 
 /* Static functions {{{ */
@@ -170,11 +178,11 @@ chart_opengl_init(GLSkewT *ctx)
 	unsigned int *indices;
 
 	GLint status, attrib_pos, attrib_normal;
-	unsigned int i, j, k, vertex_count, vertex_offset;
+	unsigned int i, j, k, vertex_count, vertex_offset, index_offset, tessellation;
 
-	const GLchar *vertex_shader = _binary_bezierproj_vert_start;
+	const GLchar *vertex_shader = _binary_bezierproj_vert;
 	const int vertex_shader_len = SYMSIZE(_binary_bezierproj_vert);
-	const GLchar *fragment_shader = _binary_feathercolor_frag_start;
+	const GLchar *fragment_shader = _binary_feathercolor_frag;
 	const int fragment_shader_len = SYMSIZE(_binary_feathercolor_frag);
 
 	ctx->chart_program = glCreateProgram();
@@ -208,6 +216,10 @@ chart_opengl_init(GLSkewT *ctx)
 	attrib_normal = glGetAttribLocation(ctx->chart_program, "in_normal");
 
 	memset(ctx->ibo, 0, sizeof(ctx->vbo));
+	log_debug("proj_mtx %d color %d thickness %d aa_thickness %d",
+			ctx->u4m_proj, ctx->u4f_color, ctx->u1f_thickness, ctx->u1f_frag_thickness);
+	log_debug("in_position %d in_normal %d", attrib_pos, attrib_normal);
+
 
 	/* Allocate buffers */
 	glGenVertexArrays(1, &ctx->vao);
@@ -217,8 +229,9 @@ chart_opengl_init(GLSkewT *ctx)
 
 	vertex_count = 0;
 	for (i=0; i < SYMSIZE(_binary_skewt_index_bin) / sizeof(BezierMetadata); i++) {
-		metadata = ((BezierMetadata*)_binary_skewt_index_bin_start) + i;
-		vertex_count += BEZIER_VERTEX_COUNT(VCOUNT) * (metadata->len / sizeof(Bezier));
+		metadata = ((BezierMetadata*)_binary_skewt_index_bin) + i;
+		tessellation = metadata->tessellation;
+		vertex_count += BEZIER_VERTEX_COUNT(tessellation) * (metadata->len / sizeof(Bezier));
 	}
 
 	/* Allocate GPU mem for all vertices */
@@ -232,10 +245,11 @@ chart_opengl_init(GLSkewT *ctx)
 
 	/* Tessellate curves */
 	vertex_offset = 0;
-	unsigned int index_offset = 0;
+	index_offset = 0;
 	for (i=0; i < SYMSIZE(_binary_skewt_index_bin) / sizeof(BezierMetadata); i++) {
-		metadata = ((BezierMetadata*)_binary_skewt_index_bin_start) + i;
-		vertex_count = BEZIER_VERTEX_COUNT(VCOUNT) * (metadata->len / sizeof(Bezier));
+		metadata = ((BezierMetadata*)_binary_skewt_index_bin) + i;
+		tessellation = metadata->tessellation;
+		vertex_count = BEZIER_VERTEX_COUNT(tessellation) * (metadata->len / sizeof(Bezier));
 		vertices = malloc(sizeof(*vertices) * vertex_count);
 
         /* One index per vertex plus one at the end of the curve to restart */
@@ -244,17 +258,17 @@ chart_opengl_init(GLSkewT *ctx)
 		/* Tessellate bezier segments */
 		for (j=0; j<metadata->len / sizeof(Bezier); j++) {
 			/* Retrieve control points */
-			bez = ((Bezier*)(_binary_skewt_bin_start + metadata->offset)) + j;
+			bez = ((Bezier*)(_binary_skewt_bin + metadata->offset)) + j;
 
 			/* Tessellate bezier */
-			bezier_tessellate(vertices + j*BEZIER_VERTEX_COUNT(VCOUNT), VCOUNT, bez->cp);
+			bezier_tessellate(vertices + j*BEZIER_VERTEX_COUNT(tessellation), tessellation, bez->cp);
 
-			/* Generate indices */
-			for (k=0; k<BEZIER_VERTEX_COUNT(VCOUNT); k++) {
-				indices[j * (BEZIER_VERTEX_COUNT(VCOUNT) + 1) + k] = index_offset++;
+			/* Generate indices (+ 1 for the restart index) */
+			for (k=0; k<BEZIER_VERTEX_COUNT(tessellation); k++) {
+				indices[j * (BEZIER_VERTEX_COUNT(tessellation) + 1) + k] = index_offset++;
 			}
 			/* Restart index */
-			indices[j * (BEZIER_VERTEX_COUNT(VCOUNT) + 1) + k] = 0xFFFFFFFF;
+			indices[j * (BEZIER_VERTEX_COUNT(tessellation) + 1) + k] = 0xFFFFFFFF;
 		}
 
 		/* Upload results to the GPU */
@@ -277,9 +291,9 @@ data_opengl_init(GLSkewT *ctx)
 	GLuint attrib_alt;
 	GLint status;
 
-	const GLchar *vertex_shader = _binary_skewtproj_vert_start;
+	const GLchar *vertex_shader = _binary_skewtproj_vert;
 	const int vertex_shader_len = SYMSIZE(_binary_skewtproj_vert);
-	const GLchar *fragment_shader = _binary_simplecolor_frag_start;
+	const GLchar *fragment_shader = _binary_simplecolor_frag;
 	const int fragment_shader_len = SYMSIZE(_binary_simplecolor_frag);
 
 	/* Program + shaders */
@@ -306,11 +320,14 @@ data_opengl_init(GLSkewT *ctx)
 	assert(status == GL_TRUE);
 
 	/* Uniforms + attributes */
-	ctx->u4m_data_proj = glGetUniformLocation(ctx->data_program, "proj_mtx");
-	ctx->u4f_data_color = glGetUniformLocation(ctx->data_program, "color");
+	ctx->u4m_data_proj = glGetUniformLocation(ctx->data_program, "u_proj_mtx");
+	ctx->u4f_data_color = glGetUniformLocation(ctx->data_program, "u_color");
 
 	ctx->attrib_data_temp = glGetAttribLocation(ctx->data_program, "in_temp");
 	attrib_alt = glGetAttribLocation(ctx->data_program, "in_altitude");
+
+	log_debug("proj_mtx %d color %d", ctx->u4m_data_proj, ctx->u4f_data_color);
+	log_debug("temp %d alt %d", ctx->attrib_data_temp, attrib_alt);
 
 	glGenVertexArrays(1, &ctx->data_vao);
 	glBindVertexArray(ctx->data_vao);

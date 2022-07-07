@@ -6,6 +6,7 @@
 #include <math.h>
 #include <string.h>
 #include "decode.h"
+#include "log/log.h"
 #include "physics.h"
 #include "utils.h"
 
@@ -32,6 +33,7 @@ static GeoPoint *track;
 static int reserved_count;
 static int sample_count;
 static int new_samplerate = -1;
+static uint64_t id_offset;
 
 int
 decoder_init(int samplerate)
@@ -54,6 +56,7 @@ decoder_init(int samplerate)
 	reserved_count = CHUNKSIZE;
 	sample_count = 0;
 
+	id_offset = time(NULL);
 
 	/* Initialize data double-buffer */
 	memset(printable, 0, sizeof(printable));
@@ -158,26 +161,31 @@ decode(const float *srcbuf, size_t len)
 	case AUTO:
 		while (rs41_decode(rs41decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.type != EMPTY && data.type != FRAME_END) {
+				log_info("Autodetected: RS41");
 				set_active_decoder(RS41);
 			}
 		}
 		while (m10_decode(m10decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.type != EMPTY && data.type != FRAME_END) {
 				set_active_decoder(M10);
+				log_info("Autodetected: M10");
 			}
 		}
 		while (ims100_decode(ims100decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.type != EMPTY && data.type != FRAME_END) {
+				log_info("Autodetected: iMS100");
 				set_active_decoder(IMS100);
 			}
 		}
 		while (dfm09_decode(dfm09decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.type != EMPTY && data.type != FRAME_END) {
+				log_info("Autodetected: DFM09");
 				set_active_decoder(DFM09);
 			}
 		}
 		while (imet4_decode(imet4decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.type != EMPTY && data.type != FRAME_END) {
+				log_info("Autodetected: iMet-4");
 				set_active_decoder(IMET4);
 			}
 		}
@@ -202,15 +210,18 @@ decode(const float *srcbuf, size_t len)
 					}
 
 					if (isnormal(printable->alt)) {
+						track[sample_count].id = time(NULL) - id_offset;
 						track[sample_count].temp = l_printable->temp;
 						track[sample_count].rh = l_printable->rh;
-						track[sample_count].hdg = l_printable->heading;
-						track[sample_count].speed = l_printable->speed;
 						track[sample_count].alt = l_printable->alt;
 						track[sample_count].lat = l_printable->lat;
 						track[sample_count].lon = l_printable->lon;
+						track[sample_count].spd = l_printable->speed;
+						track[sample_count].hdg = l_printable->heading;
+						track[sample_count].climb = l_printable->climb;
 						track[sample_count].dewpt = dewpt(l_printable->temp, l_printable->rh);
 						track[sample_count].pressure = l_printable->pressure;
+						track[sample_count].utc_time = l_printable->utc_time;
 
 						sample_count++;
 
@@ -256,7 +267,7 @@ set_active_decoder(enum decoder decoder)
 	sample_count = 0;
 }
 
-PrintableData*
+const PrintableData*
 get_data(void)
 {
 	const int idx = (printable_active_slot + 1) % LEN(printable);

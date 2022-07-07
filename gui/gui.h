@@ -9,17 +9,25 @@
 #define WINDOW_TITLE "SondeDump v" VERSION
 
 enum graph {
-	GUI_TIMESERIES=0,
-	GUI_SKEW_T,
-	GUI_MAP,
+	GUI_TIMESERIES,     /* Received data as a graph over time */
+	GUI_SKEW_T,         /* Received temp + dewpt on a skew-t background */
+	GUI_MAP,            /* Word map showing the ground track */
 };
 
+/**
+ * Initialize SDL2 GUI. Will launch a new thread to handle GUI inputs
+ */
 void gui_init(void);
-void gui_deinit(void);
-void gui_force_update(void);
 
-enum graph gui_get_graph(void);
-void       gui_set_graph(enum graph visual);
+/**
+ * Halt GUI execution and exit gracefully
+ */
+void gui_deinit(void);
+
+/**
+ * Force the GUI to update even though no input was given by the user
+ */
+void gui_force_update(void);
 
 #endif
 

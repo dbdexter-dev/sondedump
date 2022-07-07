@@ -37,6 +37,17 @@ typedef struct {
  */
 int framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword, int synclen);
 
+/**
+ * Initialize an AFSK framer object
+ *
+ * @param f object to init
+ * @param samplerate input samplerate
+ * @param baudrate baud rate of the signal to decode
+ * @param f_mark AFSK frequency for a mark (1) bit
+ * @param f_space AFSK frequency for a space (0) bit
+ * @param syncword synchronization sequence
+ * @param synclen size of the synchronization sequence, in bytes
+ */
 int framer_init_afsk(Framer *f, int samplerate, int baudrate, float f_mark, float f_space, uint64_t syncword, int synclen);
 
 

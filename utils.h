@@ -15,6 +15,11 @@
 #define unsetenv(env)                _putenv_s(env, "=")
 #endif
 
+/* strcasecmp for msvc */
+#ifdef _MSC_VER
+#define strcasecmp _stricmp
+#endif
+
 /* Portable unroll pragma, for some reason clang defines __GNUC__ but uses the
  * non-GCC unroll pragma format */
 #define DO_PRAGMA(x) _Pragma(#x)
@@ -45,7 +50,7 @@
 #endif
 
 /* Symbol size that works for relocatable executables */
-#define SYMSIZE(x) (x##_end - x##_start)
+#define SYMSIZE(x) (x##_size)
 
 /**
  * strdup, but portable since it's not part of the C standard and has a

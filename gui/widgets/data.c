@@ -3,20 +3,30 @@
 #include <time.h>
 #include "data.h"
 #include "decode.h"
+#include "gps/ecef.h"
 #include "include/data.h"
 #include "physics.h"
 #include "style.h"
 
-
 extern const char *_decoder_names[];
 extern const int _decoder_count;
 
-int
-widget_data(struct nk_context *ctx, float scale)
+float
+widget_data_base_size(struct nk_context *ctx, float lat, float lon, float alt)
 {
-	char tmp[64];
+	const float row_spacing = ctx->style.window.spacing.y;
 
-	PrintableData *printable = get_data();
+	if (lat || lon || alt) return (STYLE_DEFAULT_ROW_HEIGHT + row_spacing) * 21;
+	return (STYLE_DEFAULT_ROW_HEIGHT + row_spacing) * 17;
+}
+
+int
+widget_data(struct nk_context *ctx, float lat, float lon, float alt, float scale)
+{
+	float az, el, range;
+	char tmp[128];
+
+	const PrintableData *printable = get_data();
 
 	nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * scale, 2);
 
@@ -61,6 +71,27 @@ widget_data(struct nk_context *ctx, float scale)
 	nk_label(ctx, "", NK_TEXT_LEFT);
 	nk_label(ctx, "", NK_TEXT_LEFT);
 
+	if (lat || lon || alt) {
+		lla_to_aes(&az, &el, &range, printable->lat, printable->lon, printable->alt,
+				lat, lon, alt);
+
+		nk_label(ctx, "Azimuth: ", NK_TEXT_RIGHT);
+		sprintf(tmp, "%.1f'", az);
+		nk_label(ctx, tmp, NK_TEXT_LEFT);
+
+		nk_label(ctx, "Elevation: ", NK_TEXT_RIGHT);
+		sprintf(tmp, "%.2f'", el);
+		nk_label(ctx, tmp, NK_TEXT_LEFT);
+
+		nk_label(ctx, "Slant range: ", NK_TEXT_RIGHT);
+		sprintf(tmp, "%.2f km", range/1000);
+		nk_label(ctx, tmp, NK_TEXT_LEFT);
+
+		nk_label(ctx, "", NK_TEXT_LEFT);
+		nk_label(ctx, "", NK_TEXT_LEFT);
+
+	}
+
 	nk_label(ctx, "Temperature: ", NK_TEXT_RIGHT);
 	sprintf(tmp, "%.1f'C", printable->temp);
 	nk_label(ctx, tmp, NK_TEXT_LEFT);
@@ -77,7 +108,10 @@ widget_data(struct nk_context *ctx, float scale)
 	sprintf(tmp, "%.1f hPa", printable->pressure);
 	nk_label(ctx, tmp, NK_TEXT_LEFT);
 
-	/* Sonde type selection */
+	nk_label(ctx, "Aux. data: ", NK_TEXT_RIGHT);
+	sprintf(tmp, "%s", printable->xdata);
+	nk_label(ctx, tmp, NK_TEXT_LEFT);
+
 	nk_label(ctx, "Calibration:", NK_TEXT_RIGHT);
 	sprintf(tmp, "%.0f%%", printable->calib_percent);
 	nk_label(ctx, tmp, NK_TEXT_LEFT);

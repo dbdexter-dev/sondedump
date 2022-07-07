@@ -169,7 +169,7 @@ redraw(void)
 	int start_row, start_col;
 	char time[64], shutdown_timer[32];
 	float az, el, slant;
-	PrintableData *data = get_data();
+	const PrintableData *data = get_data();
 
 	/* Draw tabs at top of the TUI */
 	draw_tabs(tui.tabs, get_active_decoder());

@@ -6,9 +6,11 @@
 #define decoder_iface_t ParserStatus(*)(void*, SondeData*, const float*, size_t)
 
 typedef struct {
+	unsigned int id;
+	time_t utc_time;
 	float lat, lon, alt;
+	float spd, hdg, climb;
 	float pressure;
-	float speed, hdg;
 	float temp, rh, dewpt;
 } GeoPoint;
 
@@ -23,10 +25,16 @@ ParserStatus decode(const float *samples, size_t len);
  */
 void         decoder_set_samplerate(int samplerate);
 
+/**
+ * Getter/setter for the currently active decoder
+ */
 enum decoder get_active_decoder(void);
 void         set_active_decoder(enum decoder decoder);
 
-PrintableData *get_data(void);
+/**
+ * Get a pointer to the data decoded so far
+ */
+const PrintableData *get_data(void);
 int            get_slot(void);
 
 int             get_data_count(void);

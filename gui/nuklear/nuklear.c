@@ -1,6 +1,5 @@
-#include <GLES3/gl3.h>
+#include "libs/glad/glad.h"
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
 
 #define NK_SDL_GL3_IMPLEMENTATION
 #define NK_IMPLEMENTATION

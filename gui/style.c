@@ -1,5 +1,6 @@
 #include "style.h"
 #include "nuklear/nuklear_sdl_gl3.h"
+#include "utils.h"
 
 #define NK_COLOR_MAP(NK_COLOR) \
     NK_COLOR(NK_COLOR_TEXT,                     255,255,255,255)\
@@ -32,8 +33,8 @@
     NK_COLOR(NK_COLOR_TAB_HEADER,               40, 40, 40, 255)
 
 
-extern const char _binary_Roboto_Medium_ttf_start[];
-extern const char _binary_Roboto_Medium_ttf_end[];
+extern const char _binary_Roboto_Medium_ttf[];
+extern const unsigned long _binary_Roboto_Medium_ttf_size;
 
 #define NK_COLOR(n,r,g,b,a) {r,g,b,a},
 static const struct nk_color default_style_table[NK_COLOR_COUNT] = {
@@ -65,8 +66,8 @@ gui_load_fonts(struct nk_context *ctx, float scale)
 	nk_sdl_font_stash_begin(&atlas_latin_regular);
 	latin_regular = nk_font_atlas_add_from_memory(
 			atlas_latin_regular,
-			(void*)_binary_Roboto_Medium_ttf_start,
-			(size_t)_binary_Roboto_Medium_ttf_end - (size_t)_binary_Roboto_Medium_ttf_start,
+			(void*)_binary_Roboto_Medium_ttf,
+			(size_t)SYMSIZE(_binary_Roboto_Medium_ttf),
 			STYLE_DEFAULT_FONT_SIZE * scale,
 			&cfg_latin_regular);
 	nk_sdl_font_stash_end();

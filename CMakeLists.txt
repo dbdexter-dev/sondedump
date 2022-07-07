@@ -38,26 +38,28 @@ if (is_arm EQUAL "0")
 endif()
 
 
-function(add_blobs out_var)
+function(embed_blobs out_var)
 	set(result)
 	foreach(IN_FILE ${ARGN})
 		get_filename_component(SRC_FILE ${IN_FILE} NAME)
-		get_filename_component(SRC_DIR ${IN_FILE} DIRECTORY)
-		set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/${SRC_FILE}.o")
+		set(OUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/${SRC_FILE}.c")
 
 		add_custom_command(
 			OUTPUT ${OUT_FILE}
-			COMMAND ${CMAKE_LINKER} --relocatable --format binary -o ${OUT_FILE} ${SRC_FILE}
+			COMMAND ${CMAKE_COMMAND} -DIN_FILE=${IN_FILE} -DOUT_FILE=${OUT_FILE} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedBlob.cmake
 			DEPENDS ${IN_FILE}
 			WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/${SRC_DIR}"
 		)
+
 		list(APPEND result ${OUT_FILE})
 	endforeach()
-
 	set(${out_var} "${result}" PARENT_SCOPE)
 endfunction()
 
 
+# Used by the log_*() functions to retrieve the base name of the source file
+string(LENGTH "${CMAKE_SOURCE_DIR}/" SOURCE_BASE_PATH_SIZE)
+add_definitions("-DSOURCE_BASE_PATH_SIZE=${SOURCE_BASE_PATH_SIZE}")
 
 # Rules to embed binary blobs with stable symbol names
 set(BLOB_SRCS)
@@ -137,6 +139,8 @@ set(LIBRARY_SOURCES
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h
 
+	log/log.c log/log.h
+
 	bitops.c bitops.h
 	physics.c physics.h
 	utils.c utils.h
@@ -151,6 +155,8 @@ set(AUDIO_SOURCES
 )
 
 set(GUI_SOURCES
+	libs/glad/glad.c libs/glad/glad.h libs/glad/KHR/khrplatform.h
+
 	gui/nuklear/nuklear.c gui/nuklear/nuklear.h
 	gui/nuklear/nuklear_sdl_gl3.h
 	gui/nuklear/nuklear_ext.c gui/nuklear/nuklear_ext.h
@@ -158,12 +164,14 @@ set(GUI_SOURCES
 	gui/style.c gui/style.h
 	gui/gui.c gui/gui.h
 
-	#gui/widgets/chart.c gui/widgets/chart.h
 	gui/widgets/data.c gui/widgets/data.h
 	gui/widgets/type_select.c gui/widgets/type_select.h
 	gui/widgets/audio_dev_select.c gui/widgets/audio_dev_select.h
+	gui/widgets/export.c gui/widgets/export.h
+
 	gui/widgets/gl_map.c gui/widgets/gl_map.h
 	gui/widgets/gl_skewt.c gui/widgets/gl_skewt.h
+	gui/widgets/gl_timeseries.c gui/widgets/gl_timeseries.h
 
 	gui/shaders/shaders.h
 )
@@ -172,6 +180,9 @@ set(EXEC_SOURCES
 	io/gpx.c io/gpx.h
 	io/kml.c io/kml.h
 	io/wavfile.c io/wavfile.h
+
+	libs/jsmn/jsmn.c libs/jsmn/jsmn.h
+	config.c config.h
 
 	decode.c decode.h
 	main.c
@@ -192,7 +203,7 @@ endif()
 
 # Find Curses/Ncurses
 if (ENABLE_TUI)
-	find_package(Curses)
+	find_package(Curses REQUIRED)
 endif()
 if (ENABLE_TUI AND CURSES_FOUND)
 	# Portable threads
@@ -207,7 +218,7 @@ endif()
 
 # Find PortAudio
 if (ENABLE_AUDIO)
-	find_package(Portaudio)
+	find_package(Portaudio REQUIRED)
 endif()
 if(ENABLE_AUDIO AND PORTAUDIO_FOUND)
 	add_definitions(-DENABLE_AUDIO)
@@ -220,10 +231,10 @@ endif()
 # Find OpenGL and SDL2
 if (ENABLE_GUI)
 	find_package(Threads REQUIRED)
-	find_package(OpenGLESv3)
-	find_package(SDL2)
+	find_package(OpenGL COMPONENTS OpenGL REQUIRED)
+	find_package(SDL2 REQUIRED)
 endif()
-if (ENABLE_GUI AND SDL2_FOUND AND OPENGLES3_FOUND)
+if (ENABLE_GUI AND SDL2_FOUND AND OPENGL_FOUND)
 	# Nuklear configuration, has to be consistent every time nuklear.h is included
 	add_definitions(
 		-DNK_INCLUDE_FIXED_TYPES
@@ -237,16 +248,16 @@ if (ENABLE_GUI AND SDL2_FOUND AND OPENGLES3_FOUND)
 	add_definitions(-DENABLE_GUI)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${GUI_SOURCES})
 	set(INC_DIRS ${INC_DIRS} gui/)
+# Add binary blobs
+	embed_blobs(BLOB_BINS ${BLOB_SRCS})
 else()
 	set(SDL2_LIBRARIES "")
 	set(SDL2_INCLUDE_DIRS "")
 	set(SDL2_LIBRARY_DIRS "")
-	set(OPENGLES3_INCLUDE_DIRS "")
-	set(OPENGLES3_LIBRARIES "")
+	set(OPENGL_INCLUDE_DIRS "")
+	set(OPENGL_LIBRARIES "")
 endif()
 
-# Add binary blobs
-add_blobs(BLOB_BINS ${BLOB_SRCS})
 
 # Main library target
 add_library(radiosonde STATIC ${LIBRARY_SOURCES})
@@ -259,7 +270,7 @@ target_include_directories(sondedump PRIVATE ${INC_DIRS}
 	${PORTAUDIO_INCLUDE_DIRS}
 	${CURSES_INCLUDE_DIRS}
 	${SDL2_INCLUDE_DIRS}
-	${OPENGLES3_INCLUDE_DIRS}
+	${OPENGL_INCLUDE_DIRS}
 )
 target_link_libraries(sondedump PRIVATE radiosonde
 	${CMAKE_THREAD_LIBS_INIT}
@@ -267,7 +278,7 @@ target_link_libraries(sondedump PRIVATE radiosonde
 	${PORTAUDIO_LIBRARIES}
 	${CURSES_LIBRARIES}
 	${SDL2_LIBRARIES}
-	${OPENGLES3_LIBRARIES}
+	${OPENGL_LIBRARIES}
 )
 
 # Install targets
