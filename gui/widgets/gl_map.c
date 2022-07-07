@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <GLES3/gl3.h>
+#include "libs/glad/glad.h"
 #include "decode.h"
 #include "gl_map.h"
 #include "log/log.h"

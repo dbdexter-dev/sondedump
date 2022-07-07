@@ -1,9 +1,9 @@
 #include <assert.h>
-#include <GLES3/gl3.h>
 #include <math.h>
 #include <stddef.h>
 #include "decode.h"
 #include "gl_skewt.h"
+#include "libs/glad/glad.h"
 #include "log/log.h"
 #include "shaders/shaders.h"
 #include "style.h"

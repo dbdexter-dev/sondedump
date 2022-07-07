@@ -1,9 +1,9 @@
 #ifndef gl_timeseries_h
 #define gl_timeseries_h
 
-#include <GLES3/gl3.h>
 #include <stdlib.h>
 #include "decode.h"
+#include "libs/glad/glad.h"
 
 typedef struct {
 	GLuint vao, vbo;

@@ -190,7 +190,7 @@ config_path(void)
 #ifdef _WIN32
 	/* Save in %APPDATA%/sondedump.json */
 	if (!SUCCEEDED(SHGetFolderPath(NULL, CSIDL_APPDATA, NULL, 0, confpath))) return NULL;
-	confpath(strlen(confpath)) = "\\";
+	confpath[strlen(confpath)] = "\\";
 #elif defined(__APPLE__)
 	FSRef ref;
 	FSFindFolder(kUserDomain, kApplicationSupportFolderType, kCreateFolder, &ref);

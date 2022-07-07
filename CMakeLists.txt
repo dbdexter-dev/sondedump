@@ -155,6 +155,8 @@ set(AUDIO_SOURCES
 )
 
 set(GUI_SOURCES
+	libs/glad/glad.c libs/glad/glad.h libs/glad/KHR/khrplatform.h
+
 	gui/nuklear/nuklear.c gui/nuklear/nuklear.h
 	gui/nuklear/nuklear_sdl_gl3.h
 	gui/nuklear/nuklear_ext.c gui/nuklear/nuklear_ext.h
@@ -229,10 +231,10 @@ endif()
 # Find OpenGL and SDL2
 if (ENABLE_GUI)
 	find_package(Threads REQUIRED)
-	find_package(OpenGLESv3)
+	find_package(OpenGL COMPONENTS OpenGL)
 	find_package(SDL2)
 endif()
-if (ENABLE_GUI AND SDL2_FOUND AND OPENGLES3_FOUND)
+if (ENABLE_GUI AND SDL2_FOUND AND OPENGL_FOUND)
 	# Nuklear configuration, has to be consistent every time nuklear.h is included
 	add_definitions(
 		-DNK_INCLUDE_FIXED_TYPES
@@ -246,16 +248,16 @@ if (ENABLE_GUI AND SDL2_FOUND AND OPENGLES3_FOUND)
 	add_definitions(-DENABLE_GUI)
 	set(EXEC_SOURCES ${EXEC_SOURCES} ${GUI_SOURCES})
 	set(INC_DIRS ${INC_DIRS} gui/)
+# Add binary blobs
+	embed_blobs(BLOB_BINS ${BLOB_SRCS})
 else()
 	set(SDL2_LIBRARIES "")
 	set(SDL2_INCLUDE_DIRS "")
 	set(SDL2_LIBRARY_DIRS "")
-	set(OPENGLES3_INCLUDE_DIRS "")
-	set(OPENGLES3_LIBRARIES "")
+	set(OPENGL_INCLUDE_DIRS "")
+	set(OPENGL_LIBRARIES "")
 endif()
 
-# Add binary blobs
-embed_blobs(BLOB_BINS ${BLOB_SRCS})
 
 # Main library target
 add_library(radiosonde STATIC ${LIBRARY_SOURCES})
@@ -268,7 +270,7 @@ target_include_directories(sondedump PRIVATE ${INC_DIRS}
 	${PORTAUDIO_INCLUDE_DIRS}
 	${CURSES_INCLUDE_DIRS}
 	${SDL2_INCLUDE_DIRS}
-	${OPENGLES3_INCLUDE_DIRS}
+	${OPENGL_INCLUDE_DIRS}
 )
 target_link_libraries(sondedump PRIVATE radiosonde
 	${CMAKE_THREAD_LIBS_INIT}
@@ -276,7 +278,7 @@ target_link_libraries(sondedump PRIVATE radiosonde
 	${PORTAUDIO_LIBRARIES}
 	${CURSES_LIBRARIES}
 	${SDL2_LIBRARIES}
-	${OPENGLES3_LIBRARIES}
+	${OPENGL_LIBRARIES}
 )
 
 # Install targets

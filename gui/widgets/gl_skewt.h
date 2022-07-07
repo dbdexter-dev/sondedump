@@ -1,8 +1,8 @@
 #ifndef gl_skewt_h
 #define gl_skewt_h
 
-#include <GLES3/gl3.h>
 #include <stdlib.h>
+#include "libs/glad/glad.h"
 #include "decode.h"
 
 typedef struct {

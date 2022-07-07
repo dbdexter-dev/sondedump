@@ -1,8 +1,8 @@
 #ifndef gl_map_h
 #define gl_map_h
 
-#include <GLES3/gl3.h>
 #include <stdlib.h>
+#include "libs/glad/glad.h"
 #include "config.h"
 #include "decode.h"
 

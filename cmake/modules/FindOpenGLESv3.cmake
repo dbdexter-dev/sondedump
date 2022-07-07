@@ -32,6 +32,8 @@ else()
 	else()
 		if (OpenGLESv3_FIND_REQUIRED)
 			message(FATAL_ERROR "Could not find OpenGL ES")
+		else()
+			message(STATUS "Could not find OpenGL ES")
 		endif()
 	endif()
 

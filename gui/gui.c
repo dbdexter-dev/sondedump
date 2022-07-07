@@ -1,8 +1,11 @@
 #include <assert.h>
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_opengles2.h>
-#include <GLES3/gl3.h>
+#include "libs/glad/glad.h"
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <pthread.h>
+#endif
 #include "config.h"
 #include "decode.h"
 #include "gui.h"
@@ -44,6 +47,10 @@ static void config_window(struct nk_context *ctx, UIState *state, Config *conf, 
 static void overview_window(struct nk_context *ctx, UIState *state, Config *conf);
 static void export_window(struct nk_context *ctx, UIState *state, float width, float height);
 
+#ifdef _WIN32
+typedef uint32_t pthread_t;
+#endif
+
 static pthread_t _tid;
 extern volatile int _interrupted;
 
@@ -51,7 +58,11 @@ void
 gui_init(void)
 {
 	_interrupted = 0;
+#ifdef _WIN32
+	CreateThread(NULL, 0, gui_main, NULL, 0, &_tid);
+#else
 	pthread_create(&_tid, NULL, gui_main, NULL);
+#endif
 }
 
 void
@@ -60,7 +71,13 @@ gui_deinit(void)
 	void *retval;
 
 	_interrupted = 1;
-	if (_tid) pthread_join(_tid, &retval);
+	if (_tid) {
+#ifdef _WIN32
+		WaitForSingleObject(&_tid, (uint32_t)-1);
+#else
+		pthread_join(_tid, &retval);
+#endif
+	}
 }
 
 static void*
@@ -101,18 +118,31 @@ gui_main(void *args)
 	                       WINDOW_WIDTH, WINDOW_HEIGHT,
 	                       SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
 
+	if (!win) {
+		log_error("SDL window creation failed: %s", SDL_GetError());
+		return (void*)1;
+	}
+
+	/* Create context and init GLAD */
 	glContext = SDL_GL_CreateContext(win);
+	if (!glContext) {
+		log_error("SDL context creation failed: %s", SDL_GetError());
+		return (void*)1;
+	}
+
+	gladLoadGLES2Loader(SDL_GL_GetProcAddress);
+
 	gl_version = (const char*)glGetString(GL_VERSION);
 	if (gl_version) {
 		log_debug("Created OpenGL context: %s", gl_version);
 	} else {
 		log_error("Unable to create OpenGL context: %s (OpenGL status %d)", SDL_GetError(), glGetError());
+		return (void*)1;
 	}
-	if (strcmp(SDL_GetError(), "")) {
-		log_error("SDL context creation failed: %s", SDL_GetError());
-	}
+
 	SDL_GetWindowSize(win, &width, &height);
 	glViewport(0, 0, width, height);
+
 
 	/* Load config */
 	config_load_from_file(&config);
