@@ -290,10 +290,10 @@ gui_main(void *args)
 			gl_map_vector(&map, &config, width, height, get_track_data(), get_data_count());
 			break;
 		case GUI_TIMESERIES_PTU:
-			gl_timeseries_ptu(&timeseries, &config, get_track_data(), get_data_count());
+			gl_timeseries_ptu(&timeseries, &config, get_track_data(), get_data_count(), get_data_maxima(), get_data_minima());
 			break;
 		case GUI_TIMESERIES_GPS:
-			gl_timeseries_gps(&timeseries, &config, get_track_data(), get_data_count());
+			gl_timeseries_gps(&timeseries, &config, get_track_data(), get_data_count(), get_data_maxima(), get_data_minima());
 			break;
 		case GUI_SKEW_T:
 			gl_skewt_vector(&skewt, &config, width, height, get_track_data(), get_data_count());

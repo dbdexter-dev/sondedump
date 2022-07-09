@@ -169,7 +169,8 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 
 			/* Descramble and error correct */
 			rs41_frame_descramble(self->frame);
-			rs41_frame_correct(self->frame, &self->rs);
+			int errcount = rs41_frame_correct(self->frame, &self->rs);
+			log_debug("RS (sum): %d", errcount);
 
 #ifndef NDEBUG
 			if (debug) {

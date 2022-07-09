@@ -20,8 +20,8 @@ enum datatype {
 
 static void timeseries_opengl_init(GLTimeseries *ctx);
 
-static void gl_timeseries_multi(const enum datatype *datatypes, int types_count, GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len);
-static void gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len);
+static void gl_timeseries_multi(const enum datatype *datatypes, int types_count, GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len, const GeoPoint *maxima, const GeoPoint *minima);
+static void gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len, const GeoPoint *maxima, const GeoPoint *minima);
 
 void
 gl_timeseries_init(GLTimeseries *ctx)
@@ -40,25 +40,25 @@ void gl_timeseries_deinit(GLTimeseries *ctx)
 }
 
 void
-gl_timeseries_ptu(GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len)
+gl_timeseries_ptu(GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len, const GeoPoint *maxima, const GeoPoint *minima)
 {
 	const enum datatype channels[] = {TEMP, RH, DEWPT, PRESS};
 
-	gl_timeseries_multi(channels, LEN(channels), ctx, config, data, len);
+	gl_timeseries_multi(channels, LEN(channels), ctx, config, data, len, maxima, minima);
 }
 
 void
-gl_timeseries_gps(GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len)
+gl_timeseries_gps(GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len, const GeoPoint *maxima, const GeoPoint *minima)
 {
 	const enum datatype channels[] = {ALT, SPD, HDG, CLIMB};
 
-	gl_timeseries_multi(channels, LEN(channels), ctx, config, data, len);
+	gl_timeseries_multi(channels, LEN(channels), ctx, config, data, len, maxima, minima);
 }
 
 
 /* Static functions {{{ */
 static void
-gl_timeseries_multi(const enum datatype *datatypes, int types_count, GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len)
+gl_timeseries_multi(const enum datatype *datatypes, int types_count, GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len, const GeoPoint *maxima, const GeoPoint *minima)
 {
 	int i;
 
@@ -73,7 +73,7 @@ gl_timeseries_multi(const enum datatype *datatypes, int types_count, GLTimeserie
 	/* Draw points for each channel */
 	for (i=0; i<types_count; i++) {
 		/* Set up uniforms */
-		gl_timeseries_single(datatypes[i], ctx, config, data, len);
+		gl_timeseries_single(datatypes[i], ctx, config, data, len, maxima, minima);
 
 		/* Draw */
 		glDrawArrays(GL_POINTS, 0, len);
@@ -90,15 +90,15 @@ gl_timeseries_multi(const enum datatype *datatypes, int types_count, GLTimeserie
  * Set up uniforms and VAO to draw a specific field inside the geopoint struct
  */
 static void
-gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len)
+gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len, const GeoPoint *maxima, const GeoPoint *minima)
 {
-	const float temp_bounds[] = {-100, 50+100};
-	const float rh_bounds[] = {0, 100-0};
-	const float alt_bounds[] = {0, 40000-0};
-	const float press_bounds[] = {0, 1100-0};
-	const float hdg_bounds[] = {0, 360-0};
-	const float spd_bounds[] = {-30, 30-(-30)};
-	const float climb_bounds[] = {-10, 10-(-10)};
+	const float temp_bounds[] = {minima->temp, maxima->temp - minima->temp};
+	const float rh_bounds[] = {minima->rh, maxima->rh - minima->rh};
+	const float alt_bounds[] = {minima->alt, maxima->alt - minima->alt};
+	const float press_bounds[] = {minima->pressure, maxima->pressure - minima->pressure};
+	const float hdg_bounds[] = {minima->hdg, maxima->hdg - minima->hdg};
+	const float spd_bounds[] = {minima->spd, maxima->spd - minima->spd};
+	const float climb_bounds[] = {minima->climb, maxima->climb - minima->climb};
 
 	const float *color = config->colors.temp;
 

@@ -40,5 +40,8 @@ int            get_slot(void);
 int             get_data_count(void);
 const GeoPoint* get_track_data(void);
 
+const GeoPoint* get_data_minima(void);
+const GeoPoint* get_data_maxima(void);
+
 
 #endif

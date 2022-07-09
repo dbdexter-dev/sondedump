@@ -15,6 +15,7 @@
 static void fill_printable_data(PrintableData *to_print, SondeData *data);
 
 static ParserStatus (*active_decoder_decode)(void*, SondeData*, const float*, size_t);
+static void update_minmax(const GeoPoint *new);
 static void *active_decoder_ctx;
 static enum decoder active_decoder;
 static int decoder_changed;
@@ -29,6 +30,7 @@ static PrintableData printable[2];
 static int printable_active_slot;
 static int has_data, new_data;
 
+static GeoPoint minima, maxima;
 static GeoPoint *track;
 static int reserved_count;
 static int sample_count;
@@ -65,6 +67,23 @@ decoder_init(int samplerate)
 	new_data = 0;
 
 	decoder_changed = 1;
+
+	/* Initialize minima/maxima */
+	minima.rh = 0;
+	maxima.rh = 100;
+	minima.temp = -70;
+	maxima.temp = 50;
+	minima.alt = 0;
+	maxima.alt = 35000;
+	minima.spd = -10;
+	maxima.spd = 10;
+	minima.hdg = 0;
+	maxima.hdg = 360;
+	minima.climb = -5;
+	maxima.climb = 5;
+	minima.pressure = 0;
+	maxima.pressure = 1050;
+
 
 	return 0;
 }
@@ -223,6 +242,8 @@ decode(const float *srcbuf, size_t len)
 						track[sample_count].pressure = l_printable->pressure;
 						track[sample_count].utc_time = l_printable->utc_time;
 
+						update_minmax(&track[sample_count]);
+
 						/* If packet seq is not transmitted, generate a unique
 						 * id from the previous packet id */
 						if (sample_count > 0 && track[sample_count].id <= track[sample_count-1].id) {
@@ -298,7 +319,38 @@ get_track_data(void)
 	return track;
 }
 
+const GeoPoint*
+get_data_minima(void)
+{
+	return &minima;
+}
+
+const GeoPoint*
+get_data_maxima(void)
+{
+	return &maxima;
+}
+
+
 /* Static functions {{{ */
+static void
+update_minmax(const GeoPoint *new)
+{
+	minima.temp = MIN(minima.temp, new->temp);
+	minima.dewpt = MIN(minima.rh, new->dewpt);
+	minima.pressure = MIN(minima.pressure, new->pressure);
+	minima.alt = MIN(minima.alt, new->alt);
+	minima.spd = MIN(minima.spd, -fabs(new->spd));
+	minima.climb = MIN(minima.climb, -fabs(new->climb));
+
+	maxima.temp = MAX(maxima.temp, new->temp);
+	maxima.dewpt = MAX(maxima.rh, new->dewpt);
+	maxima.pressure = MAX(maxima.pressure, new->pressure);
+	maxima.alt = MAX(maxima.alt, new->alt);
+	maxima.spd = MAX(maxima.spd, fabs(new->spd));
+	maxima.climb = MAX(maxima.climb, fabs(new->climb));
+}
+
 static void
 fill_printable_data(PrintableData *to_print, SondeData *data)
 {
