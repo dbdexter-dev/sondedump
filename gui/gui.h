@@ -9,7 +9,8 @@
 #define WINDOW_TITLE "SondeDump v" VERSION
 
 enum graph {
-	GUI_TIMESERIES,     /* Received data as a graph over time */
+	GUI_TIMESERIES_PTU, /* Received PTU data as a graph over time */
+	GUI_TIMESERIES_GPS, /* Received GPS data as a graph over time */
 	GUI_SKEW_T,         /* Received temp + dewpt on a skew-t background */
 	GUI_MAP,            /* Word map showing the ground track */
 };

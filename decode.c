@@ -210,7 +210,7 @@ decode(const float *srcbuf, size_t len)
 					}
 
 					if (isnormal(printable->alt)) {
-						track[sample_count].id = time(NULL) - id_offset;
+						track[sample_count].id = l_printable->seq;
 						track[sample_count].temp = l_printable->temp;
 						track[sample_count].rh = l_printable->rh;
 						track[sample_count].alt = l_printable->alt;
@@ -222,6 +222,12 @@ decode(const float *srcbuf, size_t len)
 						track[sample_count].dewpt = dewpt(l_printable->temp, l_printable->rh);
 						track[sample_count].pressure = l_printable->pressure;
 						track[sample_count].utc_time = l_printable->utc_time;
+
+						/* If packet seq is not transmitted, generate a unique
+						 * id from the previous packet id */
+						if (sample_count > 0 && track[sample_count].id <= track[sample_count-1].id) {
+							track[sample_count].id = track[sample_count-1].id + 1;
+						}
 
 						sample_count++;
 

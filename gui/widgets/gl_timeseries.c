@@ -5,8 +5,21 @@
 #include "shaders/shaders.h"
 #include "utils.h"
 #include "style.h"
+#include "colors.h"
+
+enum datatype {
+	TEMP,
+	RH,
+	DEWPT,
+	PRESS,
+	ALT,
+	SPD,
+	HDG,
+	CLIMB,
+};
 
 static void timeseries_opengl_init(GLTimeseries *ctx);
+static void gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const GeoPoint *data, size_t len);
 
 void
 gl_timeseries_init(GLTimeseries *ctx)
@@ -24,18 +37,81 @@ void gl_timeseries_deinit(GLTimeseries *ctx)
 	if (ctx->program) glDeleteProgram(ctx->program);
 }
 
+void
+gl_timeseries_ptu(GLTimeseries *ctx, const GeoPoint *data, size_t len)
+{
+	const enum datatype channels[] = {TEMP, RH, DEWPT, PRESS};
+	size_t i;
+
+	/* Select program */
+	glUseProgram(ctx->program);
+	glBindVertexArray(ctx->vao);
+
+	/* Upload new data */
+	glBindBuffer(GL_ARRAY_BUFFER, ctx->vbo);
+	glBufferData(GL_ARRAY_BUFFER, len * sizeof(GeoPoint), data, GL_STREAM_DRAW);
+
+	/* Draw points for each channel */
+	for (i=0; i<LEN(channels); i++) {
+		/* Set up uniforms */
+		gl_timeseries_single(channels[i], ctx, data, len);
+
+		/* Draw */
+		glDrawArrays(GL_POINTS, 0, len);
+	}
+
+	/* Cleanup */
+	glUseProgram(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+}
 
 void
-gl_timeseries(GLTimeseries *ctx, const GeoPoint *data, size_t len)
+gl_timeseries_gps(GLTimeseries *ctx, const GeoPoint *data, size_t len)
+{
+	const enum datatype channels[] = {ALT, SPD, HDG, CLIMB};
+	size_t i;
+
+	/* Select program */
+	glUseProgram(ctx->program);
+	glBindVertexArray(ctx->vao);
+
+	/* Upload new data */
+	glBindBuffer(GL_ARRAY_BUFFER, ctx->vbo);
+	glBufferData(GL_ARRAY_BUFFER, len * sizeof(GeoPoint), data, GL_STREAM_DRAW);
+
+	/* Draw points for each channel */
+	for (i=0; i<LEN(channels); i++) {
+		/* Set up uniforms */
+		gl_timeseries_single(channels[i], ctx, data, len);
+
+		/* Draw */
+		glDrawArrays(GL_POINTS, 0, len);
+	}
+
+	/* Cleanup */
+	glUseProgram(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+}
+
+
+/* Static functions {{{ */
+static void
+gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const GeoPoint *data, size_t len)
 {
 	const float temp_bounds[] = {-100, 50+100};
 	const float rh_bounds[] = {0, 100-0};
 	const float alt_bounds[] = {0, 40000-0};
+	const float press_bounds[] = {0, 1100-0};
+	const float hdg_bounds[] = {0, 360-0};
+	const float spd_bounds[] = {-30, 30-(-30)};
+	const float climb_bounds[] = {-10, 10-(-10)};
 
-	const float temperature_color[] = STYLE_ACCENT_1_NORMALIZED;
-	const float dewpt_color[] = STYLE_ACCENT_0_NORMALIZED;
-	const float alt_color[] = STYLE_ACCENT_3_NORMALIZED;
-	const float rh_color[] = STYLE_ACCENT_2_NORMALIZED;
+	const float *color;
+
 	const int max_id = len > 0 ? MAX(1, data[len-1].id) : 1;
 	const int min_id = len > 0 ? data[0].id : 0;
 	float p11;
@@ -52,52 +128,62 @@ gl_timeseries(GLTimeseries *ctx, const GeoPoint *data, size_t len)
 	proj[3][0] = -1 - proj[0][0] * min_id;
 	p11 = proj[1][1];
 
-	glUseProgram(ctx->program);
-	glBindVertexArray(ctx->vao);
 
-	glBindBuffer(GL_ARRAY_BUFFER, ctx->vbo);
-	glBufferData(GL_ARRAY_BUFFER, len * sizeof(GeoPoint), data, GL_STREAM_DRAW);
+	switch (datatype) {
+	case TEMP:
+		proj[1][1] = p11 / temp_bounds[1];
+		proj[3][1] = -1 + proj[1][1] * (-temp_bounds[0]);
+		color = get_gui_color(COLOR_TEMP);
+		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, temp));
+		break;
+	case RH:
+		proj[1][1] = p11 / rh_bounds[1];
+		proj[3][1] = -1 + proj[1][1] * (-rh_bounds[0]);
+		color = get_gui_color(COLOR_RH);
+		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, rh));
+		break;
+	case DEWPT:
+		proj[1][1] = p11 / temp_bounds[1];
+		proj[3][1] = -1 + proj[1][1] * (-temp_bounds[0]);
+		color = get_gui_color(COLOR_DEWPT);
+		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, dewpt));
+		break;
+	case ALT:
+		proj[1][1] = p11 / alt_bounds[1];
+		proj[3][1] = -1 + proj[1][1] * (-alt_bounds[0]);
+		color = get_gui_color(COLOR_ALT);
+		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, alt));
+		break;
+	case PRESS:
+		proj[1][1] = -p11 / press_bounds[1];
+		proj[3][1] = -1 - proj[1][1] * (-press_bounds[0]);
+		color = get_gui_color(COLOR_PRESS);
+		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, pressure));
+		break;
+	case HDG:
+		proj[1][1] = p11 / hdg_bounds[1];
+		proj[3][1] = -1 + proj[1][1] * (-hdg_bounds[0]);
+		color = get_gui_color(COLOR_HDG);
+		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, hdg));
+		break;
+	case SPD:
+		proj[1][1] = p11 / spd_bounds[1];
+		proj[3][1] = -1 + proj[1][1] * (-spd_bounds[0]);
+		color = get_gui_color(COLOR_SPD);
+		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, spd));
+		break;
+	case CLIMB:
+		proj[1][1] = p11 / climb_bounds[1];
+		proj[3][1] = -1 + proj[1][1] * (-climb_bounds[0]);
+		color = get_gui_color(COLOR_CLIMB);
+		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, climb));
+		break;
+	}
 
-	/* Temperature */
-	proj[1][1] = p11 / temp_bounds[1];
-	proj[3][1] = -1 + proj[1][1] * (-temp_bounds[0]);
 	glUniformMatrix4fv(ctx->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
-	glUniform4fv(ctx->u4f_color, 1, temperature_color);
-	glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, temp));
-	glDrawArrays(GL_POINTS, 0, len);
-
-	/* RH */
-	proj[1][1] = p11 / rh_bounds[1];
-	proj[3][1] = -1 + proj[1][1] * (-rh_bounds[0]);
-	glUniformMatrix4fv(ctx->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
-	glUniform4fv(ctx->u4f_color, 1, rh_color);
-	glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, rh));
-	glDrawArrays(GL_POINTS, 0, len);
-
-	/* Dew point */
-	proj[1][1] = p11 / temp_bounds[1];
-	proj[3][1] = -1 + proj[1][1] * (-temp_bounds[0]);
-	glUniformMatrix4fv(ctx->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
-	glUniform4fv(ctx->u4f_color, 1, dewpt_color);
-	glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, dewpt));
-	glDrawArrays(GL_POINTS, 0, len);
-
-	/* Altitude */
-	proj[1][1] = p11 / alt_bounds[1];
-	proj[3][1] = -1 + proj[1][1] * (-alt_bounds[0]);
-	glUniformMatrix4fv(ctx->u4m_proj, 1, GL_FALSE, (GLfloat*)proj);
-	glUniform4fv(ctx->u4f_color, 1, alt_color);
-	glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, alt));
-	glDrawArrays(GL_POINTS, 0, len);
-
-	/* Cleanup */
-	glUseProgram(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
+	glUniform4fv(ctx->u4f_color, 1, color);
 }
 
-/* Static functions {{{ */
 static void
 timeseries_opengl_init(GLTimeseries *ctx)
 {

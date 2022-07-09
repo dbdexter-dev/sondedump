@@ -15,6 +15,7 @@
 #include "nuklear/nuklear_ext.h"
 #include "nuklear/nuklear_sdl_gl3.h"
 #include "style.h"
+#include "colors.h"
 #include "widgets/audio_dev_select.h"
 #include "widgets/data.h"
 #include "widgets/export.h"
@@ -117,7 +118,6 @@ gui_main(void *args)
 	win = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 	                       WINDOW_WIDTH, WINDOW_HEIGHT,
 	                       SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
-
 	if (!win) {
 		log_error("SDL window creation failed: %s", SDL_GetError());
 		return (void*)1;
@@ -132,6 +132,7 @@ gui_main(void *args)
 
 	gladLoadGLES2Loader(SDL_GL_GetProcAddress);
 
+	/* Check results */
 	gl_version = (const char*)glGetString(GL_VERSION);
 	if (gl_version) {
 		log_debug("Created OpenGL context: %s", gl_version);
@@ -140,12 +141,13 @@ gui_main(void *args)
 		return (void*)1;
 	}
 
+	/* Get initial window width/height */
 	SDL_GetWindowSize(win, &width, &height);
-	glViewport(0, 0, width, height);
-
 
 	/* Load config */
 	config_load_from_file(&config);
+	/* TODO inside config */
+	default_gui_colors();
 
 	/* Initialize map */
 	gl_map_init(&map);
@@ -165,7 +167,7 @@ gui_main(void *args)
 	gui_load_fonts(ctx, ui_state.scale);
 	gui_set_style_default(ctx);
 
-	/* Initialize imgui data */
+	/* Initialize gui state */
 	ui_state.force_refresh = 1;
 	ui_state.dragging = 0;
 	ui_state.over_window = 0;
@@ -288,8 +290,11 @@ gui_main(void *args)
 		case GUI_MAP:
 			gl_map_vector(&map, &config, width, height, get_track_data(), get_data_count());
 			break;
-		case GUI_TIMESERIES:
-			gl_timeseries(&timeseries, get_track_data(), get_data_count());
+		case GUI_TIMESERIES_PTU:
+			gl_timeseries_ptu(&timeseries, get_track_data(), get_data_count());
+			break;
+		case GUI_TIMESERIES_GPS:
+			gl_timeseries_gps(&timeseries, get_track_data(), get_data_count());
 			break;
 		case GUI_SKEW_T:
 			gl_skewt_vector(&skewt, width, height, get_track_data(), get_data_count());
@@ -345,12 +350,15 @@ overview_window(struct nk_context *ctx, UIState *state, Config *conf)
 		widget_type_select(ctx, state->scale);
 
 		/* UI graph selection */
-		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 3);
-		if (nk_option_label(ctx, "Ground track", state->active_widget == GUI_MAP)) {
+		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 4);
+		if (nk_option_label(ctx, "Map", state->active_widget == GUI_MAP)) {
 			state->active_widget = GUI_MAP;
 		}
-		if (nk_option_label(ctx, "Sensor data", state->active_widget == GUI_TIMESERIES)) {
-			state->active_widget = GUI_TIMESERIES;
+		if (nk_option_label(ctx, "PTU data", state->active_widget == GUI_TIMESERIES_PTU)) {
+			state->active_widget = GUI_TIMESERIES_PTU;
+		}
+		if (nk_option_label(ctx, "GPS data", state->active_widget == GUI_TIMESERIES_GPS)) {
+			state->active_widget = GUI_TIMESERIES_GPS;
 		}
 		if (nk_option_label(ctx, "Skew-T", state->active_widget == GUI_SKEW_T)) {
 			state->active_widget = GUI_SKEW_T;

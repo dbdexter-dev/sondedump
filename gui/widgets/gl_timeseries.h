@@ -18,6 +18,8 @@ typedef struct {
 
 void gl_timeseries_init(GLTimeseries *ctx);
 void gl_timeseries_deinit(GLTimeseries *ctx);
-void gl_timeseries(GLTimeseries *ctx, const GeoPoint *data, size_t len);
+
+void gl_timeseries_ptu(GLTimeseries *ctx, const GeoPoint *data, size_t len);
+void gl_timeseries_gps(GLTimeseries *ctx, const GeoPoint *data, size_t len);
 
 #endif

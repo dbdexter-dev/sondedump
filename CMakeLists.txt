@@ -163,6 +163,7 @@ set(GUI_SOURCES
 
 	gui/style.c gui/style.h
 	gui/gui.c gui/gui.h
+	gui/colors.c gui/colors.h
 
 	gui/widgets/data.c gui/widgets/data.h
 	gui/widgets/type_select.c gui/widgets/type_select.h

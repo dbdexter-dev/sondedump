@@ -41,7 +41,7 @@
 /* Math defines */
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
-#define LEN(x) (sizeof(x)/sizeof(x[0]))
+#define LEN(x) (sizeof(x)/sizeof(*(x)))
 #ifndef sgn
 #define sgn(x) ((x) < 0 ? -1 : 1)
 #endif
