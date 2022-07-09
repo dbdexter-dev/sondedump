@@ -6,6 +6,7 @@
 #include "utils.h"
 #include "style.h"
 
+/* Types of data that can be displayed */
 enum datatype {
 	TEMP,
 	RH,
@@ -18,7 +19,9 @@ enum datatype {
 };
 
 static void timeseries_opengl_init(GLTimeseries *ctx);
-static void gl_timeseries_single(enum datatype datatype, const Config *config, GLTimeseries *ctx, const GeoPoint *data, size_t len);
+
+static void gl_timeseries_multi(const enum datatype *datatypes, int types_count, GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len);
+static void gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len);
 
 void
 gl_timeseries_init(GLTimeseries *ctx)
@@ -40,37 +43,24 @@ void
 gl_timeseries_ptu(GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len)
 {
 	const enum datatype channels[] = {TEMP, RH, DEWPT, PRESS};
-	size_t i;
 
-	/* Select program */
-	glUseProgram(ctx->program);
-	glBindVertexArray(ctx->vao);
-
-	/* Upload new data */
-	glBindBuffer(GL_ARRAY_BUFFER, ctx->vbo);
-	glBufferData(GL_ARRAY_BUFFER, len * sizeof(GeoPoint), data, GL_STREAM_DRAW);
-
-	/* Draw points for each channel */
-	for (i=0; i<LEN(channels); i++) {
-		/* Set up uniforms */
-		gl_timeseries_single(channels[i], config, ctx, data, len);
-
-		/* Draw */
-		glDrawArrays(GL_POINTS, 0, len);
-	}
-
-	/* Cleanup */
-	glUseProgram(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
+	gl_timeseries_multi(channels, LEN(channels), ctx, config, data, len);
 }
 
 void
 gl_timeseries_gps(GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len)
 {
 	const enum datatype channels[] = {ALT, SPD, HDG, CLIMB};
-	size_t i;
+
+	gl_timeseries_multi(channels, LEN(channels), ctx, config, data, len);
+}
+
+
+/* Static functions {{{ */
+static void
+gl_timeseries_multi(const enum datatype *datatypes, int types_count, GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len)
+{
+	int i;
 
 	/* Select program */
 	glUseProgram(ctx->program);
@@ -81,9 +71,9 @@ gl_timeseries_gps(GLTimeseries *ctx, const Config *config, const GeoPoint *data,
 	glBufferData(GL_ARRAY_BUFFER, len * sizeof(GeoPoint), data, GL_STREAM_DRAW);
 
 	/* Draw points for each channel */
-	for (i=0; i<LEN(channels); i++) {
+	for (i=0; i<types_count; i++) {
 		/* Set up uniforms */
-		gl_timeseries_single(channels[i], config, ctx, data, len);
+		gl_timeseries_single(datatypes[i], ctx, config, data, len);
 
 		/* Draw */
 		glDrawArrays(GL_POINTS, 0, len);
@@ -96,10 +86,11 @@ gl_timeseries_gps(GLTimeseries *ctx, const Config *config, const GeoPoint *data,
 	glBindVertexArray(0);
 }
 
-
-/* Static functions {{{ */
+/**
+ * Set up uniforms and VAO to draw a specific field inside the geopoint struct
+ */
 static void
-gl_timeseries_single(enum datatype datatype, const Config *config, GLTimeseries *ctx, const GeoPoint *data, size_t len)
+gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len)
 {
 	const float temp_bounds[] = {-100, 50+100};
 	const float rh_bounds[] = {0, 100-0};
