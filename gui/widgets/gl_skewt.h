@@ -2,8 +2,9 @@
 #define gl_skewt_h
 
 #include <stdlib.h>
-#include "libs/glad/glad.h"
+#include "config.h"
 #include "decode.h"
+#include "libs/glad/glad.h"
 
 typedef struct {
 	float center_x, center_y, zoom;
@@ -45,7 +46,7 @@ void gl_skewt_deinit(GLSkewT *ctx);
  * @param data      data to display
  * @param len       number of elements to display in the data array
  */
-void gl_skewt_vector(GLSkewT *ctx, int width, int height, const GeoPoint *data, size_t len);
+void gl_skewt_vector(GLSkewT *ctx, const Config *config, int width, int height, const GeoPoint *data, size_t len);
 
 
 #endif

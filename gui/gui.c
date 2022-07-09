@@ -296,7 +296,7 @@ gui_main(void *args)
 			gl_timeseries_gps(&timeseries, &config, get_track_data(), get_data_count());
 			break;
 		case GUI_SKEW_T:
-			gl_skewt_vector(&skewt, width, height, get_track_data(), get_data_count());
+			gl_skewt_vector(&skewt, &config, width, height, get_track_data(), get_data_count());
 			break;
 		}
 
@@ -585,15 +585,20 @@ config_window(struct nk_context *ctx, UIState *state, Config *config, float widt
 
 	/* If the user has picked a color to change, also draw a color picker window
 	 * at the current mouse coordinates */
-	window_bounds.w = window_bounds.h = PICKER_SIZE * config->ui_scale;
+	window_bounds.w = PICKER_SIZE * config->ui_scale;
+	window_bounds.h = 0;
 	window_bounds.x = state->mouse.x - window_bounds.w;
 	window_bounds.y = state->mouse.y;
 
 	if (state->picked_color) {
 		if (nk_begin(ctx, "Color picker", window_bounds, picker_flags)) {
-			nk_layout_row_dynamic(ctx, 200 * config->ui_scale, 1);
-			nk_color_pick(ctx, state->picked_color, NK_RGBA);
+			border = nk_window_get_panel(ctx)->border;
+
+			nk_layout_row_dynamic(ctx, window_bounds.w - 2 * border, 1);
+			nk_color_pick(ctx, state->picked_color, NK_RGB);
+
 			state->over_window |= nk_window_is_hovered(ctx);
+			nk_window_fit_to_content(ctx);
 		} else {
 			state->picked_color = NULL;
 		}

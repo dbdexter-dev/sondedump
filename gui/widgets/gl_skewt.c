@@ -64,13 +64,11 @@ gl_skewt_deinit(GLSkewT *ctx)
 }
 
 void
-gl_skewt_vector(GLSkewT *ctx, int width, int height, const GeoPoint *data, size_t len)
+gl_skewt_vector(GLSkewT *ctx, const Config *config, int width, int height, const GeoPoint *data, size_t len)
 {
 	const float zoom = ctx->zoom;
 	const float x_center = ctx->center_x;
 	const float y_center = ctx->center_y;
-	const float temperature_color[] = STYLE_ACCENT_1_NORMALIZED;
-	const float dewpt_color[] = STYLE_ACCENT_0_NORMALIZED;
 	unsigned int tessellation;
 	BezierMetadata *metadata;
 	float thickness;
@@ -151,12 +149,12 @@ gl_skewt_vector(GLSkewT *ctx, int width, int height, const GeoPoint *data, size_
 	glUniformMatrix4fv(ctx->u4m_data_proj, 1, GL_FALSE, (GLfloat*)proj);
 
 	/* Draw dew point */
-	glUniform4fv(ctx->u4f_data_color, 1, dewpt_color);
+	glUniform4fv(ctx->u4f_data_color, 1, config->colors.dewpt);
 	glVertexAttribPointer(ctx->attrib_data_temp, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, dewpt));
 	glDrawArrays(GL_POINTS, 0, len);
 
 	/* Draw air temperature */
-	glUniform4fv(ctx->u4f_data_color, 1, temperature_color);
+	glUniform4fv(ctx->u4f_data_color, 1, config->colors.temp);
 	glVertexAttribPointer(ctx->attrib_data_temp, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, temp));
 	glDrawArrays(GL_POINTS, 0, len);
 	/* }}} */

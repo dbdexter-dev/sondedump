@@ -18,7 +18,7 @@ enum datatype {
 };
 
 static void timeseries_opengl_init(GLTimeseries *ctx);
-static void gl_timeseries_single(enum datatype datatype, Config *config, GLTimeseries *ctx, const GeoPoint *data, size_t len);
+static void gl_timeseries_single(enum datatype datatype, const Config *config, GLTimeseries *ctx, const GeoPoint *data, size_t len);
 
 void
 gl_timeseries_init(GLTimeseries *ctx)
@@ -37,7 +37,7 @@ void gl_timeseries_deinit(GLTimeseries *ctx)
 }
 
 void
-gl_timeseries_ptu(GLTimeseries *ctx, Config *config, const GeoPoint *data, size_t len)
+gl_timeseries_ptu(GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len)
 {
 	const enum datatype channels[] = {TEMP, RH, DEWPT, PRESS};
 	size_t i;
@@ -67,7 +67,7 @@ gl_timeseries_ptu(GLTimeseries *ctx, Config *config, const GeoPoint *data, size_
 }
 
 void
-gl_timeseries_gps(GLTimeseries *ctx, Config *config, const GeoPoint *data, size_t len)
+gl_timeseries_gps(GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len)
 {
 	const enum datatype channels[] = {ALT, SPD, HDG, CLIMB};
 	size_t i;
@@ -99,7 +99,7 @@ gl_timeseries_gps(GLTimeseries *ctx, Config *config, const GeoPoint *data, size_
 
 /* Static functions {{{ */
 static void
-gl_timeseries_single(enum datatype datatype, Config *config, GLTimeseries *ctx, const GeoPoint *data, size_t len)
+gl_timeseries_single(enum datatype datatype, const Config *config, GLTimeseries *ctx, const GeoPoint *data, size_t len)
 {
 	const float temp_bounds[] = {-100, 50+100};
 	const float rh_bounds[] = {0, 100-0};
