@@ -33,6 +33,7 @@ static void parse_receiver(Config *dst, cJSON *node);
 static void parse_colors(Config *dst, cJSON *node);
 static int parse_number_array(float *dst, cJSON *node, size_t maxlen);
 
+/* Default configuration, used when json is missing, corrupt, or incomplete */
 static const Config default_config = {
 	.map = {
 		.zoom = 3,

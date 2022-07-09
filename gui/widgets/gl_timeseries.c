@@ -155,7 +155,7 @@ gl_timeseries_single(enum datatype datatype, Config *config, GLTimeseries *ctx, 
 		break;
 	case PRESS:
 		proj[1][1] = -p11 / press_bounds[1];
-		proj[3][1] = -1 - proj[1][1] * (-press_bounds[0]);
+		proj[3][1] = 1 - proj[1][1] * (-press_bounds[0]);
 		color = config->colors.press;
 		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, pressure));
 		break;

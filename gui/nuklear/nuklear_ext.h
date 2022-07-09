@@ -11,5 +11,7 @@
  */
 void nk_window_fit_to_content(struct nk_context *ctx);
 
+nk_bool nk_button_colorf(struct nk_context *ctx, struct nk_colorf color);
+
 
 #endif

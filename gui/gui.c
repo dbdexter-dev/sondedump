@@ -30,7 +30,8 @@ typedef struct {
 	struct {
 		float x, y;
 	} mouse;
-	float scale, old_scale;
+	float old_scale;
+	struct nk_colorf *picked_color;
 
 	int config_open, export_open;
 	int over_window;
@@ -45,7 +46,7 @@ typedef struct {
 static void *gui_main(void *args);
 static void config_window(struct nk_context *ctx, UIState *state, Config *conf, float width, float height);
 static void overview_window(struct nk_context *ctx, UIState *state, Config *conf);
-static void export_window(struct nk_context *ctx, UIState *state, float width, float height);
+static void export_window(struct nk_context *ctx, UIState *state, Config *conf, float width, float height);
 
 #ifdef _MSC_VER
 typedef HANDLE pthread_t;
@@ -159,12 +160,13 @@ gui_main(void *args)
 	gl_timeseries_init(&timeseries);
 
 	/* Initialize nuklear */
-	ui_state.scale = ui_state.old_scale = config.ui_scale;
 	ctx = nk_sdl_init(win);
-	gui_load_fonts(ctx, ui_state.scale);
+	gui_load_fonts(ctx, config.ui_scale);
 	gui_set_style_default(ctx);
 
 	/* Initialize gui state */
+	ui_state.old_scale = config.ui_scale;
+	ui_state.picked_color = NULL;
 	ui_state.force_refresh = 1;
 	ui_state.dragging = 0;
 	ui_state.over_window = 0;
@@ -257,9 +259,9 @@ gui_main(void *args)
 		nk_input_end(ctx);
 
 		/* Re-render fonts on ui scale change */
-		if (ui_state.scale != ui_state.old_scale) {
-			gui_load_fonts(ctx, ui_state.scale);
-			ui_state.old_scale = ui_state.scale;
+		if (config.ui_scale != ui_state.old_scale) {
+			gui_load_fonts(ctx, config.ui_scale);
+			ui_state.old_scale = config.ui_scale;
 		}
 
 		/* If the sonde type has changed, update title */
@@ -274,7 +276,7 @@ gui_main(void *args)
 
 		ui_state.over_window = 0;
 		overview_window(ctx, &ui_state, &config);
-		if (ui_state.export_open) export_window(ctx, &ui_state, width, height);
+		if (ui_state.export_open) export_window(ctx, &ui_state, &config, width, height);
 		if (ui_state.config_open) config_window(ctx, &ui_state, &config, width, height);
 
 		/* Render */
@@ -329,7 +331,7 @@ gui_force_update(void)
 
 /* Static functions {{{ */
 static void
-overview_window(struct nk_context *ctx, UIState *state, Config *conf)
+overview_window(struct nk_context *ctx, UIState *state, Config *config)
 {
 	float size;
 	struct nk_vec2 position;
@@ -339,15 +341,15 @@ overview_window(struct nk_context *ctx, UIState *state, Config *conf)
 	                                    | NK_WINDOW_MINIMIZABLE | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE;
 
 	/* Compose GUI */
-	if (nk_begin(ctx, title, nk_rect(0, 0, PANEL_WIDTH * state->scale, 0), win_flags)) {
+	if (nk_begin(ctx, title, nk_rect(0, 0, PANEL_WIDTH * config->ui_scale, 0), win_flags)) {
 		/* Audio device selection TODO handle input from file */
-		widget_audio_dev_select(ctx, state->scale);
+		widget_audio_dev_select(ctx, config->ui_scale);
 
 		/* Sonde type selection */
-		widget_type_select(ctx, state->scale);
+		widget_type_select(ctx, config->ui_scale);
 
 		/* UI graph selection */
-		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 4);
+		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * config->ui_scale, 4);
 		if (nk_option_label(ctx, "Map", state->active_widget == GUI_MAP)) {
 			state->active_widget = GUI_MAP;
 		}
@@ -362,21 +364,21 @@ overview_window(struct nk_context *ctx, UIState *state, Config *conf)
 		}
 
 		/* Raw live data */
-		size = widget_data_base_size(ctx, conf->receiver.lat, conf->receiver.lon, conf->receiver.alt);
-		nk_layout_row_dynamic(ctx, size * state->scale, 1);
+		size = widget_data_base_size(ctx, config->receiver.lat, config->receiver.lon, config->receiver.alt);
+		nk_layout_row_dynamic(ctx, size * config->ui_scale, 1);
 		if (nk_group_begin(ctx, "Data", NK_WINDOW_NO_SCROLLBAR)) {
-			widget_data(ctx, conf->receiver.lat, conf->receiver.lon, conf->receiver.alt, state->scale);
+			widget_data(ctx, config->receiver.lat, config->receiver.lon, config->receiver.alt, config->ui_scale);
 
 			nk_group_end(ctx);
 		}
 
 		/* Reset map view */
-		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * 1.2 * state->scale, 1);
+		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * 1.2 * config->ui_scale, 1);
 		if (state->active_widget == GUI_MAP && nk_button_label(ctx, "Re-center")) {
 			if (get_data_count() > 0) {
 				last_point = get_track_data() + get_data_count() - 1;
-				conf->map.center_x = lon_to_x(last_point->lon, 0);
-				conf->map.center_y = lat_to_y(last_point->lat, 0);
+				config->map.center_x = lon_to_x(last_point->lon, 0);
+				config->map.center_y = lat_to_y(last_point->lat, 0);
 			}
 		}
 
@@ -392,7 +394,7 @@ overview_window(struct nk_context *ctx, UIState *state, Config *conf)
 		}
 
 		/* Resize according to the scale factor */
-		ctx->current->bounds.w = PANEL_WIDTH * state->scale;
+		ctx->current->bounds.w = PANEL_WIDTH * config->ui_scale;
 		position = nk_window_get_position(ctx);
 
 		/* Resize to fit contents in the y direction */
@@ -410,60 +412,135 @@ overview_window(struct nk_context *ctx, UIState *state, Config *conf)
 }
 
 static void
-config_window(struct nk_context *ctx, UIState *state, Config *conf, float width, float height)
+config_window(struct nk_context *ctx, UIState *state, Config *config, float width, float height)
 {
+	static Config saved_config;
 	const int label_len = 120;
 	const char *title = "Settings";
 	const enum nk_panel_flags win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
 	                                    | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE | NK_WINDOW_CLOSABLE;
+	const enum nk_panel_flags picker_flags = NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_MOVABLE
+	                                       | NK_WINDOW_CLOSABLE | NK_WINDOW_TITLE;
 	struct nk_rect bounds;
+	struct nk_rect window_bounds;
 	float border;
 
 	/* On the first invocation, populate fields with data from the configuration */
 	if (state->config_open < 2) {
-		sprintf(state->lat, "%.6f", conf->receiver.lat);
-		sprintf(state->lon, "%.6f", conf->receiver.lon);
-		sprintf(state->alt, "%.0f", conf->receiver.alt);
-		state->config_open = 2;
+		sprintf(state->lat, "%.6f", config->receiver.lat);
+		sprintf(state->lon, "%.6f", config->receiver.lon);
+		sprintf(state->alt, "%.0f", config->receiver.alt);
 
+		memcpy(&saved_config, config, sizeof(saved_config));
+
+		state->config_open = 2;
 	}
 
-	if (nk_begin(ctx, title, nk_rect(width/2, height/2, PANEL_WIDTH * state->scale, 0), win_flags)) {
+	window_bounds.x = (width - PANEL_WIDTH) / 2;
+	window_bounds.y = height / 2;
+	window_bounds.w = PANEL_WIDTH * config->ui_scale;
+	window_bounds.h = 0;
+
+	if (nk_begin(ctx, title, window_bounds, win_flags)) {
 		border = nk_window_get_panel(ctx)->border;
 
 		/* Various purely display-related options */
 		if (nk_tree_push(ctx, NK_TREE_TAB, "Display options", NK_MAXIMIZED)) {
-			nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 1);
+			nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * config->ui_scale, 1);
 
 			/* UI scale configuration */
 			bounds = nk_layout_widget_bounds(ctx);
 			nk_layout_row_push(ctx, bounds.w);
-			nk_property_float(ctx, "#UI scale", 0.5, &state->scale, 5, 0.1, 0.1);
+			nk_property_float(ctx, "#UI scale", 0.5, &config->ui_scale, 5, 0.1, 0.1);
+
+			nk_tree_pop(ctx);
+		}
+
+		if (nk_tree_push(ctx, NK_TREE_TAB, "Colors", NK_MAXIMIZED)) {
+			nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * config->ui_scale, 2);
+
+			bounds = nk_layout_widget_bounds(ctx);
+
+			nk_layout_row_push(ctx, bounds.w - 2 * border - STYLE_DEFAULT_ROW_HEIGHT);
+			nk_label(ctx, "Temperature", NK_TEXT_LEFT);
+			nk_layout_row_push(ctx, STYLE_DEFAULT_ROW_HEIGHT);
+			if (nk_button_colorf(ctx, *(struct nk_colorf*)config->colors.temp)) {
+				state->picked_color = (struct nk_colorf*)config->colors.temp;
+			}
+
+			nk_layout_row_push(ctx, bounds.w - 2 * border - STYLE_DEFAULT_ROW_HEIGHT);
+			nk_label(ctx, "Dew point", NK_TEXT_LEFT);
+			nk_layout_row_push(ctx, STYLE_DEFAULT_ROW_HEIGHT);
+			if (nk_button_colorf(ctx, *(struct nk_colorf*)config->colors.dewpt)) {
+				state->picked_color = (struct nk_colorf*)config->colors.dewpt;
+			}
+
+			nk_layout_row_push(ctx, bounds.w - 2 * border - STYLE_DEFAULT_ROW_HEIGHT);
+			nk_label(ctx, "Humidity", NK_TEXT_LEFT);
+			nk_layout_row_push(ctx, STYLE_DEFAULT_ROW_HEIGHT);
+			if (nk_button_colorf(ctx, *(struct nk_colorf*)config->colors.rh)) {
+				state->picked_color = (struct nk_colorf*)config->colors.rh;
+			}
+
+			nk_layout_row_push(ctx, bounds.w - 2 * border - STYLE_DEFAULT_ROW_HEIGHT);
+			nk_label(ctx, "Pressure", NK_TEXT_LEFT);
+			nk_layout_row_push(ctx, STYLE_DEFAULT_ROW_HEIGHT);
+			if (nk_button_colorf(ctx, *(struct nk_colorf*)config->colors.press)) {
+				state->picked_color = (struct nk_colorf*)config->colors.press;
+			}
+
+			nk_layout_row_push(ctx, bounds.w - 2 * border - STYLE_DEFAULT_ROW_HEIGHT);
+			nk_label(ctx, "Altitude", NK_TEXT_LEFT);
+			nk_layout_row_push(ctx, STYLE_DEFAULT_ROW_HEIGHT);
+			if (nk_button_colorf(ctx, *(struct nk_colorf*)config->colors.alt)) {
+				state->picked_color = (struct nk_colorf*)config->colors.alt;
+			}
+
+			nk_layout_row_push(ctx, bounds.w - 2 * border - STYLE_DEFAULT_ROW_HEIGHT);
+			nk_label(ctx, "Speed", NK_TEXT_LEFT);
+			nk_layout_row_push(ctx, STYLE_DEFAULT_ROW_HEIGHT);
+			if (nk_button_colorf(ctx, *(struct nk_colorf*)config->colors.spd)) {
+				state->picked_color = (struct nk_colorf*)config->colors.spd;
+			}
+
+			nk_layout_row_push(ctx, bounds.w - 2 * border - STYLE_DEFAULT_ROW_HEIGHT);
+			nk_label(ctx, "Heading", NK_TEXT_LEFT);
+			nk_layout_row_push(ctx, STYLE_DEFAULT_ROW_HEIGHT);
+			if (nk_button_colorf(ctx, *(struct nk_colorf*)config->colors.hdg)) {
+				state->picked_color = (struct nk_colorf*)config->colors.hdg;
+			}
+
+			nk_layout_row_push(ctx, bounds.w - 2 * border - STYLE_DEFAULT_ROW_HEIGHT);
+			nk_label(ctx, "Climb", NK_TEXT_LEFT);
+			nk_layout_row_push(ctx, STYLE_DEFAULT_ROW_HEIGHT);
+			if (nk_button_colorf(ctx, *(struct nk_colorf*)config->colors.climb)) {
+				state->picked_color = (struct nk_colorf*)config->colors.climb;
+			}
 
 			nk_tree_pop(ctx);
 		}
 
 		/* Ground station location configuration */
 		if (nk_tree_push(ctx, NK_TREE_TAB, "Ground station location", NK_MAXIMIZED)) {
-			nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 2);
+			nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * config->ui_scale, 2);
 
 			/* Latitude text box */
-			nk_layout_row_push(ctx, label_len * state->scale);
+			nk_layout_row_push(ctx, label_len * config->ui_scale);
 			nk_label(ctx, "Latitude ('N):", NK_TEXT_LEFT);
 			bounds = nk_layout_widget_bounds(ctx);
-			nk_layout_row_push(ctx, bounds.w - label_len * state->scale - 2 * border);
+			nk_layout_row_push(ctx, bounds.w - label_len * config->ui_scale - 2 * border);
 			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, state->lat, LEN(state->lat), nk_filter_float);
 
 			/* Longitude text box */
-			nk_layout_row_push(ctx, label_len * state->scale);
+			nk_layout_row_push(ctx, label_len * config->ui_scale);
 			nk_label(ctx, "Longitude ('E):", NK_TEXT_LEFT);
-			nk_layout_row_push(ctx, bounds.w - label_len * state->scale - 2 * border);
+			nk_layout_row_push(ctx, bounds.w - label_len * config->ui_scale - 2 * border);
 			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, state->lon, LEN(state->lon), nk_filter_float);
 
 			/* Altitude text box */
-			nk_layout_row_push(ctx, label_len * state->scale);
+			nk_layout_row_push(ctx, label_len * config->ui_scale);
 			nk_label(ctx, "Altitude (m):", NK_TEXT_LEFT);
-			nk_layout_row_push(ctx, bounds.w - label_len * state->scale - 2 * border);
+			nk_layout_row_push(ctx, bounds.w - label_len * config->ui_scale - 2 * border);
 			nk_edit_string_zero_terminated(ctx, NK_EDIT_FIELD, state->alt, LEN(state->alt), nk_filter_float);
 
 			nk_layout_row_end(ctx);
@@ -472,49 +549,67 @@ config_window(struct nk_context *ctx, UIState *state, Config *conf, float width,
 		}
 
 		/* Save/cancel */
-		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * state->scale, 2);
+		nk_layout_row_dynamic(ctx, STYLE_DEFAULT_ROW_HEIGHT * config->ui_scale, 2);
 		if (nk_button_label(ctx, "Cancel")) {
 			state->config_open = 0;
+			state->picked_color = NULL;
 
 			log_debug("Reverting config");
-			/* Restore UI scale */
-			state->scale = conf->ui_scale;
+
+			memcpy(config, &saved_config, sizeof(saved_config));
 		}
 		if (nk_button_label(ctx, "Save")) {
 			state->config_open = 0;
+			state->picked_color = NULL;
 
 			log_debug("Copying config to main struct");
 
 			/* Save config to struct */
-			conf->ui_scale = state->scale;
-			conf->receiver.lat = atof(state->lat);
-			conf->receiver.lon = atof(state->lon);
-			conf->receiver.alt = atof(state->alt);
+			config->receiver.lat = atof(state->lat);
+			config->receiver.lon = atof(state->lon);
+			config->receiver.alt = atof(state->alt);
 		}
+
 
 		nk_window_fit_to_content(ctx);
 		state->over_window |= nk_window_is_hovered(ctx);
 	} else {
 		state->config_open = 0;
+		state->picked_color = NULL;
 
 		log_debug("Reverting config");
 
-		/* Restore UI scale */
-		state->scale = conf->ui_scale;
+		memcpy(config, &saved_config, sizeof(saved_config));
 	}
-
 	nk_end(ctx);
+
+	/* If the user has picked a color to change, also draw a color picker window
+	 * at the current mouse coordinates */
+	window_bounds.w = window_bounds.h = PICKER_SIZE * config->ui_scale;
+	window_bounds.x = state->mouse.x - window_bounds.w;
+	window_bounds.y = state->mouse.y;
+
+	if (state->picked_color) {
+		if (nk_begin(ctx, "Color picker", window_bounds, picker_flags)) {
+			nk_layout_row_dynamic(ctx, 200 * config->ui_scale, 1);
+			nk_color_pick(ctx, state->picked_color, NK_RGBA);
+			state->over_window |= nk_window_is_hovered(ctx);
+		} else {
+			state->picked_color = NULL;
+		}
+		nk_end(ctx);
+	}
 }
 
 static void
-export_window(struct nk_context *ctx, UIState *state, float width, float height)
+export_window(struct nk_context *ctx, UIState *state, Config *config, float width, float height)
 {
 	const char *title = "Export";
 	const enum nk_panel_flags win_flags = NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR
 	                                    | NK_WINDOW_MOVABLE | NK_WINDOW_TITLE | NK_WINDOW_CLOSABLE;
 
-	if (nk_begin(ctx, title, nk_rect(width/2, height/2, PANEL_WIDTH * state->scale, 0), win_flags)) {
-		widget_export(ctx, state->scale);
+	if (nk_begin(ctx, title, nk_rect(width/2, height/2, PANEL_WIDTH * config->ui_scale, 0), win_flags)) {
+		widget_export(ctx, config->ui_scale);
 
 		nk_window_fit_to_content(ctx);
 		state->over_window |= nk_window_is_hovered(ctx);

@@ -9,6 +9,7 @@
 #include "frame.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
+#include "log/log.h"
 #include "physics.h"
 #include "subframe.h"
 
@@ -153,6 +154,7 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 	switch (self->state) {
 		case READ_PRE:
 			/* Copy residual bits from the previous frame */
+			if (self->offset && !(self->offset % sizeof(self->frame[0]))) log_debug("Bug triggered");
 			if (self->offset) self->frame[0] = self->frame[1];
 			self->state = READ;
 			/* FALLTHROUGH */
@@ -200,6 +202,7 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 			/* Validate the subframe's checksum against the one received.
 			 * If it doesn't match, discard it */
 			if (crc16_ccitt_false(subframe->data, subframe->len) != *(uint16_t*)&subframe->data[subframe->len]) {
+				log_debug("Incorrect CRC, skipping");
 				dst->type = EMPTY;
 				break;
 			}
