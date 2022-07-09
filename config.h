@@ -1,5 +1,5 @@
-#ifndef config_h
-#define config_h
+#ifndef sondedump_config_h
+#define sondedump_config_h
 
 #define CONFIG_FNAME "sondedump.json"
 
@@ -11,6 +11,17 @@ typedef struct {
 	struct {
 		float center_x, center_y, zoom;
 	} map;
+
+	struct {
+		float temp[4];
+		float dewpt[4];
+		float rh[4];
+		float alt[4];
+		float press[4];
+		float climb[4];
+		float hdg[4];
+		float spd[4];
+	} colors;
 
 	float ui_scale;
 } Config;

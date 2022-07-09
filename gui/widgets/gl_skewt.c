@@ -20,7 +20,7 @@ typedef struct {
 } Vertex;
 
 typedef struct {
-	float cp[4][2];
+	const float cp[4][2];
 } Bezier;
 
 typedef struct {

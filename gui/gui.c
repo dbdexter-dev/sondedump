@@ -15,7 +15,6 @@
 #include "nuklear/nuklear_ext.h"
 #include "nuklear/nuklear_sdl_gl3.h"
 #include "style.h"
-#include "colors.h"
 #include "widgets/audio_dev_select.h"
 #include "widgets/data.h"
 #include "widgets/export.h"
@@ -146,8 +145,6 @@ gui_main(void *args)
 
 	/* Load config */
 	config_load_from_file(&config);
-	/* TODO inside config */
-	default_gui_colors();
 
 	/* Initialize map */
 	gl_map_init(&map);
@@ -291,10 +288,10 @@ gui_main(void *args)
 			gl_map_vector(&map, &config, width, height, get_track_data(), get_data_count());
 			break;
 		case GUI_TIMESERIES_PTU:
-			gl_timeseries_ptu(&timeseries, get_track_data(), get_data_count());
+			gl_timeseries_ptu(&timeseries, &config, get_track_data(), get_data_count());
 			break;
 		case GUI_TIMESERIES_GPS:
-			gl_timeseries_gps(&timeseries, get_track_data(), get_data_count());
+			gl_timeseries_gps(&timeseries, &config, get_track_data(), get_data_count());
 			break;
 		case GUI_SKEW_T:
 			gl_skewt_vector(&skewt, width, height, get_track_data(), get_data_count());

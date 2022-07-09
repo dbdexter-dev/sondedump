@@ -5,7 +5,6 @@
 #include "shaders/shaders.h"
 #include "utils.h"
 #include "style.h"
-#include "colors.h"
 
 enum datatype {
 	TEMP,
@@ -19,7 +18,7 @@ enum datatype {
 };
 
 static void timeseries_opengl_init(GLTimeseries *ctx);
-static void gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const GeoPoint *data, size_t len);
+static void gl_timeseries_single(enum datatype datatype, Config *config, GLTimeseries *ctx, const GeoPoint *data, size_t len);
 
 void
 gl_timeseries_init(GLTimeseries *ctx)
@@ -38,7 +37,7 @@ void gl_timeseries_deinit(GLTimeseries *ctx)
 }
 
 void
-gl_timeseries_ptu(GLTimeseries *ctx, const GeoPoint *data, size_t len)
+gl_timeseries_ptu(GLTimeseries *ctx, Config *config, const GeoPoint *data, size_t len)
 {
 	const enum datatype channels[] = {TEMP, RH, DEWPT, PRESS};
 	size_t i;
@@ -54,7 +53,7 @@ gl_timeseries_ptu(GLTimeseries *ctx, const GeoPoint *data, size_t len)
 	/* Draw points for each channel */
 	for (i=0; i<LEN(channels); i++) {
 		/* Set up uniforms */
-		gl_timeseries_single(channels[i], ctx, data, len);
+		gl_timeseries_single(channels[i], config, ctx, data, len);
 
 		/* Draw */
 		glDrawArrays(GL_POINTS, 0, len);
@@ -68,7 +67,7 @@ gl_timeseries_ptu(GLTimeseries *ctx, const GeoPoint *data, size_t len)
 }
 
 void
-gl_timeseries_gps(GLTimeseries *ctx, const GeoPoint *data, size_t len)
+gl_timeseries_gps(GLTimeseries *ctx, Config *config, const GeoPoint *data, size_t len)
 {
 	const enum datatype channels[] = {ALT, SPD, HDG, CLIMB};
 	size_t i;
@@ -84,7 +83,7 @@ gl_timeseries_gps(GLTimeseries *ctx, const GeoPoint *data, size_t len)
 	/* Draw points for each channel */
 	for (i=0; i<LEN(channels); i++) {
 		/* Set up uniforms */
-		gl_timeseries_single(channels[i], ctx, data, len);
+		gl_timeseries_single(channels[i], config, ctx, data, len);
 
 		/* Draw */
 		glDrawArrays(GL_POINTS, 0, len);
@@ -100,7 +99,7 @@ gl_timeseries_gps(GLTimeseries *ctx, const GeoPoint *data, size_t len)
 
 /* Static functions {{{ */
 static void
-gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const GeoPoint *data, size_t len)
+gl_timeseries_single(enum datatype datatype, Config *config, GLTimeseries *ctx, const GeoPoint *data, size_t len)
 {
 	const float temp_bounds[] = {-100, 50+100};
 	const float rh_bounds[] = {0, 100-0};
@@ -110,7 +109,7 @@ gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const GeoPoint *
 	const float spd_bounds[] = {-30, 30-(-30)};
 	const float climb_bounds[] = {-10, 10-(-10)};
 
-	const float *color;
+	const float *color = config->colors.temp;
 
 	const int max_id = len > 0 ? MAX(1, data[len-1].id) : 1;
 	const int min_id = len > 0 ? data[0].id : 0;
@@ -133,49 +132,49 @@ gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const GeoPoint *
 	case TEMP:
 		proj[1][1] = p11 / temp_bounds[1];
 		proj[3][1] = -1 + proj[1][1] * (-temp_bounds[0]);
-		color = get_gui_color(COLOR_TEMP);
+		color = config->colors.temp;
 		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, temp));
 		break;
 	case RH:
 		proj[1][1] = p11 / rh_bounds[1];
 		proj[3][1] = -1 + proj[1][1] * (-rh_bounds[0]);
-		color = get_gui_color(COLOR_RH);
+		color = config->colors.rh;
 		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, rh));
 		break;
 	case DEWPT:
 		proj[1][1] = p11 / temp_bounds[1];
 		proj[3][1] = -1 + proj[1][1] * (-temp_bounds[0]);
-		color = get_gui_color(COLOR_DEWPT);
+		color = config->colors.dewpt;
 		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, dewpt));
 		break;
 	case ALT:
 		proj[1][1] = p11 / alt_bounds[1];
 		proj[3][1] = -1 + proj[1][1] * (-alt_bounds[0]);
-		color = get_gui_color(COLOR_ALT);
+		color = config->colors.alt;
 		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, alt));
 		break;
 	case PRESS:
 		proj[1][1] = -p11 / press_bounds[1];
 		proj[3][1] = -1 - proj[1][1] * (-press_bounds[0]);
-		color = get_gui_color(COLOR_PRESS);
+		color = config->colors.press;
 		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, pressure));
 		break;
 	case HDG:
 		proj[1][1] = p11 / hdg_bounds[1];
 		proj[3][1] = -1 + proj[1][1] * (-hdg_bounds[0]);
-		color = get_gui_color(COLOR_HDG);
+		color = config->colors.hdg;
 		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, hdg));
 		break;
 	case SPD:
 		proj[1][1] = p11 / spd_bounds[1];
 		proj[3][1] = -1 + proj[1][1] * (-spd_bounds[0]);
-		color = get_gui_color(COLOR_SPD);
+		color = config->colors.spd;
 		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, spd));
 		break;
 	case CLIMB:
 		proj[1][1] = p11 / climb_bounds[1];
 		proj[3][1] = -1 + proj[1][1] * (-climb_bounds[0]);
-		color = get_gui_color(COLOR_CLIMB);
+		color = config->colors.climb;
 		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, climb));
 		break;
 	}
