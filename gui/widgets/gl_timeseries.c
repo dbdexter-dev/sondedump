@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 #include <stddef.h>
 #include "decode.h"
 #include "gl_timeseries.h"
@@ -97,8 +98,7 @@ gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const Config *co
 	const float alt_bounds[] = {minima->alt, maxima->alt - minima->alt};
 	const float press_bounds[] = {minima->pressure, maxima->pressure - minima->pressure};
 	const float hdg_bounds[] = {minima->hdg, maxima->hdg - minima->hdg};
-	const float spd_bounds[] = {minima->spd, maxima->spd - minima->spd};
-	const float climb_bounds[] = {minima->climb, maxima->climb - minima->climb};
+	const float spd_bounds[] = {MIN(minima->spd, minima->climb), 2 * fabs(MIN(minima->spd, minima->climb))};
 
 	const float *color = config->colors.temp;
 
@@ -145,8 +145,8 @@ gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const Config *co
 		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, alt));
 		break;
 	case PRESS:
-		proj[1][1] = -p11 / press_bounds[1];
-		proj[3][1] = 1 - proj[1][1] * (-press_bounds[0]);
+		proj[1][1] = p11 / press_bounds[1];
+		proj[3][1] = - 1 + proj[1][1] * (-press_bounds[0]);
 		color = config->colors.press;
 		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, pressure));
 		break;
@@ -163,8 +163,8 @@ gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const Config *co
 		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, spd));
 		break;
 	case CLIMB:
-		proj[1][1] = p11 / climb_bounds[1];
-		proj[3][1] = -1 + proj[1][1] * (-climb_bounds[0]);
+		proj[1][1] = p11 / spd_bounds[1];
+		proj[3][1] = -1 + proj[1][1] * (-spd_bounds[0]);
 		color = config->colors.climb;
 		glVertexAttribPointer(ctx->attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, climb));
 		break;
