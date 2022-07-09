@@ -64,7 +64,7 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 	switch (self->state) {
 	case READ_PRE:
 		/* Copy residual bits from the previous frame */
-		if (self->offset) {
+		if (self->offset % (2 * sizeof(self->frame[0]))) {
 			self->frame[0] = self->frame[2];
 			self->frame[1] = self->frame[3];
 		}
