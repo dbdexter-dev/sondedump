@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "correlator.h"
+#include "log/log.h"
 
 static inline int inverse_correlate_u64(uint64_t x, uint64_t y);
 
@@ -41,7 +42,7 @@ correlate(Correlator *c, int *inverted, const uint8_t *restrict hard_frame, int 
 	}
 
 	/* For each byte in the frame */
-	for (i=0; i<len-sync_len; i++) {
+	for (i=0; i<len; i++) {
 		/* Fetch a byte from the frame */
 		tmp = *hard_frame++;
 
@@ -64,11 +65,14 @@ correlate(Correlator *c, int *inverted, const uint8_t *restrict hard_frame, int 
 				if (inverted) *inverted = 1;
 			}
 
+			if (best_corr == 0) return best_offset;
+
 			/* Advance window by one */
 			window = ((window << 1) | ((tmp >> (7-j)) & 0x1)) & syncmask;
 		}
 	}
 
+	log_debug("Best correlation %d", best_corr);
 	return best_offset;
 }
 

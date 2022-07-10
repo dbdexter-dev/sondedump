@@ -9,6 +9,7 @@
 #include "frame.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
+#include "log/log.h"
 #include "physics.h"
 #include "subframe.h"
 
@@ -154,7 +155,7 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 	switch (self->state) {
 	case READ_PRE:
 		/* Copy residual bits from the previous frame */
-		if (self->offset % sizeof(self->frame[0])) self->frame[0] = self->frame[1];
+		self->frame[0] = self->frame[1];
 		self->state = READ;
 		/* FALLTHROUGH */
 	case READ:

@@ -1,5 +1,6 @@
 #include "bitops.h"
 #include "framer.h"
+#include "log/log.h"
 
 static ParserStatus framer_demod_internal(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len);
 
@@ -40,7 +41,7 @@ framer_read(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const 
 
 	switch (f->state) {
 	case READ:
-		switch (framer_demod_internal(f, dst, bit_offset, framelen, src, len)) {
+		switch (framer_demod_internal(f, dst, bit_offset, framelen + 8*f->corr.sync_len, src, len)) {
 		case PROCEED:
 			return PROCEED;
 		case PARSED:
@@ -49,18 +50,22 @@ framer_read(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const 
 
 		/* Find offset of the sync marker */
 		f->sync_offset = correlate(&f->corr, &f->inverted, dst, framelen/8);
-		f->offset = framelen;
-		*bit_offset = f->sync_offset;
+		f->offset = framelen + 8*f->corr.sync_len;
+		*bit_offset = MAX(8*(size_t)f->corr.sync_len, f->sync_offset);
+
+		log_debug("Offset %d", f->sync_offset);
 
 		f->state = REALIGN;
 		/* FALLTHROUGH */
 	case REALIGN:
-		/* Read more bits to get a full frame worth */
-		switch (framer_demod_internal(f, dst, &f->offset, framelen + f->sync_offset, src, len)) {
-		case PROCEED:
-			return PROCEED;
-		case PARSED:
-			break;
+		/* Conditionally read more bits to get a full frame worth */
+		if (f->sync_offset > (size_t)f->corr.sync_len*8) {
+			switch (framer_demod_internal(f, dst, &f->offset, framelen + f->sync_offset, src, len)) {
+			case PROCEED:
+				return PROCEED;
+			case PARSED:
+				break;
+			}
 		}
 
 		/* Realign frame to the beginning of the buffer */
