@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "config.h"
-#define JSMN_HEADER
 #include "log/log.h"
 #include "libs/cjson/cjson.h"
 #include "utils.h"
@@ -16,6 +15,7 @@
 #include <sys/stat.h>
 #endif
 
+/* Lil' bit of introspection courtesy of the C preprocessor */
 #define append_json_array(parent, data_arr, x, len) \
 	do {\
 		cJSON *_arr = cJSON_CreateArray();\

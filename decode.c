@@ -180,31 +180,31 @@ decode(const float *srcbuf, size_t len)
 	case AUTO:
 		while (rs41_decode(rs41decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.type != EMPTY && data.type != FRAME_END) {
-				log_info("Autodetected: RS41");
+				log_debug("Autodetected: RS41");
 				set_active_decoder(RS41);
 			}
 		}
 		while (m10_decode(m10decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.type != EMPTY && data.type != FRAME_END) {
+				log_debug("Autodetected: M10");
 				set_active_decoder(M10);
-				log_info("Autodetected: M10");
 			}
 		}
 		while (ims100_decode(ims100decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.type != EMPTY && data.type != FRAME_END) {
-				log_info("Autodetected: iMS100");
+				log_debug("Autodetected: iMS100");
 				set_active_decoder(IMS100);
 			}
 		}
 		while (dfm09_decode(dfm09decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.type != EMPTY && data.type != FRAME_END) {
-				log_info("Autodetected: DFM09");
+				log_debug("Autodetected: DFM09");
 				set_active_decoder(DFM09);
 			}
 		}
 		while (imet4_decode(imet4decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.type != EMPTY && data.type != FRAME_END) {
-				log_info("Autodetected: iMet-4");
+				log_debug("Autodetected: iMet-4");
 				set_active_decoder(IMET4);
 			}
 		}
