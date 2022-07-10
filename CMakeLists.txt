@@ -40,6 +40,9 @@ if (is_arm EQUAL "0")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -mcpu=native -mfpu=auto")
 endif()
 
+# Used by the log_*() functions to retrieve the base name of the source file
+string(LENGTH "${CMAKE_SOURCE_DIR}/" SOURCE_BASE_PATH_SIZE)
+add_definitions("-DSOURCE_BASE_PATH_SIZE=${SOURCE_BASE_PATH_SIZE}")
 
 set(LIBRARY_SOURCES
 	decode/correlator/correlator.c decode/correlator/correlator.h
@@ -91,6 +94,8 @@ set(LIBRARY_SOURCES
 
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h
+
+	log/log.c log/log.h
 
 	bitops.c bitops.h
 	physics.c physics.h
