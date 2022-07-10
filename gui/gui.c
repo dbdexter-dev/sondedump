@@ -135,7 +135,7 @@ gui_main(void *args)
 	/* Check results */
 	gl_version = (const char*)glGetString(GL_VERSION);
 	if (gl_version) {
-		log_debug("Created OpenGL context: %s", gl_version);
+		log_info("Created OpenGL context: %s", gl_version);
 	} else {
 		log_error("Unable to create OpenGL context: %s (OpenGL status %d)", SDL_GetError(), glGetError());
 		return (void*)1;

@@ -71,8 +71,10 @@ decoder_init(int samplerate)
 	/* Initialize minima/maxima */
 	minima.rh = 0;
 	maxima.rh = 100;
-	minima.temp = -70;
+	minima.temp = -100;
 	maxima.temp = 50;
+	minima.dewpt = minima.temp;
+	maxima.dewpt = maxima.temp;
 	minima.alt = 0;
 	maxima.alt = 40000;
 	minima.spd = -10;
@@ -336,19 +338,23 @@ get_data_maxima(void)
 static void
 update_minmax(const GeoPoint *new)
 {
-	minima.temp = MIN(minima.temp, new->temp);
-	minima.dewpt = MIN(minima.rh, new->dewpt);
-	minima.pressure = MIN(minima.pressure, new->pressure);
-	minima.alt = MIN(minima.alt, new->alt);
-	minima.spd = MIN(minima.spd, -fabs(new->spd));
-	minima.climb = MIN(minima.climb, -fabs(new->climb));
+	/*
+	minima.temp = fmin(minima.temp, new->temp);
+	minima.dewpt = fmin(minima.rh, new->dewpt);
+	*/
+	minima.pressure = fmin(minima.pressure, new->pressure);
+	minima.alt = fmin(minima.alt, new->alt);
+	minima.spd = fmin(minima.spd, -fabs(new->spd));
+	minima.climb = fmin(minima.climb, -fabs(new->climb));
 
-	maxima.temp = MAX(maxima.temp, new->temp);
-	maxima.dewpt = MAX(maxima.rh, new->dewpt);
-	maxima.pressure = MAX(maxima.pressure, new->pressure);
-	maxima.alt = MAX(maxima.alt, new->alt);
-	maxima.spd = MAX(maxima.spd, fabs(new->spd));
-	maxima.climb = MAX(maxima.climb, fabs(new->climb));
+	/*
+	maxima.temp = fmax(maxima.temp, new->temp);
+	maxima.dewpt = fmax(maxima.rh, new->dewpt);
+	*/
+	maxima.pressure = fmax(maxima.pressure, new->pressure);
+	maxima.alt = fmax(maxima.alt, new->alt);
+	maxima.spd = fmax(maxima.spd, fabs(new->spd));
+	maxima.climb = fmax(maxima.climb, fabs(new->climb));
 }
 
 static void
