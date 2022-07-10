@@ -74,7 +74,7 @@ decoder_init(int samplerate)
 	minima.temp = -70;
 	maxima.temp = 50;
 	minima.alt = 0;
-	maxima.alt = 35000;
+	maxima.alt = 40000;
 	minima.spd = -10;
 	maxima.spd = 10;
 	minima.hdg = 0;
