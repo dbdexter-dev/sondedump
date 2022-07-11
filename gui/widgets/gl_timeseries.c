@@ -93,7 +93,7 @@ gl_timeseries_multi(const enum datatype *datatypes, int types_count, GLTimeserie
 static void
 gl_timeseries_single(enum datatype datatype, GLTimeseries *ctx, const Config *config, const GeoPoint *data, size_t len, const GeoPoint *maxima, const GeoPoint *minima)
 {
-	const float temp_bounds[] = {MIN(minima->temp, minima->dewpt), maxima->temp - MIN(minima->temp, minima->dewpt)};
+	const float temp_bounds[] = {fmin(minima->temp, minima->dewpt), maxima->temp - fmin(minima->temp, minima->dewpt)};
 	const float rh_bounds[] = {minima->rh, maxima->rh - minima->rh};
 	const float alt_bounds[] = {minima->alt, maxima->alt - minima->alt};
 	const float press_bounds[] = {minima->pressure, maxima->pressure - minima->pressure};

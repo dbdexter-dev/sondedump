@@ -43,13 +43,17 @@ typedef struct {
 	enum graph active_widget;
 } UIState;
 
-static void *gui_main(void *args);
+#ifdef _MSC_VER
+static DWORD WINAPI gui_main(void *args);
+#else
+static void* gui_main(void *args);
+#endif
 static void config_window(struct nk_context *ctx, UIState *state, Config *conf, float width, float height);
 static void overview_window(struct nk_context *ctx, UIState *state, Config *conf);
 static void export_window(struct nk_context *ctx, UIState *state, Config *conf, float width, float height);
 
 #ifdef _MSC_VER
-typedef HANDLE pthread_t;
+#define pthread_t HANDLE
 #endif
 
 static pthread_t _tid;
@@ -81,7 +85,11 @@ gui_deinit(void)
 	}
 }
 
+#ifdef _MSC_VER
+static DWORD WINAPI
+#else
 static void*
+#endif
 gui_main(void *args)
 {
 	(void)args;
@@ -107,7 +115,7 @@ gui_main(void *args)
 	SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
 		log_error("SDL failed to initialize: %s", SDL_GetError());
-		return (void*)1;
+		return NULL;
 	}
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
@@ -120,14 +128,14 @@ gui_main(void *args)
 	                       SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
 	if (!win) {
 		log_error("SDL window creation failed: %s", SDL_GetError());
-		return (void*)1;
+		return NULL;
 	}
 
 	/* Create context and init GLAD */
 	glContext = SDL_GL_CreateContext(win);
 	if (!glContext) {
 		log_error("SDL context creation failed: %s", SDL_GetError());
-		return (void*)1;
+		return NULL;
 	}
 
 	gladLoadGLES2Loader(SDL_GL_GetProcAddress);
@@ -138,7 +146,7 @@ gui_main(void *args)
 		log_info("Created OpenGL context: %s", gl_version);
 	} else {
 		log_error("Unable to create OpenGL context: %s (OpenGL status %d)", SDL_GetError(), glGetError());
-		return (void*)1;
+		return NULL;
 	}
 
 	/* Get initial window width/height */
