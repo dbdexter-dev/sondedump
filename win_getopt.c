@@ -29,12 +29,12 @@ getopt_long(int argc, char *const argv[], const char *optstring, const struct op
 			}
 		} else {
 			/* Short option */
-			for(i=0, cur_shortopt = optstring; cur_shortopt != 0; cur_shortopt++, i++) {
-				if (cur_argv[2] == *cur_shortopt) {
+			for (i=0, cur_shortopt = optstring; cur_shortopt != 0; cur_shortopt++, i++) {
+				if (cur_argv[1] == *cur_shortopt) {
 					if (cur_shortopt[1] == ':') optarg = argv[++optind];
 					if (longindex) *longindex = i;
 					optind++;
-					return cur_option->val;
+					return *cur_shortopt;
 				}
 			}
 		}

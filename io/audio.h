@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 
-#define BUFFER_SIZE 2048
+#define BUFFER_SIZE 32768
 
 /**
  * Initialize Portaudio backend
