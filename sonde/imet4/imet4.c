@@ -101,7 +101,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 		imet4_frame_descramble(self->frame);
 
 #ifndef NDEBUG
-		fwrite(raw_frame, IMET4_FRAME_LEN/8, 1, debug);
+		if (debug) fwrite(raw_frame, IMET4_FRAME_LEN/8, 1, debug);
 #endif
 		self->compute_serial = 0;
 		self->frame_offset = 0;
