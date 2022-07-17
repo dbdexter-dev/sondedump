@@ -7,6 +7,7 @@
 #include "frame.h"
 #include "subframe.h"
 #include "gps/time.h"
+#include "physics.h"
 
 struct m10decoder {
 	Framer f;
@@ -14,15 +15,18 @@ struct m10decoder {
 	size_t offset;
 	int state;
 	char serial[16];
+	float pressure;
 };
 
 #ifndef NDEBUG
 static FILE *debug;
 #endif
 
-enum state { READ_PRE, READ,
-			 PARSE_M10_INFO, PARSE_M10_GPS_POS, PARSE_M10_GPS_TIME, PARSE_M10_PTU,PARSE_M10_END,
-			 PARSE_M20_INFO, PARSE_M20_GPS_POS, PARSE_M20_GPS_TIME, PARSE_M20_PTU,PARSE_M20_END };
+enum state {
+	READ_PRE, READ,
+	PARSE_M10_INFO, PARSE_M10_GPS_POS, PARSE_M10_GPS_TIME, PARSE_M10_PTU, PARSE_M10_END,
+	PARSE_M20_INFO, PARSE_M20_GPS_POS, PARSE_M20_GPS_TIME, PARSE_M20_PTU, PARSE_M20_END
+};
 
 M10Decoder*
 m10_decoder_init(int samplerate)
@@ -85,7 +89,8 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 		if (debug) {
 			if (self->frame[0].sync_mark[0] == 0x00
 			 && self->frame[0].sync_mark[1] == 0x00
-			 && self->frame[0].sync_mark[2] == 0x88) {
+			 && self->frame[0].sync_mark[2] == 0x88
+			 && self->frame[0].type == 0x9f) {
 				fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
 				fflush(debug);
 			}
@@ -126,6 +131,7 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 		m10_frame_9f_serial(self->serial, data_frame_9f);
 		dst->data.info.sonde_serial = self->serial;
 		dst->data.info.seq = 0;
+		dst->data.info.burstkill_status = -1;
 
 		self->state = PARSE_M10_GPS_TIME;
 		break;
@@ -162,11 +168,20 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 		dst->data.pos.climb = climb;
 
 		self->state = PARSE_M10_PTU;
+		self->pressure = altitude_to_pressure(dst->data.pos.alt);
 
 		break;
 
 	case PARSE_M10_PTU:
-		/* TODO */
+		dst->type = PTU;
+
+		dst->data.ptu.calibrated = 1;
+		dst->data.ptu.calib_percent = 100;
+		dst->data.ptu.temp = m10_frame_9f_temp(data_frame_9f);
+		dst->data.ptu.rh = 0;   /* TODO */
+		dst->data.ptu.pressure = self->pressure;
+
+
 		self->state = PARSE_M10_END;
 		break;
 	case PARSE_M10_END:
@@ -174,13 +189,14 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 		self->state  = READ_PRE;
 		break;
 	/* }}} */
-	/* M10 frame decoding {{{ */
+	/* M20 frame decoding {{{ */
 	case PARSE_M20_INFO:
 		//fprintf(stdout, "len %02X\n",self->frame[0].len) ;
 		dst->type = INFO;
 		m20_frame_20_serial(self->serial, data_frame_20);
 		dst->data.info.sonde_serial = self->serial;
 		dst->data.info.seq = 0;
+		dst->data.info.burstkill_status = -1;
 
 		self->state = PARSE_M20_GPS_TIME;
 		break;
@@ -234,6 +250,7 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 		self->state = READ_PRE;
 		break;
 	}
+	/* }}} */
 
 	return PARSED;
 }

@@ -41,7 +41,21 @@ PACK(typedef struct {
 	uint8_t alt[4];
 	uint8_t _pad0[6];
 	uint8_t week[2];
-	uint8_t data[80];
+
+	uint8_t _pad1[19];
+	uint8_t unk0[2];    /* ??? */
+	uint8_t _pad2[7];
+	uint8_t adc_temp_range;     /* Temperature range index */
+	uint8_t adc_temp_val[2];    /* Temperature ADC value */
+	uint8_t _pad3[4];
+	uint8_t unk2[2];    /* Very linear across altitude */
+	uint8_t unk3[2];    /* Correlated to unk2, also very linear */
+	uint8_t _pad4[12];
+	uint8_t unk4[2];    /* Fairly constant */
+	uint8_t unk5[2];    /* Fairly constant */
+	uint8_t unk6[2];    /* Correlated to unk0 */
+
+	uint8_t data[10];
 }) M10Frame_9f;
 
 PACK(typedef struct {
