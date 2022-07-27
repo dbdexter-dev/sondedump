@@ -31,7 +31,14 @@ framer_init_afsk(Framer *f, int samplerate, int baudrate, float f_mark, float f_
 void
 framer_deinit(Framer *f)
 {
-	gfsk_deinit(&f->demod.gfsk);
+	switch (f->type) {
+	case GFSK:
+		gfsk_deinit(&f->demod.gfsk);
+		break;
+	case AFSK:
+		afsk_deinit(&f->demod.afsk);
+		break;
+	}
 }
 
 ParserStatus
