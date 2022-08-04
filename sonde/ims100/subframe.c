@@ -30,8 +30,10 @@ ims100_subframe_lat(const IMS100FrameGPS *frame) {
 	                      | (int32_t)frame->lat[1] << 16
 	                      | (int32_t)frame->lat[2] << 8
 	                      | (int32_t)frame->lat[3]);
+	/* Convert NMEA to decimal degrees */
+	float lat = (int)(raw_lat / 1e6) + (raw_lat % 1000000 / 60.0 * 100.0) / 1e6;
 
-	return raw_lat / 1e6;
+	return lat;
 
 }
 
@@ -41,8 +43,10 @@ ims100_subframe_lon(const IMS100FrameGPS *frame) {
 	                      | (int32_t)frame->lon[1] << 16
 	                      | (int32_t)frame->lon[2] << 8
 	                      | (int32_t)frame->lon[3]);
+	/* Convert NMEA to decimal degrees */
+	float lon = (int)(raw_lon / 1e6) + (raw_lon % 1000000 / 60.0 * 100.0) / 1e6;
 
-	return raw_lon / 1e6;
+	return lon;
 }
 
 float
