@@ -262,7 +262,8 @@ static void
 update_calibration(IMS100Decoder *self, int seq, uint8_t *fragment)
 {
 	const int calib_offset = seq % IMS100_CALIB_FRAGCOUNT;
-	memcpy(((uint8_t*)&self->calib) + IMS100_CALIB_FRAGSIZE * calib_offset, fragment, IMS100_CALIB_FRAGSIZE);
+	memcpy(((uint8_t*)&self->calib) + IMS100_CALIB_FRAGSIZE * calib_offset, fragment + 2, 2);
+	memcpy(((uint8_t*)&self->calib) + IMS100_CALIB_FRAGSIZE * calib_offset + 2, fragment, 2);
 
 	self->calib_bitmask |= (1ULL << (63 - calib_offset));
 }

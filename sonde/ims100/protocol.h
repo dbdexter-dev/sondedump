@@ -109,13 +109,14 @@ PACK(typedef struct {
 }) IMS100ECCFrame;
 
 PACK(typedef struct {
-	uint8_t _pad[2];
 	uint8_t serial[4];                  /* Sonde serial number. IEEE754, big endian */
 	uint8_t _unk0[64];
 	uint8_t temps[12][4];               /* Calibration temperatures, +60..-85'C. IEEE754, big endian */
-	uint8_t _unk2[16];
+	uint8_t _unk2[12];
+	uint8_t serial2[4];                 /* Serial number again? */
 	uint8_t temp_resists[12][4];        /* Thermistor kOhm @ temp. IEEE754, big endian */
-	uint8_t _unk3[16];
+	uint8_t _unk3[12];
+	uint8_t serial3[4];                 /* Serial number again? */
 	uint8_t rh_calib_coeffs[4][4];      /* RH 3rd degree polynomial coefficients. IEEE754, big endian */
 	uint8_t temp_calib_coeffs[4][4];    /* Temp 3rd degree polynomial coefficients. IEEE754, big endian*/
 	uint8_t rh_temp_calib_coeffs[4][4];
