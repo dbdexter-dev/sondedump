@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include "config.h"
 
-#define MAX_PARALLEL_CONNS 5
+#define MAX_PARALLEL_CONNS 2
 
 typedef struct {
 	int cur_tilecount, max_tilecount;

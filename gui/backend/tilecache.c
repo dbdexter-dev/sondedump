@@ -292,7 +292,7 @@ tile_path(char *buf, int x, int y, int zoom)
 #ifdef _WIN32
 	/* Save in %APPDATA%/sondedump.json */
 	if (!SUCCEEDED(SHGetFolderPath(NULL, CSIDL_LOCAL_APPDATA, NULL, 0, buf))) return NULL;
-	strcat(confpath, DIR_SEP);
+	strcat(buf, DIR_SEP);
 #elif defined(__APPLE__)
 	FSRef ref;
 	FSFindFolder(kUserDomain, kApplicationSupportFolderType, kCreateFolder, &ref);

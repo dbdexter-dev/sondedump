@@ -1,3 +1,6 @@
+/**
+ * Platform-agnostic simple thread interface
+ */
 #ifndef threads_h
 #define threads_h
 

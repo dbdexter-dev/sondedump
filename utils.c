@@ -133,8 +133,10 @@ rm_rf(const char *path)
 
 	do {
 		if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-			sprintf(filepath, "%s%s\\", path, find_data.cFileName);
-			rm_rf(filepath);
+			if (strcmp(find_data.cFileName, ".") && strcmp(find_data.cFileName, "..")) {
+				sprintf(filepath, "%s%s\\", path, find_data.cFileName);
+				rm_rf(filepath);
+			}
 		} else {
 			sprintf(filepath, "%s%s", path, find_data.cFileName);
 			log_debug("Deleting %s", filepath);

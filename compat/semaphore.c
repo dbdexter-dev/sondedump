@@ -1,5 +1,7 @@
 #include "semaphore.h"
 
+#define MAX_SEM_COUNT (1 << 31)
+
 void
 semaphore_init(semaphore_t *sem, unsigned int value)
 {

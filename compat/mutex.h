@@ -1,3 +1,6 @@
+/**
+ * Platform-agnostic simple mutex interface
+ */
 #ifndef mutex_h
 #define mutex_h
 

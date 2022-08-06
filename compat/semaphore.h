@@ -1,3 +1,6 @@
+/**
+ * Platform-agnostic simple semaphore interface
+ */
 #ifndef semaphores_h
 #define semaphores_h
 

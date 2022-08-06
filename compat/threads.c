@@ -19,7 +19,7 @@ thread_join(thread_t tid)
 {
 	void* retval = NULL;
 #ifdef _MSC_VER
-	WaitForSingleObject(_tid, INFINITE);
+	WaitForSingleObject(tid, INFINITE);
 #else
 	pthread_join(tid, &retval);
 #endif

@@ -83,6 +83,7 @@ config_load_from_file(Config *config)
 	/* Read whole config */
 	len = fread_all((uint8_t**)&confdata, fd);
 	log_debug("Read config (size %ld): %s", len, confdata);
+	(void)len;
 	root = cJSON_Parse(confdata);
 	free(confdata);
 
@@ -108,6 +109,13 @@ config_load_from_file(Config *config)
 				log_warn("Unknown field %s (root)", ptr->string);
 			}
 		}
+	}
+
+	cJSON_Delete(root);
+
+	/* Remove trailing / if any */
+	if (config->tile_base_url[strlen(config->tile_base_url) - 1] == '/') {
+		config->tile_base_url[strlen(config->tile_base_url) - 1] = '\0';
 	}
 
 	log_info("Loaded config from %s", config_path());

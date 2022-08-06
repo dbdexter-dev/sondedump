@@ -3,7 +3,7 @@
 
 #define CONFIG_FNAME "sondedump.json"
 #define URL_MAXLEN 256
-#define TILE_BASE_URL_DEFAULT "https://cartodb-basemaps-c.global.ssl.fastly.net/dark_all/"
+#define TILE_BASE_URL_DEFAULT "https://tile.openstreetmap.org/"
 
 typedef struct {
 	struct {
