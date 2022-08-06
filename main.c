@@ -111,6 +111,9 @@ main(int argc, char *argv[])
 #ifdef ENABLE_TUI
 	ui = UI_TUI;
 #endif
+#ifdef ENABLE_GUI
+	ui = UI_GUI;
+#endif
 #ifdef ENABLE_AUDIO
 	int input_from_audio = 0;
 	int audio_device = -1;

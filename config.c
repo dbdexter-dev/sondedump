@@ -56,7 +56,8 @@ static const Config default_config = {
 		.spd   = {161/255.0, 101/255.0, 249/255.0, 1.0},
 	},
 
-	.ui_scale = 1
+	.ui_scale = 1,
+	.tile_base_url = TILE_BASE_URL_DEFAULT
 };
 
 int
@@ -80,13 +81,7 @@ config_load_from_file(Config *config)
 	}
 
 	/* Read whole config */
-	confdata = NULL;
-	len = 0;
-	while (!feof(fd)) {
-		confdata = realloc(confdata, len + CHUNKSIZE);
-		len += fread(confdata + len, 1, CHUNKSIZE, fd);
-	}
-
+	len = fread_all((uint8_t**)&confdata, fd);
 	log_debug("Read config (size %ld): %s", len, confdata);
 	root = cJSON_Parse(confdata);
 	free(confdata);
@@ -107,6 +102,8 @@ config_load_from_file(Config *config)
 				parse_colors(config, ptr->child);
 			} else if (!strcmp(ptr->string, "ui_scale") && cJSON_IsNumber(ptr)) {
 				config->ui_scale = ptr->valuedouble;
+			} else if (!strcmp(ptr->string, "tile_base_url") && cJSON_IsString(ptr)) {
+				strncpy(config->tile_base_url, ptr->valuestring, sizeof(config->tile_base_url) - 1);
 			} else {
 				log_warn("Unknown field %s (root)", ptr->string);
 			}
@@ -164,6 +161,9 @@ config_save_to_file(const Config *config)
 
 	/* UI scale */
 	cJSON_AddItemToObject(root, "ui_scale", cJSON_CreateNumber(config->ui_scale));
+
+	/* Tile base path */
+	cJSON_AddStringToObject(root, "tile_base_url", config->tile_base_url);
 
 
 	fprintf(fd, "%s", cJSON_Print(root));

@@ -1,7 +1,15 @@
+#ifdef _MSC_VER
+#include <windows.h>
+#include <fileapi.h>
+#else
+#include <dirent.h>
+#include <sys/stat.h>
+#endif
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include "utils.h"
+#include "log/log.h"
 
 static float spline_tangent(const float *xs, const float *ys, int k);
 static float hermite_00(float x);
@@ -64,6 +72,21 @@ cspline(const float *xs, const float *ys, float count, float x)
 	return -1;
 }
 
+size_t
+fread_all(uint8_t **buf, FILE *fd)
+{
+	const size_t chunksize = 1024;
+	size_t len = 0;
+
+	*buf = 0;
+	while (!feof(fd)) {
+		*buf = realloc(*buf, len + chunksize);
+		len += fread(*buf + len, 1, chunksize, fd);
+	}
+
+	return len;
+}
+
 float
 lat_to_y(float lat, int zoom)
 {
@@ -91,6 +114,67 @@ x_to_lon(float x, int zoom)
 {
 	return x / (1 << zoom) * 360.0 - 180.0;
 }
+
+
+#ifdef _MSC_VER
+void
+rm_rf(const char *path)
+{
+	char filepath[512];
+	HANDLE *dr;
+	WIN32_FIND_DATA find_data;
+
+	sprintf(filepath, "%s*", path);
+	dr = FindFirstFileA(filepath, &find_data);
+	if (!dr) {
+		log_error("Failed to open directory %s", path);
+		return;
+	}
+
+	do {
+		if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+			sprintf(filepath, "%s%s\\", path, find_data.cFileName);
+			rm_rf(filepath);
+		} else {
+			sprintf(filepath, "%s%s", path, find_data.cFileName);
+			log_debug("Deleting %s", filepath);
+			remove(filepath);
+		}
+	} while (FindNextFileA(dr, &find_data));
+
+	FindClose(dr);
+}
+#else
+void
+rm_rf(const char *path)
+{
+	char filepath[512];
+	struct dirent *d;
+	struct stat stat;
+	DIR *dr;
+
+	/* Open directory */
+	dr = opendir(path);
+	if (!dr) {
+		log_error("Failed to open directory %s", path);
+		return;
+	}
+
+	/* Iterate through files in the directory */
+	for(d = readdir(dr); d != NULL; d = readdir(dr)) {
+		sprintf(filepath, "%s%s", path, d->d_name);
+		log_debug("Deleting %s", filepath);
+
+		/* If directory, recurse. If file, delete */
+		lstat(filepath, &stat);
+		if (stat.st_mode & S_IFDIR && strcmp(d->d_name, ".") && strcmp(d->d_name, "..")) {
+			rm_rf(filepath);
+		} else {
+			remove(filepath);
+		}
+	}
+}
+#endif
 
 /* Static functions {{{ */
 static unsigned int

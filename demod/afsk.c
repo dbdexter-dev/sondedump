@@ -79,8 +79,6 @@ afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, c
 	_Fcomplex space_sum = d->space_sum;
 	_Fcomplex out;
 #endif
-	/* Lax sanity check */
-	if (d->len < 1) return PROCEED;
 
 	/* Normalize bit offset */
 	dst += *bit_offset/8;
@@ -157,39 +155,39 @@ afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, c
 		/* Recover symbol timing */
 		for (phase = 0; phase < d->lpf.num_phases; phase++)  {
 			switch (advance_timeslot(&d->timing)) {
-				case 1:
-					/* Half-way slot */
-					d->interm = filter_get(&d->lpf, phase);
-					symbol = filter_get(&d->lpf, phase);
+			case 1:
+				/* Half-way slot */
+				d->interm = filter_get(&d->lpf, phase);
+				symbol = filter_get(&d->lpf, phase);
 #ifdef AFSK_DEBUG
-					//fprintf(debug, "%f,%f\n", symbol, 0.0);
+				//fprintf(debug, "%f,%f\n", symbol, 0.0);
 #endif
-					break;
-				case 2:
-					/* Correct slot: update time estimate */
-					symbol = filter_get(&d->lpf, phase);
-					retime(&d->timing, d->interm, symbol);
+				break;
+			case 2:
+				/* Correct slot: update time estimate */
+				symbol = filter_get(&d->lpf, phase);
+				retime(&d->timing, d->interm, symbol);
 #ifdef AFSK_DEBUG
-					//fprintf(debug, "%f,%f\n", symbol, symbol);
+				//fprintf(debug, "%f,%f\n", symbol, symbol);
 #endif
 
-					/* Slice sample to get bit value */
-					tmp = (tmp << 1) | (symbol > 0 ? 1 : 0);
-					(*bit_offset)++;
-					count--;
+				/* Slice sample to get bit value */
+				tmp = (tmp << 1) | (symbol > 0 ? 1 : 0);
+				(*bit_offset)++;
+				count--;
 
-					/* If a byte boundary is crossed, write to dst */
-					if (!(*bit_offset % 8)) {
-						*dst++ = tmp;
-						tmp = 0;
-					}
-					break;
-				default:
-					symbol = filter_get(&d->lpf, phase);
+				/* If a byte boundary is crossed, write to dst */
+				if (!(*bit_offset % 8)) {
+					*dst++ = tmp;
+					tmp = 0;
+				}
+				break;
+			default:
+				symbol = filter_get(&d->lpf, phase);
 #ifdef AFSK_DEBUG
-					//fprintf(debug, "%f,%f\n", symbol, 0.0);
+				//fprintf(debug, "%f,%f\n", symbol, 0.0);
 #endif
-					break;
+				break;
 
 			}
 		}

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "libs/glad/glad.h"
+#include "gui/gl_utils.h"
 #include "decode.h"
 #include "gl_map.h"
 #include "log/log.h"
@@ -24,21 +25,16 @@ extern const unsigned long _binary_tiledata_bin_size;
 extern const char _binary_tileindex_bin[];
 extern const unsigned long _binary_tileindex_bin_size;
 
-static void map_opengl_init(GLMap *map);
-static void track_opengl_init(GLMap *map);
-static int mipmap(float zoom);
-
+static void vector_map_opengl_init(GLMap *map);
 static void update_buffers(GLMap *ctx, int x_start, int y_start, int x_count, int y_count, int zoom);
+static int mipmap(float zoom);
 
 
 void
 gl_map_init(GLMap *ctx)
 {
 	/* Background map program, buffers, uniforms... */
-	map_opengl_init(ctx);
-
-	/* Ground track program, buffers, uniforms... */
-	track_opengl_init(ctx);
+	vector_map_opengl_init(ctx);
 }
 
 void
@@ -47,19 +43,11 @@ gl_map_deinit(GLMap *ctx)
 	if (ctx->vao) glDeleteVertexArrays(1, &ctx->vao);
 	if (ctx->vbo) glDeleteBuffers(1, &ctx->vbo);
 	if (ctx->ibo) glDeleteBuffers(1, &ctx->ibo);
-	if (ctx->tile_vert_shader) glDeleteProgram(ctx->tile_vert_shader);
-	if (ctx->tile_frag_shader) glDeleteProgram(ctx->tile_frag_shader);
 	if (ctx->tile_program) glDeleteProgram(ctx->tile_program);
-
-	if (ctx->track_vao) glDeleteVertexArrays(1, &ctx->track_vao);
-	if (ctx->track_vbo) glDeleteBuffers(1, &ctx->track_vbo);
-	if (ctx->track_vert_shader) glDeleteProgram(ctx->track_vert_shader);
-	if (ctx->track_frag_shader) glDeleteProgram(ctx->track_frag_shader);
-	if (ctx->track_program) glDeleteProgram(ctx->track_program);
 }
 
 void
-gl_map_vector(GLMap *ctx, const Config *conf, int width, int height, const GeoPoint *data, size_t len)
+gl_map_vector(GLMap *ctx, const Config *conf, int width, int height)
 {
 	float center_x = conf->map.center_x;
 	float center_y = conf->map.center_y;
@@ -71,11 +59,8 @@ gl_map_vector(GLMap *ctx, const Config *conf, int width, int height, const GeoPo
 	/* Enough to fill the screen plus a 1x border all around for safety */
 	const int x_count = ceilf((float)width / MAP_TILE_WIDTH / digital_zoom) + 2;
 	const int y_count = ceilf((float)height / MAP_TILE_HEIGHT / digital_zoom) + 2;
-	const float track_color[] = STYLE_ACCENT_1_NORMALIZED;
 	const float map_color[] = STYLE_ACCENT_0_NORMALIZED;
-	const float receiver_color[] = STYLE_ACCENT_3_NORMALIZED;
 	int x_start, y_start;
-	GeoPoint receiver_loc;
 
 	GLfloat proj[4][4] = {
 		{1.0f, 0.0f, 0.0f, 0.0f},
@@ -102,7 +87,6 @@ gl_map_vector(GLMap *ctx, const Config *conf, int width, int height, const GeoPo
 	proj[3][0] = proj[0][0] * (-center_x);
 	proj[3][1] = proj[1][1] * (-center_y);
 
-
 	/* Load missing vertex buffers */
 	update_buffers(ctx, x_start, y_start, x_count, y_count, mipmap(zoom));
 
@@ -116,46 +100,12 @@ gl_map_vector(GLMap *ctx, const Config *conf, int width, int height, const GeoPo
 	glDrawElements(GL_LINE_STRIP, ctx->vram_tile_metadata.vertex_count, GL_UNSIGNED_INT, 0);
 	glDisable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
 	/* }}} */
-	/* Draw ground track {{{ */
-	glUseProgram(ctx->track_program);
-	glBindVertexArray(ctx->track_vao);
-	glBindBuffer(GL_ARRAY_BUFFER, ctx->track_vbo);
-	glBufferData(GL_ARRAY_BUFFER, len * sizeof(GeoPoint), data, GL_STREAM_DRAW);
-
-	/* Shader converts (lat,lon) to (x,y): translate so that the center of the
-	 * viewport is (0, 0) */
-	proj[3][0] = proj[0][0] * -center_x;
-	proj[3][1] = proj[1][1] * -center_y;
-
-	glUniformMatrix4fv(ctx->u4m_track_proj, 1, GL_FALSE, (GLfloat*)proj);
-	glUniform4fv(ctx->u4f_track_color, 1, track_color);
-	glUniform1f(ctx->u1f_zoom, 1 << mipmap(zoom));
-
-	glDrawArrays(GL_POINTS, 0, len);
-	/* }}} */
-	/* Draw ground station {{{ */
-	glUseProgram(ctx->track_program);
-	receiver_loc.lat = conf->receiver.lat;
-	receiver_loc.lon = conf->receiver.lon;
-	glBindBuffer(GL_ARRAY_BUFFER, ctx->track_vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(GeoPoint), &receiver_loc, GL_STREAM_DRAW);
-
-	proj[3][0] = proj[0][0] * -center_x;
-	proj[3][1] = proj[1][1] * -center_y;
-
-	glUniformMatrix4fv(ctx->u4m_track_proj, 1, GL_FALSE, (GLfloat*)proj);
-	glUniform4fv(ctx->u4f_track_color, 1, receiver_color);
-	glUniform1f(ctx->u1f_zoom, 1 << mipmap(zoom));
-
-	glDrawArrays(GL_POINTS, 0, 1);
-	/* }}} */
 
 	/* Cleanup */
 	glUseProgram(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 }
+
 
 /* Static functions {{{ */
 static void
@@ -259,12 +209,13 @@ update_buffers(GLMap *map, int x_start, int y_start, int x_count, int y_count, i
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, map->ibo);
 		glBufferData(GL_ARRAY_BUFFER, vbo_len * sizeof(*vbo_data), vbo_data, GL_STATIC_DRAW);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, ibo_len * sizeof(*ibo_data), ibo_data, GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
 
 	free(vbo_data);
 	free(ibo_data);
 }
-
 
 static int
 mipmap(float zoom)
@@ -275,7 +226,7 @@ mipmap(float zoom)
 }
 
 static void
-map_opengl_init(GLMap *map)
+vector_map_opengl_init(GLMap *map)
 {
 	GLint status, attrib_pos_x, attrib_pos_y;
 
@@ -285,26 +236,10 @@ map_opengl_init(GLMap *map)
 	const int fragment_shader_len = SYMSIZE(_binary_simplecolor_frag);
 
 	/* Program + shaders */
-	map->tile_program = glCreateProgram();
-	map->tile_vert_shader = glCreateShader(GL_VERTEX_SHADER);
-	map->tile_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(map->tile_vert_shader, 1, &vertex_shader, &vertex_shader_len);
-	glShaderSource(map->tile_frag_shader, 1, &fragment_shader, &fragment_shader_len);
-
-	glCompileShader(map->tile_vert_shader);
-	glGetShaderiv(map->tile_vert_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	glCompileShader(map->tile_frag_shader);
-	glGetShaderiv(map->tile_frag_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	glAttachShader(map->tile_program, map->tile_vert_shader);
-	glAttachShader(map->tile_program, map->tile_frag_shader);
-	glLinkProgram(map->tile_program);
-
-	glGetProgramiv(map->tile_program, GL_LINK_STATUS, &status);
-	assert(status == GL_TRUE);
+	status = gl_compile_and_link(&map->tile_program,
+	                             vertex_shader, vertex_shader_len,
+	                             fragment_shader, fragment_shader_len);
+	if (status != GL_TRUE) log_error("Failed to compile shaders");
 
 	/* Uniforms + attributes */
 	map->u4m_proj = glGetUniformLocation(map->tile_program, "u_proj_mtx");
@@ -330,61 +265,5 @@ map_opengl_init(GLMap *map)
 	glVertexAttribPointer(attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, y));
 
 	memset(&map->vram_tile_metadata, 0, sizeof(map->vram_tile_metadata));
-}
-
-static void
-track_opengl_init(GLMap *map)
-{
-	GLuint attrib_pos_x, attrib_pos_y;
-	GLint status;
-
-	const GLchar *vertex_shader = _binary_worldproj_vert;
-	const int vertex_shader_len = SYMSIZE(_binary_worldproj_vert);
-	const GLchar *fragment_shader = _binary_simplecolor_frag;
-	const int fragment_shader_len = SYMSIZE(_binary_simplecolor_frag);
-
-	/* Program + shaders */
-	map->track_program = glCreateProgram();
-	map->track_vert_shader = glCreateShader(GL_VERTEX_SHADER);
-	map->track_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-
-	glShaderSource(map->track_vert_shader, 1, &vertex_shader, &vertex_shader_len);
-	glShaderSource(map->track_frag_shader, 1, &fragment_shader, &fragment_shader_len);
-
-	glCompileShader(map->track_vert_shader);
-	glGetShaderiv(map->track_vert_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	glCompileShader(map->track_frag_shader);
-	glGetShaderiv(map->track_frag_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	glAttachShader(map->track_program, map->track_vert_shader);
-	glAttachShader(map->track_program, map->track_frag_shader);
-	glLinkProgram(map->track_program);
-
-	glGetProgramiv(map->track_program, GL_LINK_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	/* Uniforms + attributes */
-	map->u4m_track_proj = glGetUniformLocation(map->track_program, "u_proj_mtx");
-	map->u1f_zoom = glGetUniformLocation(map->track_program, "u_zoom");
-	map->u4f_track_color = glGetUniformLocation(map->track_program, "u_color");
-	attrib_pos_x = glGetAttribLocation(map->track_program, "in_position_x");
-	attrib_pos_y = glGetAttribLocation(map->track_program, "in_position_y");
-
-	log_debug("proj_mtx %d zoom %d color %d",
-			map->u4m_proj, map->u1f_zoom, map->u4f_track_color);
-	log_debug("pos_x %d pos_y %d", attrib_pos_x, attrib_pos_y);
-
-	glGenVertexArrays(1, &map->track_vao);
-	glBindVertexArray(map->track_vao);
-	glGenBuffers(1, &map->track_vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, map->track_vbo);
-
-	glEnableVertexAttribArray(attrib_pos_x);
-	glEnableVertexAttribArray(attrib_pos_y);
-	glVertexAttribPointer(attrib_pos_x, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, lat));
-	glVertexAttribPointer(attrib_pos_y, 1, GL_FLOAT, GL_FALSE, sizeof(GeoPoint), (void*)offsetof(GeoPoint, lon));
 }
 /* }}} */

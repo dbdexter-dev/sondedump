@@ -10,7 +10,6 @@ typedef struct {
 	GLuint vao, vbo;
 
 	GLuint program;
-	GLuint vert_shader, frag_shader;
 
 	GLuint u4m_proj;
 	GLuint u4f_color;

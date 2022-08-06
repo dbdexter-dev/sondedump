@@ -9,6 +9,7 @@
 #include "shaders/shaders.h"
 #include "style.h"
 #include "utils.h"
+#include "gui/gl_utils.h"
 
 #define BEZIER_VERTEX_COUNT(steps) (2 * ((steps) + 1))
 
@@ -58,8 +59,6 @@ gl_skewt_deinit(GLSkewT *ctx)
 	for (i=0; i<LEN(ctx->ibo); i++) {
 		if (ctx->ibo[i]) glDeleteBuffers(1, &ctx->ibo[i]);
 	}
-	if (ctx->chart_vert_shader) glDeleteProgram(ctx->chart_vert_shader);
-	if (ctx->chart_frag_shader) glDeleteProgram(ctx->chart_frag_shader);
 	if (ctx->chart_program) glDeleteProgram(ctx->chart_program);
 }
 
@@ -183,27 +182,10 @@ chart_opengl_init(GLSkewT *ctx)
 	const GLchar *fragment_shader = _binary_feathercolor_frag;
 	const int fragment_shader_len = SYMSIZE(_binary_feathercolor_frag);
 
-	ctx->chart_program = glCreateProgram();
-	ctx->chart_vert_shader = glCreateShader(GL_VERTEX_SHADER);
-	ctx->chart_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(ctx->chart_vert_shader, 1, &vertex_shader, &vertex_shader_len);
-	glShaderSource(ctx->chart_frag_shader, 1, &fragment_shader, &fragment_shader_len);
-
-	/* Compile and link shaders */
-	glCompileShader(ctx->chart_vert_shader);
-	glGetShaderiv(ctx->chart_vert_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	glCompileShader(ctx->chart_frag_shader);
-	glGetShaderiv(ctx->chart_frag_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	glAttachShader(ctx->chart_program, ctx->chart_vert_shader);
-	glAttachShader(ctx->chart_program, ctx->chart_frag_shader);
-	glLinkProgram(ctx->chart_program);
-
-	glGetProgramiv(ctx->chart_program, GL_LINK_STATUS, &status);
-	assert(status == GL_TRUE);
+	status = gl_compile_and_link(&ctx->chart_program,
+	                             vertex_shader, vertex_shader_len,
+	                             fragment_shader, fragment_shader_len);
+	if (status != GL_TRUE) log_error("Failed to compile shaders");
 
 	/* Find uniforms + attributes */
 	ctx->u4m_proj = glGetUniformLocation(ctx->chart_program, "u_proj_mtx");
@@ -295,27 +277,10 @@ data_opengl_init(GLSkewT *ctx)
 	const int fragment_shader_len = SYMSIZE(_binary_simplecolor_frag);
 
 	/* Program + shaders */
-	ctx->data_program = glCreateProgram();
-	ctx->data_vert_shader = glCreateShader(GL_VERTEX_SHADER);
-	ctx->data_frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-
-	glShaderSource(ctx->data_vert_shader, 1, &vertex_shader, &vertex_shader_len);
-	glShaderSource(ctx->data_frag_shader, 1, &fragment_shader, &fragment_shader_len);
-
-	glCompileShader(ctx->data_vert_shader);
-	glGetShaderiv(ctx->data_vert_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	glCompileShader(ctx->data_frag_shader);
-	glGetShaderiv(ctx->data_frag_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	glAttachShader(ctx->data_program, ctx->data_vert_shader);
-	glAttachShader(ctx->data_program, ctx->data_frag_shader);
-	glLinkProgram(ctx->data_program);
-
-	glGetProgramiv(ctx->data_program, GL_LINK_STATUS, &status);
-	assert(status == GL_TRUE);
+	status = gl_compile_and_link(&ctx->data_program,
+	                             vertex_shader, vertex_shader_len,
+	                             fragment_shader, fragment_shader_len);
+	if (status != GL_TRUE) log_error("Failed to compile shaders");
 
 	/* Uniforms + attributes */
 	ctx->u4m_data_proj = glGetUniformLocation(ctx->data_program, "u_proj_mtx");

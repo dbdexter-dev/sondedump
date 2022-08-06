@@ -1,7 +1,10 @@
 #include <assert.h>
 #include <math.h>
 #include <stddef.h>
+#include "libs/glad/glad.h"
+#include "log/log.h"
 #include "decode.h"
+#include "gui/gl_utils.h"
 #include "gl_timeseries.h"
 #include "shaders/shaders.h"
 #include "utils.h"
@@ -35,8 +38,6 @@ void gl_timeseries_deinit(GLTimeseries *ctx)
 {
 	if (ctx->vao) glDeleteVertexArrays(1, &ctx->vao);
 	if (ctx->vbo) glDeleteBuffers(1, &ctx->vbo);
-	if (ctx->vert_shader) glDeleteProgram(ctx->vert_shader);
-	if (ctx->frag_shader) glDeleteProgram(ctx->frag_shader);
 	if (ctx->program) glDeleteProgram(ctx->program);
 }
 
@@ -185,27 +186,11 @@ timeseries_opengl_init(GLTimeseries *ctx)
 	const GLchar *fragment_shader = _binary_simplecolor_frag;
 	const int fragment_shader_len = SYMSIZE(_binary_simplecolor_frag);
 
-	ctx->program = glCreateProgram();
-	ctx->vert_shader = glCreateShader(GL_VERTEX_SHADER);
-	ctx->frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(ctx->vert_shader, 1, &vertex_shader, &vertex_shader_len);
-	glShaderSource(ctx->frag_shader, 1, &fragment_shader, &fragment_shader_len);
-
-	/* Compile and link shaders */
-	glCompileShader(ctx->vert_shader);
-	glGetShaderiv(ctx->vert_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	glCompileShader(ctx->frag_shader);
-	glGetShaderiv(ctx->frag_shader, GL_COMPILE_STATUS, &status);
-	assert(status == GL_TRUE);
-
-	glAttachShader(ctx->program, ctx->vert_shader);
-	glAttachShader(ctx->program, ctx->frag_shader);
-	glLinkProgram(ctx->program);
-
-	glGetProgramiv(ctx->program, GL_LINK_STATUS, &status);
-	assert(status == GL_TRUE);
+	/* Program + shaders */
+	status = gl_compile_and_link(&ctx->program,
+	                             vertex_shader, vertex_shader_len,
+	                             fragment_shader, fragment_shader_len);
+	if (status != GL_TRUE) log_error("Failed to compile shaders");
 
 	/* Uniforms + attributes */
 	ctx->u4m_proj = glGetUniformLocation(ctx->program, "u_proj_mtx");

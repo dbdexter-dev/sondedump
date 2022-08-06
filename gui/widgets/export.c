@@ -30,7 +30,7 @@ widget_export(struct nk_context *ctx, float scale)
 
 	border = nk_window_get_panel(ctx)->border;
 
-	nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_ROW_HEIGHT * 1.2 * scale, 2);
+	nk_layout_row_begin(ctx, NK_STATIC, STYLE_DEFAULT_BUTTON_HEIGHT * scale, 2);
 
 	/* Latitude text box */
 	nk_layout_row_push(ctx, label_len * scale);

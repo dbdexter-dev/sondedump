@@ -169,8 +169,7 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 
 			/* Descramble and error correct */
 			rs41_frame_descramble(self->frame);
-			int errcount = rs41_frame_correct(self->frame, &self->rs);
-			log_debug("RS (sum): %d", errcount);
+			rs41_frame_correct(self->frame, &self->rs);
 
 #ifndef NDEBUG
 			if (debug) {
@@ -203,7 +202,6 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 			/* Validate the subframe's checksum against the one received.
 			 * If it doesn't match, discard it */
 			if (crc16_ccitt_false(subframe->data, subframe->len) != *(uint16_t*)&subframe->data[subframe->len]) {
-				log_debug("Incorrect CRC, skipping");
 				dst->type = EMPTY;
 				break;
 			}

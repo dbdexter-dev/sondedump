@@ -14,11 +14,11 @@
 #define COLOR_DEBUG "\033[;34m"
 
 void
-do_log_error(const char *tag, const char *fmt, ...)
+do_log_error(const char *tag, int line, const char *fmt, ...)
 {
 	va_list args;
 
-	printf("[" COLOR_ERR "%s" COLOR_DEFAULT "] ", tag + SOURCE_BASE_PATH_SIZE);
+	printf("[" COLOR_ERR "%s:%d" COLOR_DEFAULT "] ", tag + SOURCE_BASE_PATH_SIZE, line);
 
 	va_start(args, fmt);
 	vprintf(fmt, args);
@@ -27,11 +27,11 @@ do_log_error(const char *tag, const char *fmt, ...)
 }
 
 void
-do_log_warn(const char *tag, const char *fmt, ...)
+do_log_warn(const char *tag, int line, const char *fmt, ...)
 {
 	va_list args;
 
-	printf("[" COLOR_WARN "%s" COLOR_DEFAULT "] ", tag + SOURCE_BASE_PATH_SIZE);
+	printf("[" COLOR_WARN "%s:%d" COLOR_DEFAULT "] ", tag + SOURCE_BASE_PATH_SIZE, line);
 
 	va_start(args, fmt);
 	vprintf(fmt, args);
@@ -40,11 +40,11 @@ do_log_warn(const char *tag, const char *fmt, ...)
 }
 
 void
-do_log_info(const char *tag, const char *fmt, ...)
+do_log_info(const char *tag, int line, const char *fmt, ...)
 {
 	va_list args;
 
-	printf("[" COLOR_INFO "%s" COLOR_DEFAULT "] ", tag + SOURCE_BASE_PATH_SIZE);
+	printf("[" COLOR_INFO "%s:%d" COLOR_DEFAULT "] ", tag + SOURCE_BASE_PATH_SIZE, line);
 
 	va_start(args, fmt);
 	vprintf(fmt, args);
@@ -53,11 +53,11 @@ do_log_info(const char *tag, const char *fmt, ...)
 }
 
 void
-do_log_debug(const char *tag, const char *fmt, ...)
+do_log_debug(const char *tag, int line, const char *fmt, ...)
 {
 	va_list args;
 
-	printf("[" COLOR_DEBUG "%s" COLOR_DEFAULT "] ", tag + SOURCE_BASE_PATH_SIZE);
+	printf("[" COLOR_DEBUG "%s:%d" COLOR_DEFAULT "] ", tag + SOURCE_BASE_PATH_SIZE, line);
 
 	va_start(args, fmt);
 	vprintf(fmt, args);
@@ -66,11 +66,11 @@ do_log_debug(const char *tag, const char *fmt, ...)
 }
 
 void
-do_log_debug_hexdump(const char *tag, const uint8_t *data, int len)
+do_log_debug_hexdump(const char *tag, int line, const uint8_t *data, int len)
 {
 	int i;
 
-	printf("[" COLOR_DEBUG "%s" COLOR_DEFAULT "]", tag + SOURCE_BASE_PATH_SIZE);
+	printf("[" COLOR_DEBUG "%s:%d" COLOR_DEFAULT "]", tag + SOURCE_BASE_PATH_SIZE, line);
 
 	for (i=0; i < len; i++) {
 		if (!(i % 16)) printf("\n%04x\t", i);

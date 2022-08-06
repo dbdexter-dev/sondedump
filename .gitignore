@@ -2,3 +2,4 @@ build/
 **/tags
 .cache/
 **/__pycache__
+docs/

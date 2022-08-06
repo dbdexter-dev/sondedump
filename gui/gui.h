@@ -1,8 +1,6 @@
 #ifndef gui_h
 #define gui_h
 
-#include "utils.h"
-
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 #define PANEL_WIDTH 400

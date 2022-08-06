@@ -33,7 +33,6 @@ int filter_init_lpf(Filter *flt, int order, float cutoff, int num_phases);
  */
 void filter_fwd_sample(Filter *flt, float sample);
 
-
 /**
  * Get the output of a filter
  *
@@ -50,7 +49,5 @@ float filter_get(Filter *flt, int phase);
  * @param flt filter to deinitalize
  */
 void filter_deinit(Filter *flt);
-
-
 
 #endif

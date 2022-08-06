@@ -2,6 +2,7 @@
 #define utils_h
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -9,14 +10,10 @@
 #define VERSION "(unknown version)"
 #endif
 
-/* setenv() and unsetenv() for Windows */
+/* setenv(), unsetenv() and strcasecmp() for Windows */
 #ifdef _WIN32
 #define setenv(env, val, overwrite)  _putenv_s(env, val)
 #define unsetenv(env)                _putenv_s(env, "=")
-#endif
-
-/* strcasecmp for msvc */
-#ifdef _MSC_VER
 #define strcasecmp _stricmp
 #endif
 
@@ -80,6 +77,20 @@ time_t my_timegm(const struct tm *tm);
  * @return output of the spline
  */
 float cspline(const float *xs, const float *ys, float count, float x);
+
+/**
+ * Read a file until eof, reallocating the given buffer until it fits
+ *
+ * @param   buf buffer containng the data
+ * @param   fd file to read data from
+ * @return  grand total number of bytes read
+ */
+size_t fread_all(uint8_t **buf, FILE *fd);
+
+/**
+ * Recursively remove a folder
+ */
+void rm_rf(const char *path);
 
 /**
  * Mercator projection latitude to y conversion

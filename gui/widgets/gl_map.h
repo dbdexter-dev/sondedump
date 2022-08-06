@@ -5,12 +5,22 @@
 #include "libs/glad/glad.h"
 #include "config.h"
 #include "decode.h"
+#include "gui/backend/tilecache.h"
 
 #define MAP_TILE_WIDTH 1024
 #define MAP_TILE_HEIGHT 1024
 
+
 typedef struct {
+	int x, y, z;
+	int in_use;
+} Texture;
+
+typedef struct {
+	Texture *textures;
+	int texture_count;
 	struct {
+
 		int x_start, x_count;
 		int y_start, y_count;
 		int zoom;
@@ -18,16 +28,15 @@ typedef struct {
 		int vertex_count;
 	} vram_tile_metadata;
 
+	TileCache cache;
+
 	GLuint vao, vbo, ibo;
-	GLuint track_vao, track_vbo;
 
 	GLuint tile_program;
-	GLuint tile_vert_shader, tile_frag_shader;
-	GLuint track_program;
-	GLuint track_vert_shader, track_frag_shader;
+	GLuint texture_program;
 
 	GLuint u4f_map_color, u4m_proj;
-	GLuint u1f_zoom, u4f_track_color, u4m_track_proj;
+	GLuint u1i_texture;
 } GLMap;
 
 /**
@@ -45,15 +54,13 @@ void gl_map_init(GLMap *ctx);
 void gl_map_deinit(GLMap *ctx);
 
 /**
- * Render the world map w/ ground track
+ * Render a vector world map
  *
  * @param ctx       map context
  * @param config    global config
  * @param width     viewport width, in pixels
  * @param height    viewport height, in pixels
- * @param data      data to display
- * @param len       number of elements to display in the data array
  */
-void gl_map_vector(GLMap *ctx, const Config *conf, int width, int height, const GeoPoint *data, size_t len);
+void gl_map_vector(GLMap *ctx, const Config *conf, int width, int height);
 
 #endif

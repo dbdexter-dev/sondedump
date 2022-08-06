@@ -13,7 +13,7 @@ filter_init_lpf(Filter *flt, int order, float cutoff, int num_phases)
 	const int taps = order * 2 + 1;
 
 	if (!(flt->coeffs = malloc(num_phases * sizeof(*flt->coeffs) * taps))) return 1;
-	if (!(flt->mem = calloc(taps, sizeof(*flt->mem)))) return 1;
+	if (!(flt->mem = calloc(2 * taps, sizeof(*flt->mem)))) return 1;
 
 	cutoff /= num_phases;
 
@@ -40,8 +40,9 @@ filter_deinit(Filter *flt)
 void
 filter_fwd_sample(Filter *flt, float sample)
 {
-	flt->mem[flt->idx++] = sample;
-	flt->idx %= flt->size;
+	/* Store two copies to make output computation faster */
+	flt->mem[flt->idx] = flt->mem[flt->idx + flt->size] = sample;
+	flt->idx = (flt->idx + 1) % flt->size;
 }
 
 float
@@ -53,13 +54,9 @@ filter_get(Filter *flt, int phase)
 	j = flt->size * (flt->num_phases - phase - 1);
 	result = 0;
 
-	/* Chunk 1: from current position to end */
-	for (i=flt->idx; i<flt->size; i++, j++) {
-		result += flt->mem[i] * flt->coeffs[j];
-	}
-
-	/* Chunk 2: from start to current position - 1 */
-	for (i=0; i<flt->idx; i++, j++) {
+	/* No need to wrap around because of the second copy of all samples stored
+	 * starting from flt->size */
+	for (i=flt->idx; i<flt->size + flt->idx; i++, j++) {
 		result += flt->mem[i] * flt->coeffs[j];
 	}
 

@@ -70,9 +70,11 @@ if (ENABLE_GUI)
 		gui/shaders/skewtproj.vert
 		gui/shaders/worldproj.vert
 		gui/shaders/bezierproj.vert
+		gui/shaders/texture.vert
 
 		gui/shaders/simplecolor.frag
 		gui/shaders/feathercolor.frag
+		gui/shaders/texture.frag
 	)
 
 	# Fonts
@@ -82,7 +84,7 @@ if (ENABLE_GUI)
 
 	# Tiles & vector graphics
 	list(APPEND BLOB_SRCS
-		assets/tiles/tiledata.bin assets/tiles/tileindex.bin
+		#assets/tiles/tiledata.bin assets/tiles/tileindex.bin
 		assets/tiles/skewt.bin assets/tiles/skewt_index.bin
 	)
 endif()
@@ -155,23 +157,39 @@ set(AUDIO_SOURCES
 )
 
 set(GUI_SOURCES
-	libs/glad/glad.c libs/glad/glad.h libs/glad/KHR/khrplatform.h
+	libs/glad/glad.c libs/glad/glad.h
+	libs/glad/KHR/khrplatform.h
+
+	compat/threads.c compat/threads.h
+	compat/mutex.c compat/mutex.h
+	compat/semaphore.c compat/semaphore.h
+
+	gui/backend/tilecache.c gui/backend/tilecache.h
 
 	gui/nuklear/nuklear.c gui/nuklear/nuklear.h
 	gui/nuklear/nuklear_sdl_gl3.h
 	gui/nuklear/nuklear_ext.c gui/nuklear/nuklear_ext.h
 
+	gui/stb_image/stb_image.c gui/stb_image/stb_image.h
+
 	gui/style.c gui/style.h
 	gui/gui.c gui/gui.h
+	gui/gl_utils.c gui/gl_utils.h
 
 	gui/widgets/data.c gui/widgets/data.h
 	gui/widgets/type_select.c gui/widgets/type_select.h
 	gui/widgets/audio_dev_select.c gui/widgets/audio_dev_select.h
 	gui/widgets/export.c gui/widgets/export.h
 
-	gui/widgets/gl_map.c gui/widgets/gl_map.h
+	#gui/widgets/gl_map.c gui/widgets/gl_map.h
+	gui/widgets/gl_map_raster.c gui/widgets/gl_map_raster.h
+	gui/widgets/gl_ground_track.c gui/widgets/gl_ground_track.h
 	gui/widgets/gl_skewt.c gui/widgets/gl_skewt.h
 	gui/widgets/gl_timeseries.c gui/widgets/gl_timeseries.h
+
+	gui/windows/config_win.c gui/windows/config_win.h
+	gui/windows/overview_win.c gui/windows/overview_win.h
+	gui/windows/export_win.c gui/windows/export_win.h
 
 	gui/shaders/shaders.h
 )
@@ -233,8 +251,9 @@ if (ENABLE_GUI)
 	find_package(Threads REQUIRED)
 	find_package(OpenGL COMPONENTS OpenGL REQUIRED)
 	find_package(SDL2 REQUIRED)
+	find_package(CURL REQUIRED)
 endif()
-if (ENABLE_GUI AND SDL2_FOUND AND OPENGL_FOUND)
+if (ENABLE_GUI AND SDL2_FOUND AND OPENGL_FOUND AND CURL_FOUND)
 	# Nuklear configuration, has to be consistent every time nuklear.h is included
 	add_definitions(
 		-DNK_INCLUDE_FIXED_TYPES
@@ -256,6 +275,8 @@ else()
 	set(SDL2_LIBRARY_DIRS "")
 	set(OPENGL_INCLUDE_DIRS "")
 	set(OPENGL_LIBRARIES "")
+	set(CURL_LIBRARIES "")
+	set(CURL_INCLUDE_DIRS "")
 endif()
 
 
@@ -271,6 +292,7 @@ target_include_directories(sondedump PRIVATE ${INC_DIRS}
 	${CURSES_INCLUDE_DIRS}
 	${SDL2_INCLUDE_DIRS}
 	${OPENGL_INCLUDE_DIRS}
+	${CURL_INCLUDE_DIRS}
 )
 target_link_libraries(sondedump PRIVATE radiosonde
 	${CMAKE_THREAD_LIBS_INIT}
@@ -279,6 +301,7 @@ target_link_libraries(sondedump PRIVATE radiosonde
 	${CURSES_LIBRARIES}
 	${SDL2_LIBRARIES}
 	${OPENGL_LIBRARIES}
+	${CURL_LIBRARIES}
 )
 
 # Install targets

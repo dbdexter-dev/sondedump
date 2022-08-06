@@ -2,6 +2,8 @@
 #define sondedump_config_h
 
 #define CONFIG_FNAME "sondedump.json"
+#define URL_MAXLEN 256
+#define TILE_BASE_URL_DEFAULT "https://cartodb-basemaps-c.global.ssl.fastly.net/dark_all/"
 
 typedef struct {
 	struct {
@@ -24,6 +26,7 @@ typedef struct {
 	} colors;
 
 	float ui_scale;
+	char tile_base_url[URL_MAXLEN];
 } Config;
 
 /**
