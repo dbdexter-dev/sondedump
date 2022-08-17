@@ -94,7 +94,10 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 		dfm09_frame_deinterleave(self->frame);
 
 #ifndef NDEBUG
-		if (debug) fwrite((uint8_t*)self->frame, DFM09_FRAME_LEN/8/2, 1, debug);
+		if (debug) {
+			fwrite((uint8_t*)self->frame, DFM09_FRAME_LEN/8/2, 1, debug);
+			fflush(debug);
+		}
 #endif
 
 		/* Error correct, and exit prematurely if too many errors are found */

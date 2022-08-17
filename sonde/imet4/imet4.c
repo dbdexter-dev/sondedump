@@ -99,7 +99,9 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 		imet4_frame_descramble(self->frame);
 
 #ifndef NDEBUG
-		if (debug) fwrite(raw_frame, IMET4_FRAME_LEN/8, 1, debug);
+		if (debug) {
+			fwrite(raw_frame, IMET4_FRAME_LEN/8, 1, debug);
+		}
 #endif
 			self->frame_offset = 0;
 			self->compute_serial = 0;
@@ -226,9 +228,10 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 			dst->data.info.board_model = "";
 			dst->data.info.board_serial = "";
 
-				break;
-			case IMET4_SFTYPE_GPSX:
-				gpsx = (IMET4Subframe_GPSX*)self->subframe;
+			dst->data.info.seq = seq;
+			break;
+		case IMET4_SFTYPE_GPSX:
+			gpsx = (IMET4Subframe_GPSX*)self->subframe;
 
 			self->state = PARSE_SUBFRAME;
 			break;
