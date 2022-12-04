@@ -19,9 +19,11 @@ filter_init_lpf(Filter *flt, int order, float cutoff, int num_phases)
 
 	for (phase = 0; phase < num_phases; phase++) {
 		for (i=0; i<taps; i++) {
-			flt->coeffs[phase * taps + i] = rc_coeff(cutoff, i * num_phases + phase, taps * num_phases, num_phases, 0.4);
+			flt->coeffs[phase * taps + i] = rc_coeff(2 * cutoff, i * num_phases + phase, taps * num_phases, num_phases, 0.4);
+			printf("%f, ", flt->coeffs[phase*taps+i]);
 		}
 	}
+	printf("\n");
 
 	flt->num_phases = num_phases;
 	flt->size = taps;
@@ -66,23 +68,23 @@ filter_get(Filter *flt, int phase)
 static float
 rc_coeff(float cutoff, int stage_no, unsigned taps, float osf, float alpha)
 {
-	const float norm = 2.0/5.0;
 	float rc_coeff, hamming_coeff;
 	float t;
-	int order;
+	const int order = (taps - 1) / 2;
+	const float norm = 2.0/5.0 * order / osf / 10.0;
 
-	order = (taps - 1) / 2;
-
-	if (order == stage_no) {
-		return norm;
-	}
 
 	t = abs(order - stage_no) / osf;
 
-	/* Raised cosine coefficient */
-	rc_coeff = sinf(2*M_PI*t*cutoff)/(2*M_PI*t*cutoff)
-	         * cosf(M_PI*alpha*t) / (1 - powf(2*alpha*t, 2));
-
+	if (t == 0) {
+		rc_coeff = cutoff;
+	} else if (2*alpha*t*cutoff == 1) {
+		rc_coeff = -M_PI/(4*cutoff) * sinf(M_PI/(2*alpha))/(M_PI/(2*alpha));
+	} else {
+		/* Raised cosine coefficient */
+		rc_coeff = sinf(M_PI*t*cutoff)/(M_PI*t)
+		         * cosf(M_PI*alpha*t*cutoff) / (1 - powf(2*alpha*t*cutoff, 2));
+	}
 
 	/* Hamming windowing function */
 	hamming_coeff = 0.42
