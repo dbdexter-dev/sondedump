@@ -19,11 +19,9 @@ filter_init_lpf(Filter *flt, int order, float cutoff, int num_phases)
 
 	for (phase = 0; phase < num_phases; phase++) {
 		for (i=0; i<taps; i++) {
-			flt->coeffs[phase * taps + i] = rc_coeff(2 * cutoff, i * num_phases + phase, taps * num_phases, num_phases, 0.4);
-			printf("%f, ", flt->coeffs[phase*taps+i]);
+			flt->coeffs[phase * taps + i] = rc_coeff(cutoff, i * num_phases + phase, taps * num_phases, num_phases, 0.99);
 		}
 	}
-	printf("\n");
 
 	flt->num_phases = num_phases;
 	flt->size = taps;

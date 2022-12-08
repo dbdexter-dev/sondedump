@@ -26,12 +26,21 @@
 
 #define BUFLEN 1024
 
-#define SHORTOPTS "a:c:f:g:hk:l:o:r:t:v"
+#define SHORTOPTS "a:c:f:g:hk:l:o:r:t:Tv"
 
 /* UI types */
 enum ui {
 	UI_TEXT,
 	UI_TUI,
+};
+
+/* Sample input types */
+enum input {
+	INPUT_WAV,
+	INPUT_RAW,
+#ifdef ENABLE_AUDIO
+	INPUT_AUDIO
+#endif
 };
 
 static void usage(const char *progname);
@@ -98,6 +107,7 @@ main(int argc, char *argv[])
 	const char *gpx_fname = NULL;
 	const char *csv_fname = NULL;
 	const char *input_fname = NULL;
+	enum input input_type = INPUT_WAV;
 	enum ui ui = UI_TEXT;
 #ifdef ENABLE_TUI
 	int receiver_location_set = 0;
@@ -108,7 +118,7 @@ main(int argc, char *argv[])
 	ui = UI_TUI;
 #endif
 #ifdef ENABLE_AUDIO
-	int input_from_audio = 0;
+	input_type = INPUT_AUDIO;
 	int audio_device = -1;
 	int audio_device_count = 0;
 	const char **audio_device_names;
@@ -137,7 +147,7 @@ main(int argc, char *argv[])
 			break;
 		case 't':
 			active_decoder = ascii_to_decoder(optarg);
-			if (active_decoder < 0) {
+			if (active_decoder < 0 || active_decoder >= END) {
 				fprintf(stderr, "Unsupported type: %s\n", optarg);
 				usage(argv[0]);
 				return 1;
@@ -154,7 +164,9 @@ main(int argc, char *argv[])
 				usage(argv[0]);
 				return 1;
 			}
+#ifdef ENABLE_TUI
 			receiver_location_set = 1;
+#endif
 			break;
 		case 'f':
 			output_fmt = optarg;
@@ -184,66 +196,78 @@ main(int argc, char *argv[])
 		input_from_audio = 1;
 
 		switch (ui) {
-			case UI_TEXT:
-			case UI_TUI:
-				/* Ask the user for a device now */
-				audio_device_count = audio_get_num_devices();
-				audio_device_names = audio_get_device_names();
-				samplerate = -1;
+		case UI_TEXT:
+		case UI_TUI:
+			/* Ask the user for a device now */
+			audio_device_count = audio_get_num_devices();
+			audio_device_names = audio_get_device_names();
+			samplerate = -1;
 
-				/* If the audio device was not specified as a command-line arg */
-				if (audio_device < 0) {
-					/* Ask user dyamically for an audio device */
-					printf("\n==============================\n");
-					printf("Please select an audio device:\n");
-					for (i = 0; i < audio_device_count; i++) {
-						if (audio_device_names[i]) {
-							printf("%d) %s\n", i, audio_device_names[i]);
-						}
+			/* If the audio device was not specified as a command-line arg */
+			if (audio_device < 0) {
+				/* Ask user dyamically for an audio device */
+				printf("\n==============================\n");
+				printf("Please select an audio device:\n");
+				for (i = 0; i < audio_device_count; i++) {
+					if (audio_device_names[i]) {
+						printf("%d) %s\n", i, audio_device_names[i]);
 					}
-
-					printf("Device index: ");
-					scanf("%d", &audio_device);
 				}
 
-				/* Open device */
-				samplerate = audio_open_device(audio_device);
-				if (samplerate < 0) {
-					return -1;
-				}
-				printf("Selected samplerate: %d\n", samplerate);
-				break;
+				printf("Device index: ");
+				scanf("%d", &audio_device);
+			}
+
+			/* Open device */
+			samplerate = audio_open_device(audio_device);
+			if (samplerate < 0) {
+				return -1;
+			}
+			printf("Selected samplerate: %d\n", samplerate);
+			break;
 		}
 #else
 		log_error("No input file specified");
 		usage(argv[0]);
 		return 1;
 #endif
+#ifdef ENABLE_AUDIO
+	} else {
+		input_type = INPUT_WAV;
+#endif
 	}
 	input_fname = argv[optind];
 	/* }}} */
 
 	/* Open input */
+	switch (input_type) {
+	case INPUT_WAV:
+	case INPUT_RAW:
+		if (!(_wav = fopen(input_fname, "rb"))) {
+			fprintf(stderr, "[ERROR] Could not open input file\n");
+			return 1;
+		}
+
+		if (wav_parse(_wav, &samplerate, &_bps)) {
+			fprintf(stderr, "Could not recognize input file type\n");
+			fprintf(stderr, "Will assume raw, mono, 32 bit float, 48kHz\n");
+			samplerate = 48000;
+
+			read_wrapper = &raw_read_wrapper;
+		} else {
+			read_wrapper = &wav_read_wrapper;
+		}
+		break;
 #ifdef ENABLE_AUDIO
-	if (input_from_audio) {
+	case INPUT_AUDIO:
 		read_wrapper = audio_read_wrapper;
-	} else {
+		break;
 #endif
-	if (!(_wav = fopen(input_fname, "rb"))) {
-		log_error("Could not open input file");
+	default:
+		log_error("Unknown input type");
 		return 1;
 	}
-	read_wrapper = wav_read_wrapper;
-	if (wav_parse(_wav, &samplerate, &_bps)) {
-		log_warn("Could not recognize input file type");
-		log_warn("Will assume raw, mono, 32 bit float, 48kHz");
-		samplerate = 48000;
 
-		read_wrapper = &raw_read_wrapper;
-	}
-#ifdef ENABLE_AUDIO
-	}   /* if (input_from_audio) {} else { */
-#endif
 
 	/* Open CSV output */
 	if (csv_fname) {
@@ -268,15 +292,17 @@ main(int argc, char *argv[])
 	}
 
 	/* Initialize decoder */
-	set_active_decoder(active_decoder);
 	if (decoder_init(samplerate)) {
 		log_error("Error while initializing decoder subsystem");
 		return 1;
 	}
+	set_active_decoder(active_decoder);
 
 #ifdef ENABLE_TUI
 	/* Enable TUI */
 	if (ui == UI_TUI) {
+		/* Disable log output to prevent interference with ncurses */
+		log_enable(0);
 		tui_init(-1);
 		if (receiver_location_set) {
 			tui_set_ground_location(receiver_lat, receiver_lon, receiver_alt);
@@ -350,7 +376,7 @@ main(int argc, char *argv[])
 
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO
-	if (input_from_audio) {
+	if (input_type == INPUT_AUDIO) {
 		audio_deinit();
 	}
 #endif

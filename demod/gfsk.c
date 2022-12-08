@@ -27,7 +27,7 @@ gfsk_init(GFSKDemod *g, int samplerate, int symrate)
 	agc_init(&g->agc);
 
 	/* Initialize a low-pass filter with the appropriate bandwidth */
-	if (filter_init_lpf(&g->lpf, GFSK_FILTER_ORDER, sym_freq, num_phases)) return 1;
+	if (filter_init_lpf(&g->lpf, GFSK_FILTER_ORDER, 3 * sym_freq, num_phases)) return 1;
 
 	/* Initialize symbol timing recovery */
 	timing_init(&g->timing, sym_freq / num_phases, GFSK_SYM_ZETA, sym_freq/num_phases/100);

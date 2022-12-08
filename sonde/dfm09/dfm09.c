@@ -200,6 +200,7 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 			dst->data.info.sonde_serial = self->serial;
 			dst->data.info.board_model = "";
 			dst->data.info.board_serial = "";
+			dst->data.info.burstkill_status = -1;
 			break;
 
 		case 0x01:

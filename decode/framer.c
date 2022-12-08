@@ -65,7 +65,7 @@ framer_read(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const 
 		f->state = REALIGN;
 		/* FALLTHROUGH */
 	case REALIGN:
-		/* Conditionally read more bits to get a full frame worth */
+		/* Conditionally read more bits to get a full frame worth of bits */
 		if (f->sync_offset > (size_t)f->corr.sync_len*8) {
 			switch (framer_demod_internal(f, dst, &f->offset, framelen + f->sync_offset, src, len)) {
 			case PROCEED:

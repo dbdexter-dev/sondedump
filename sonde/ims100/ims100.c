@@ -137,6 +137,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 			dst->data.info.seq = ims100_frame_seq(&self->frame);
 			dst->data.info.sonde_serial = self->serial;
 		}
+		dst->data.info.burstkill_status = -1;
 
 		self->state = PARSE_PTU;
 		break;
