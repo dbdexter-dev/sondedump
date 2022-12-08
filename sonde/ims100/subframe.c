@@ -62,7 +62,7 @@ float
 ims100_subframe_speed(const IMS100FrameGPS *frame) {
 	const uint16_t raw_speed = (uint16_t)frame->speed[0] << 8 | (uint16_t)frame->speed[1];
 
-	return raw_speed / 3.280840e2;  // Feet per second what the...? But empirically plausible
+	return raw_speed / 1.943844e2;  // knots*100 -> m/s
 }
 
 float
