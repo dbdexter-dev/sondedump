@@ -25,7 +25,7 @@ struct dfm09decoder {
 	uint64_t raw_serial;
 };
 
-enum { READ, PARSE_PTU, PARSE_GPS };
+enum { READ_PRE, READ, PARSE_PTU, PARSE_GPS };
 
 #ifndef NDEBUG
 static FILE *debug;
@@ -80,6 +80,11 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	dst->type = EMPTY;
 
 	switch (self->state) {
+	case READ_PRE:
+		self->frame[0] = self->frame[2];
+		self->frame[1] = self->frame[3];
+		self->state = READ;
+		/* FALLTHROUGH */
 	case READ:
 		/* Read a new frame */
 		switch (framer_read(&self->f, raw_frame, &self->offset, DFM09_FRAME_LEN, src, len)) {
@@ -103,6 +108,7 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 		/* Error correct, and exit prematurely if too many errors are found */
 		errcount = dfm09_frame_correct(self->frame);
 		if (errcount < 0 || errcount > 8) {
+			self->state = READ_PRE;
 			return PARSED;
 		}
 
@@ -182,7 +188,7 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 		gpsSubframe = &self->parsed_frame.gps[self->gps_idx++];
 		if (self->gps_idx > 2) {
 			dst->type = FRAME_END;
-			self->state = READ;
+			self->state = READ_PRE;
 			break;
 		}
 

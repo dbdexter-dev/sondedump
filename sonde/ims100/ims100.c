@@ -9,6 +9,7 @@
 #include "protocol.h"
 #include "subframe.h"
 #include "utils.h"
+#include "log/log.h"
 
 #ifndef NDEBUG
 static FILE *debug, *debug_odd;
@@ -33,7 +34,7 @@ struct ims100decoder {
 	IMS100FrameADC adc;
 };
 
-enum { READ, PARSE_INFO, PARSE_PTU,
+enum { READ_PRE, READ, PARSE_INFO, PARSE_PTU,
 	PARSE_GPS_TIME, PARSE_GPS_POS,
 	PARSE_META_FRAGMENTS,
 	PARSE_END };
@@ -86,6 +87,11 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	dst->type = EMPTY;
 
 	switch (self->state) {
+	case READ_PRE:
+		self->raw_frame[0] = self->raw_frame[2];
+		self->raw_frame[1] = self->raw_frame[3];
+		self->state = READ;
+		/* FALLTHROUGH */
 	case READ:
 		/* Read a new frame */
 		switch (framer_read(&self->f, raw_frame, &self->offset, IMS100_FRAME_LEN, src, len)) {
@@ -95,15 +101,20 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 			break;
 		}
 
-		/* Decode bits and move them in the right palce */
+#ifndef NDEBUG
+		fwrite(&self->raw_frame, 2*sizeof(self->raw_frame), 1, debug);
+#endif
+		/* Decode bits and move them in the right place */
 		manchester_decode(raw_frame, raw_frame, IMS100_FRAME_LEN);
 		ims100_frame_descramble(self->raw_frame);
 
 		/* Error correct and remove all ECC bits */
 		if (ims100_frame_error_correct(self->raw_frame, &self->rs) < 0) {
+			self->state = READ_PRE;
 			return PARSED;
 		}
 		ims100_frame_unpack(&self->frame, self->raw_frame);
+		self->state = PARSE_INFO;
 
 		/* FALLTHROUGH */
 	case PARSE_INFO:
@@ -128,7 +139,6 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 		}
 
 		self->state = PARSE_PTU;
-
 		break;
 
 	case PARSE_PTU:
@@ -138,7 +148,8 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 		validmask = IMS100_MASK_PTU;
 		if (!IMS100_DATA_VALID(self->frame.valid, validmask)) dst->type = EMPTY;
 
-#ifndef NDEBUG
+#if 0
+//#ifndef NDEBUG
 		if (debug && debug_odd) {
 			static int offset[2] = {2, 2};
 			int myseq = ims100_frame_seq(&self->frame);
@@ -248,7 +259,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 
 	case PARSE_END:
 		dst->type = FRAME_END;
-		self->state = READ;
+		self->state = READ_PRE;
 		break;
 	default:
 		self->state = READ;
