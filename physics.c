@@ -2,15 +2,6 @@
 #include "physics.h"
 #include "utils.h"
 
-#define O3_FLOWRATE 30     /* Time taken by the pump to force 100mL of air through the sensor, in seconds */
-
-static float o3_correction_factor(float pressure);
-
-/* Pressure-dependent O3 correction factors */
-static const float _cfPressure[] = {3, 5, 7, 10, 15, 20, 30, 50, 70, 100, 150, 200};
-static const float _cfFactor[]   = {1.24, 1.124, 1.087, 1.066, 1.048, 1.041,
-                                   1.029, 1.018, 1.013, 1.007, 1.002, 1.000};
-
 float
 altitude_to_pressure(float alt)
 {
@@ -95,22 +86,3 @@ wv_sat_pressure(float temp)
 
 }
 
-float
-o3_concentration(float pressure, float pump_temp, float o3_current)
-{
-	float o3_pressure, o3_ppb;
-
-	o3_pressure = 4.307e-3 * o3_current * pump_temp * O3_FLOWRATE * o3_correction_factor(pressure);
-	o3_ppb = o3_pressure * 1000.0 / pressure;
-
-	return o3_ppb;
-}
-
-static float
-o3_correction_factor(float pressure)
-{
-	for (int i=0; i<(int)LEN(_cfFactor); i++) {
-		if (pressure < _cfPressure[i]) return _cfFactor[i];
-	}
-	return 1.0;
-}

@@ -24,13 +24,13 @@ struct rs41decoder {
 	Framer f;
 	RSDecoder rs;
 	RS41Frame frame[2];
-	int state;
 	size_t offset, frame_offset;
 	float calib_percent; int calibrated;
 	RS41Metadata metadata;
 	char serial[9];
 };
 
+static void rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metadata);
 static float rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s);
 static int rs41_metadata_ptu_calibrated(RS41Metadata *m);
 
@@ -94,8 +94,6 @@ static const uint8_t _default_calib_data[sizeof(RS41Calibration)] = {
 };
 /* }}} */
 
-enum { READ_PRE, READ, PARSE_SUBFRAME };
-
 RS41Decoder*
 rs41_decoder_init(int samplerate)
 {
@@ -104,7 +102,6 @@ rs41_decoder_init(int samplerate)
 	rs_init(&d->rs, RS41_REEDSOLOMON_N, RS41_REEDSOLOMON_K, RS41_REEDSOLOMON_POLY,
 			RS41_REEDSOLOMON_FIRST_ROOT, RS41_REEDSOLOMON_ROOT_SKIP);
 
-	d->state = READ;
 	d->metadata.initialized = 0;
 	d->offset = 0;
 	d->calib_percent = 0;
@@ -139,145 +136,53 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	RS41Subframe *subframe;
 	size_t frame_data_len;
-	int burstkill_timer;
-	float x, y, z, dx, dy, dz;
 	uint8_t *const raw_frame = (uint8_t*)self->frame;
 
-	RS41Subframe_Info *status;
-	RS41Subframe_PTU *ptu;
-	RS41Subframe_GPSInfo *gpsinfo;
-	RS41Subframe_GPSPos *gpspos;
-	RS41Subframe_XDATA *xdata;
-
-	switch (self->state) {
-	case READ_PRE:
-		/* Copy residual bits from the previous frame */
-		self->frame[0] = self->frame[1];
-		self->state = READ;
-		/* FALLTHROUGH */
-	case READ:
-		/* Read a new frame */
-		switch (framer_read(&self->f, raw_frame, &self->offset, RS41_FRAME_LEN, src, len)) {
-		case PROCEED:
-			return PROCEED;
-		case PARSED:
-			break;
-		}
-
-		/* Descramble and error correct */
-		rs41_frame_descramble(self->frame);
-		rs41_frame_correct(self->frame, &self->rs);
-
-#ifndef NDEBUG
-		if (debug) {
-			/* Output the frame to file */
-			fwrite(self->frame, RS41_FRAME_LEN/8, 1, debug);
-		}
-#endif
-
-		/* Prepare to parse subframes */
-		memset(dst, 0, sizeof(*dst));
-		self->frame_offset = 0;
-
-		/* Parse expected data length from extended flag */
-		frame_data_len = RS41_DATA_LEN + (rs41_frame_is_extended(self->frame) ? RS41_XDATA_LEN : 0);
-
-		/* Initialize pointer to the subframe */
-		subframe = (RS41Subframe*)&self->frame->data[self->frame_offset];
-		self->frame_offset += subframe->len + 4;
-
-		/* Keep going until the end of the frame is reached */
-		while (self->frame_offset < frame_data_len) {
-			/* Validate the subframe's checksum against the one received.
-			 * If it doesn't match, discard it */
-			if (crc16_ccitt_false(subframe->data, subframe->len) != *(uint16_t*)&subframe->data[subframe->len]) {
-				subframe->type = 0x00;
-			}
-
-			/* Subframe parsing {{{ */
-			switch (subframe->type) {
-			case RS41_SFTYPE_EMPTY:
-				/* Padding */
-				break;
-			case RS41_SFTYPE_INFO:
-				/* Frame sequence number, serial no., board info, calibration data */
-				status = (RS41Subframe_Info*)subframe;
-				self->calib_percent = rs41_update_metadata(&self->metadata, status);
-				self->calibrated = rs41_metadata_ptu_calibrated(&self->metadata);
-
-				dst->fields |= DATA_SERIAL;
-				dst->serial = status->serial;
-				dst->serial[8] = 0;
-
-				dst->fields |= DATA_SEQ;
-				dst->seq = status->frame_seq;
-
-				dst->fields |= DATA_SHUTDOWN;
-				burstkill_timer = self->metadata.data.burstkill_timer;
-				dst->shutdown = (burstkill_timer == 0xFFFF ? -1 : burstkill_timer);
-				break;
-			case RS41_SFTYPE_PTU:
-				/* Temperature, humidity, pressure */
-				ptu = (RS41Subframe_PTU*)subframe;
-
-				dst->fields |= DATA_PTU;
-
-				dst->temp = rs41_subframe_temp(ptu, &self->metadata.data);
-				dst->rh = rs41_subframe_humidity(ptu, &self->metadata.data);
-				dst->pressure = rs41_subframe_pressure(ptu, &self->metadata.data);
-				dst->calib_percent = self->calib_percent;
-				dst->calibrated = dst->calibrated;
-				break;
-			case RS41_SFTYPE_GPSPOS:
-				/* GPS position */
-				gpspos = (RS41Subframe_GPSPos*)subframe;
-
-				x = rs41_subframe_x(gpspos);
-				y = rs41_subframe_y(gpspos);
-				z = rs41_subframe_z(gpspos);
-				dx = rs41_subframe_dx(gpspos);
-				dy = rs41_subframe_dy(gpspos);
-				dz = rs41_subframe_dz(gpspos);
-
-
-				dst->fields |= DATA_POS | DATA_SPEED;
-				ecef_to_lla(&dst->lat, &dst->lon, &dst->alt, x, y, z);
-				ecef_to_spd_hdg(&dst->speed, &dst->heading, &dst->climb,
-						dst->lat, dst->lon, dx, dy, dz);
-
-				/* If pressure is not provided, estimate it from altitude
-				 * so that ozone ppb calculation can still happen */
-				if (!(dst->pressure > 0)) dst->pressure = altitude_to_pressure(dst->alt);
-				break;
-			case RS41_SFTYPE_GPSINFO:
-				/* GPS date/time and RSSI */
-				gpsinfo = (RS41Subframe_GPSInfo*)subframe;
-
-				dst->fields |= DATA_TIME;
-				dst->time = gps_time_to_utc(gpsinfo->week, gpsinfo->ms);
-				break;
-			case RS41_SFTYPE_XDATA:
-				/* XDATA */
-				xdata = (RS41Subframe_XDATA*)subframe;
-
-				dst->fields |= DATA_XDATA;
-				dst->xdata = xdata_decode(dst->pressure, xdata->ascii_data, xdata->len-1);
-				break;
-			default:
-				/* Unknown */
-				break;
-			}
-
-			/* Update pointer to the subframe */
-			subframe = (RS41Subframe*)&self->frame->data[self->frame_offset];
-			self->frame_offset += subframe->len + 4;
-		}
-		/* }}} */
-		self->state = READ_PRE;
-		break;
-	default:
+	/* Read a new frame */
+	switch (framer_read(&self->f, raw_frame, &self->offset, RS41_FRAME_LEN, src, len)) {
+	case PROCEED:
+		return PROCEED;
+	case PARSED:
 		break;
 	}
+
+	/* Descramble and error correct */
+	rs41_frame_descramble(self->frame);
+	rs41_frame_correct(self->frame, &self->rs);
+
+#ifndef NDEBUG
+	if (debug) {
+		/* Output the frame to file */
+		fwrite(self->frame, RS41_FRAME_LEN/8, 1, debug);
+	}
+#endif
+
+	/* Prepare to parse subframes */
+	memset(dst, 0, sizeof(*dst));
+	self->frame_offset = 0;
+
+	/* Parse expected data length from extended flag */
+	frame_data_len = RS41_DATA_LEN + (rs41_frame_is_extended(self->frame) ? RS41_XDATA_LEN : 0);
+
+	/* Initialize pointer to the subframe */
+	subframe = (RS41Subframe*)&self->frame->data[self->frame_offset];
+	self->frame_offset += subframe->len + 4;
+
+	/* Keep going until the end of the frame is reached */
+	while (self->frame_offset < frame_data_len && subframe->len) {
+		/* Validate the subframe's checksum against the one received.
+		 * If it doesn't match, discard it */
+		if (crc16_ccitt_false(subframe->data, subframe->len) == *(uint16_t*)&subframe->data[subframe->len]) {
+			rs41_parse_subframe(dst, subframe, &self->metadata);
+		}
+
+		/* Update pointer to the subframe */
+		subframe = (RS41Subframe*)&self->frame->data[self->frame_offset];
+		self->frame_offset += subframe->len + 4;
+	}
+	/* }}} */
+	/* Copy residual bits from the previous frame */
+	self->frame[0] = self->frame[1];
 
 	return PARSED;
 }
@@ -311,5 +216,93 @@ rs41_metadata_ptu_calibrated(RS41Metadata *m)
 	}
 
 	return 1;
+}
+
+static void
+rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metadata)
+{
+	RS41Subframe_Info *status = (RS41Subframe_Info*)subframe;
+	RS41Subframe_PTU *ptu = (RS41Subframe_PTU*)subframe;
+	RS41Subframe_GPSInfo *gpsinfo = (RS41Subframe_GPSInfo*)subframe;
+	RS41Subframe_GPSPos *gpspos = (RS41Subframe_GPSPos*)subframe;
+	RS41Subframe_XDATA *xdata = (RS41Subframe_XDATA*)subframe;
+
+	uint16_t burstkill_timer;
+	float x, y, z, dx, dy, dz;
+
+	switch (subframe->type) {
+	case RS41_SFTYPE_EMPTY:
+		/* Padding */
+		break;
+	case RS41_SFTYPE_INFO:
+		/* Frame sequence number, serial no., board info, calibration data */
+		status = (RS41Subframe_Info*)subframe;
+		dst->calib_percent = rs41_update_metadata(metadata, status);
+		dst->calibrated = rs41_metadata_ptu_calibrated(metadata);
+
+		dst->fields |= DATA_SERIAL;
+		strncpy(dst->serial, status->serial, sizeof(dst->serial)-1);
+		dst->serial[8] = 0;
+
+		dst->fields |= DATA_SEQ;
+		dst->seq = status->frame_seq;
+
+		burstkill_timer = metadata->data.burstkill_timer;
+		if (burstkill_timer != 0xFFFF) {
+			dst->fields |= DATA_SHUTDOWN;
+			dst->shutdown = burstkill_timer;
+		}
+		break;
+
+	case RS41_SFTYPE_PTU:
+		/* Temperature, humidity, pressure */
+		ptu = (RS41Subframe_PTU*)subframe;
+
+		dst->fields |= DATA_PTU;
+		dst->temp = rs41_subframe_temp(ptu, &metadata->data);
+		dst->rh = rs41_subframe_humidity(ptu, &metadata->data);
+		dst->pressure = rs41_subframe_pressure(ptu, &metadata->data);
+		break;
+
+	case RS41_SFTYPE_GPSPOS:
+		/* GPS position */
+		gpspos = (RS41Subframe_GPSPos*)subframe;
+
+		x = rs41_subframe_x(gpspos);
+		y = rs41_subframe_y(gpspos);
+		z = rs41_subframe_z(gpspos);
+		dx = rs41_subframe_dx(gpspos);
+		dy = rs41_subframe_dy(gpspos);
+		dz = rs41_subframe_dz(gpspos);
+
+
+		dst->fields |= DATA_POS | DATA_SPEED;
+		ecef_to_lla(&dst->lat, &dst->lon, &dst->alt, x, y, z);
+		ecef_to_spd_hdg(&dst->speed, &dst->heading, &dst->climb,
+				dst->lat, dst->lon, dx, dy, dz);
+
+		break;
+	case RS41_SFTYPE_GPSINFO:
+		/* GPS date/time and RSSI */
+		gpsinfo = (RS41Subframe_GPSInfo*)subframe;
+
+		dst->fields |= DATA_TIME;
+		dst->time = gps_time_to_utc(gpsinfo->week, gpsinfo->ms);
+		break;
+	case RS41_SFTYPE_XDATA:
+		/* XDATA */
+		xdata = (RS41Subframe_XDATA*)subframe;
+
+		/* If pressure is not provided, estimate it from altitude so that ozone
+		 * ppb calculation can still happen */
+		if (!(dst->pressure > 0)) dst->pressure = altitude_to_pressure(dst->alt);
+
+		dst->fields |= DATA_XDATA;
+		xdata_decode(&dst->xdata, dst->pressure, xdata->ascii_data, xdata->len-1);
+		break;
+	default:
+		/* Unknown */
+		break;
+	}
 }
 /* }}} */

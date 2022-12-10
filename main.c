@@ -101,7 +101,7 @@ main(int argc, char *argv[])
 	float srcbuf[BUFLEN];
 
 	/* Command-line changeable parameters {{{ */
-	const char *output_fmt = "[%f] %t'C %r%%    %l %o %am    %sm/s %h' %cm/s\t%x";
+	const char *output_fmt = "(%S) [%f] %t'C %r%%    %l %o %am    %sm/s %h' %cm/s\t%x";
 	const char *live_kml_fname = NULL;
 	const char *kml_fname = NULL;
 	const char *gpx_fname = NULL;
@@ -546,7 +546,9 @@ printf_data(const char *fmt, const SondeData *data)
 				printf("%s", time);
 				break;
 			case 'x':
-				printf("%s", data->xdata);
+				if (data->fields & DATA_XDATA) {
+					printf("O3=%.2f ppb", data->xdata.o3_ppb);
+				}
 				break;
 			default:
 				putchar(fmt[i]);

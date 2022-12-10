@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define BITMASK_CHECK(bits, mask) (((bits) & (mask)) == (mask))
+
 /**
  * Copy bits from one place to the other. Starting bit may or may not be
  * byte-aligned.

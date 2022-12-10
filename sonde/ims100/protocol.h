@@ -22,8 +22,6 @@
 #define IMS100_REEDSOLOMON_T 4
 #define IMS100_REEDSOLOMON_POLY 0x61
 
-#define IMS100_DATA_VALID(bits, mask) (((bits) & (mask)) == (mask))
-
 #define IMS100_GPS_MASK_SPEED   0x000002
 #define IMS100_GPS_MASK_HEADING 0x000004
 #define IMS100_GPS_MASK_ALT     0x000060

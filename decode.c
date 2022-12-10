@@ -23,8 +23,6 @@ static IMS100Decoder *ims100decoder = NULL;
 static M10Decoder *m10decoder = NULL;
 static IMET4Decoder *imet4decoder = NULL;
 
-static char serial[32];
-static char xdata[128];
 static SondeData printable;
 static int has_data, new_data;
 
@@ -60,7 +58,6 @@ decoder_init(int samplerate)
 
 	/* Initialize data double-buffer */
 	memset(&printable, 0, sizeof(printable));
-	printable.serial = "";
 	has_data = 0;
 	new_data = 0;
 
@@ -149,32 +146,37 @@ decode(const float *srcbuf, size_t len)
 	case AUTO:
 		while (rs41_decode(rs41decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.fields & ~DATA_DELIMITER) {
-				log_debug("Autodetected: RS41");
+				log_info("Autodetected: RS41");
 				set_active_decoder(RS41);
+				break;
 			}
 		}
 		while (m10_decode(m10decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.fields & ~DATA_DELIMITER) {
-				log_debug("Autodetected: M10");
+				log_info("Autodetected: M10");
 				set_active_decoder(M10);
+				break;
 			}
 		}
 		while (ims100_decode(ims100decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.fields & ~DATA_DELIMITER) {
-				log_debug("Autodetected: iMS100");
+				log_info("Autodetected: iMS100");
 				set_active_decoder(IMS100);
+				break;
 			}
 		}
 		while (dfm09_decode(dfm09decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.fields & ~DATA_DELIMITER) {
-				log_debug("Autodetected: DFM09");
+				log_info("Autodetected: DFM09");
 				set_active_decoder(DFM09);
+				break;
 			}
 		}
 		while (imet4_decode(imet4decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.fields & ~DATA_DELIMITER) {
-				log_debug("Autodetected: iMet-4");
+				log_info("Autodetected: iMet-4");
 				set_active_decoder(IMET4);
+				break;
 			}
 		}
 		break;
@@ -242,14 +244,13 @@ decode(const float *srcbuf, size_t len)
 
 			if (data.fields & DATA_SERIAL) {
 				printable.fields |= DATA_SERIAL;
-				strncpy(serial, data.serial, sizeof(serial) - 1);
-				printable.serial = serial;
+				strncpy(printable.serial, data.serial, sizeof(printable.serial) - 1);
+				printable.serial[sizeof(printable.serial) - 1] = 0;
 			}
 
 			if (data.fields & DATA_XDATA) {
 				printable.fields |= DATA_XDATA;
-				strncpy(xdata, data.xdata, sizeof(xdata) - 1);
-				printable.xdata = xdata;
+				printable.xdata = data.xdata;
 			}
 
 			if (data.fields & DATA_SHUTDOWN) {
@@ -295,7 +296,6 @@ set_active_decoder(enum decoder decoder)
 	/* Signal that pointers are okay again */
 	active_decoder = (decoder + END) % END;
 	memset(&printable, 0, sizeof(printable));
-	printable.serial = "";
 	decoder_changed = 1;
 	sample_count = 0;
 }

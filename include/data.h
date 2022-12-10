@@ -22,10 +22,14 @@ typedef enum {
 } DataBitmask;
 
 typedef struct {
+	float o3_ppb;   /* Ozone concentration, in ppb */
+} SondeXdata;
+
+typedef struct {
 	DataBitmask fields;
 
 	int seq;
-	char *serial;
+	char serial[32];
 
 	float lat, lon, alt;
 	float speed, climb, heading;
@@ -36,7 +40,7 @@ typedef struct {
 	float calib_percent;
 	float temp, rh, pressure;
 
-	char *xdata;
+	SondeXdata xdata;
 
 	int shutdown;
 } SondeData;
