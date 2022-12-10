@@ -195,6 +195,22 @@ decode(const float *srcbuf, size_t len)
 			}
 
 			/* Add track point to list {{{ */
+			if (data.fields & DATA_PTU) {
+				track[sample_count].temp = data.temp;
+				track[sample_count].rh = data.rh;
+				track[sample_count].pressure = data.pressure;
+				track[sample_count].dewpt = dewpt(data.temp, data.rh);
+				track[sample_count].pressure = data.pressure;
+
+				printable.fields |= DATA_PTU;
+				printable.temp = data.temp;
+				printable.rh = data.rh;
+				printable.pressure = data.pressure;
+
+				printable.calib_percent = data.calib_percent;
+				printable.calibrated = data.calibrated;
+			}
+
 			if (data.fields & DATA_TIME) {
 				track[sample_count].utc_time = data.time;
 
@@ -211,10 +227,6 @@ decode(const float *srcbuf, size_t len)
 				printable.lat = data.lat;
 				printable.lon = data.lon;
 				printable.alt = data.alt;
-
-				if (!(printable.pressure > 0)) {
-					printable.pressure = altitude_to_pressure(data.alt);
-				}
 			}
 
 			if (data.fields & DATA_SPEED) {
@@ -226,20 +238,6 @@ decode(const float *srcbuf, size_t len)
 				printable.speed = data.speed;
 				printable.heading = data.heading;
 				printable.climb = data.climb;
-			}
-
-			if (data.fields & DATA_PTU) {
-				track[sample_count].temp = data.temp;
-				track[sample_count].rh = data.rh;
-				track[sample_count].pressure = data.pressure;
-				track[sample_count].dewpt = dewpt(data.temp, data.rh);
-
-				printable.fields |= DATA_PTU;
-				printable.temp = data.temp;
-				printable.rh = data.rh;
-				if (data.pressure > 0) printable.pressure = data.pressure;
-				printable.calib_percent = data.calib_percent;
-				printable.calibrated = data.calibrated;
 			}
 
 			if (data.fields & DATA_SERIAL) {
@@ -267,6 +265,13 @@ decode(const float *srcbuf, size_t len)
 				track[sample_count].id = track[sample_count - 1].id;
 			}
 			/* }}} */
+
+			/* If pressure data is unavailable, derive it from the reported
+			 * altitude */
+			if (!(printable.pressure > 0)) {
+				printable.pressure = altitude_to_pressure(printable.alt);
+				track[sample_count].pressure = printable.pressure;
+			}
 
 			update_minmax(&track[sample_count]);
 			sample_count++;
