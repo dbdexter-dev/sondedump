@@ -96,15 +96,12 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	/* Error correct, and exit prematurely if too many errors are found */
 	errcount = dfm09_frame_correct(self->frame);
 	if (errcount < 0 || errcount > 8) {
-		self->frame[0] = self->frame[2];
-		self->frame[1] = self->frame[3];
-		return PROCEED;
+		goto next;
 	}
 
 	/* Remove parity bits */
 	dfm09_frame_unpack(&self->parsed_frame, self->frame);
 
-	/* If all zeroes, discard */
 	valid = 0;
 	for (i=0; i<(int)sizeof(self->parsed_frame); i++) {
 		if (((uint8_t*)&self->parsed_frame)[i] != 0) {
@@ -112,12 +109,8 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 			break;
 		}
 	}
-
-	if (!valid) {
-		self->frame[0] = self->frame[2];
-		self->frame[1] = self->frame[3];
-		return PROCEED;
-	}
+	/* If frame is all zeroes, discard and go to next */
+	if (!valid) goto next;
 
 	/* PTU subframe parsing {{{ */
 	ptu_subframe = &self->parsed_frame.ptu;
@@ -233,6 +226,7 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 	/* }}} */
 
+next:
 	/* Copy residual bits from the previous frame */
 	self->frame[0] = self->frame[2];
 	self->frame[1] = self->frame[3];

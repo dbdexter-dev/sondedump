@@ -19,6 +19,7 @@ struct ims100decoder {
 	Framer f;
 	RSDecoder rs;
 	IMS100ECCFrame raw_frame[4];
+	IMS100ECCFrame ecc_frame;
 	IMS100Frame frame;
 	IMS100Calibration calib;
 	size_t offset;
@@ -74,6 +75,7 @@ ParserStatus
 ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;
+	uint8_t *const ecc_frame = (uint8_t*)&self->ecc_frame;
 	unsigned int seq;
 	uint32_t validmask;
 
@@ -84,34 +86,28 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	case PARSED:
 		break;
 	}
-
 #ifndef NDEBUG
-	fwrite(&self->raw_frame, 2*sizeof(self->raw_frame), 1, debug);
+	fwrite(raw_frame, 2*sizeof(self->ecc_frame), 1, debug);
 #endif
-	/* Decode bits and move them in the right place */
-	manchester_decode(raw_frame, raw_frame, IMS100_FRAME_LEN);
-	ims100_frame_descramble(self->raw_frame);
 
-	/* Error correct and remove all ECC bits */
-	if (ims100_frame_error_correct(self->raw_frame, &self->rs) < 0) {
-		self->raw_frame[0] = self->raw_frame[2];
-		self->raw_frame[1] = self->raw_frame[3];
-		return PROCEED;
-	}
-	ims100_frame_unpack(&self->frame, self->raw_frame);
+
+	/* Decode bits and move them in the right place */
+	manchester_decode(ecc_frame, raw_frame, IMS100_FRAME_LEN);
+	ims100_frame_descramble(&self->ecc_frame);
 
 	memset(dst, 0, sizeof(*dst));
+
+	/* Error correct and remove all ECC bits */
+	if (ims100_frame_error_correct(&self->ecc_frame, &self->rs) < 0) {
+		/* ECC failed: go to next frame */
+		goto next;
+	}
+	ims100_frame_unpack(&self->frame, &self->ecc_frame);
+
 	/* Copy calibration data */
 	if (BITMASK_CHECK(self->frame.valid, IMS100_MASK_SEQ | IMS100_MASK_CALIB)) {
 		seq = ims100_frame_seq(&self->frame);
 		update_calibration(self, seq, self->frame.calib);
-	}
-
-	/* Parse serial number */
-	if (BITMASK_CHECK(self->calib_bitmask, IMS100_CALIB_SERIAL_MASK)) {
-		sprintf(self->serial, "IMS%d", (int)ieee754_be(self->calib.serial));
-		dst->fields |= DATA_SERIAL;
-		strncpy(dst->serial, self->serial, sizeof(dst->serial) - 1);
 	}
 
 	/* Parse seq and serial number */
@@ -195,6 +191,14 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 	/* }}} */
 
+	/* Parse serial number, only if at least one field has been parsed */
+	if (dst->fields && BITMASK_CHECK(self->calib_bitmask, IMS100_CALIB_SERIAL_MASK)) {
+		sprintf(self->serial, "IMS%d", (int)ieee754_be(self->calib.serial));
+		dst->fields |= DATA_SERIAL;
+		strncpy(dst->serial, self->serial, sizeof(dst->serial) - 1);
+	}
+
+next:
 	self->raw_frame[0] = self->raw_frame[2];
 	self->raw_frame[1] = self->raw_frame[3];
 	return PARSED;

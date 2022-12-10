@@ -177,8 +177,11 @@ redraw(void)
 	draw_tabs(tui.tabs, get_active_decoder());
 
 	/* Format data to be printable */
-	if (data->fields & DATA_TIME)
+	if (data->fields & DATA_TIME) {
 		strftime(time, LEN(time), "%a %b %d %Y %H:%M:%S", gmtime(&data->time));
+	} else {
+		time[0] = 0;
+	}
 	if (data->fields & DATA_SHUTDOWN) {
 		sprintf(shutdown_timer, "%d:%02d:%02d",
 				data->shutdown/3600,
