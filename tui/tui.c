@@ -88,12 +88,10 @@ tui_set_ground_location(float lat, float lon, float alt)
 static void*
 main_loop(void *args)
 {
-	int ch;
-
 	(void)args;
 
 	while (_running) {
-		switch (ch = wgetch(tui.win)) {
+		switch (wgetch(tui.win)) {
 		case KEY_RESIZE:
 			handle_resize();
 			break;

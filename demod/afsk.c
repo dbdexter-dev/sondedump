@@ -158,9 +158,9 @@ afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, c
 			case 1:
 				/* Half-way slot */
 				d->interm = filter_get(&d->lpf, phase);
-				symbol = filter_get(&d->lpf, phase);
 #ifdef AFSK_DEBUG
-				//fprintf(debug, "%f,%f\n", symbol, 0.0);
+				symbol = filter_get(&d->lpf, phase);
+				fprintf(debug, "%f,%f\n", symbol, 0.0);
 #endif
 				break;
 			case 2:
@@ -168,7 +168,7 @@ afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, c
 				symbol = filter_get(&d->lpf, phase);
 				retime(&d->timing, d->interm, symbol);
 #ifdef AFSK_DEBUG
-				//fprintf(debug, "%f,%f\n", symbol, symbol);
+				fprintf(debug, "%f,%f\n", symbol, symbol);
 #endif
 
 				/* Slice sample to get bit value */
@@ -183,9 +183,9 @@ afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, c
 				}
 				break;
 			default:
-				symbol = filter_get(&d->lpf, phase);
 #ifdef AFSK_DEBUG
-				//fprintf(debug, "%f,%f\n", symbol, 0.0);
+				symbol = filter_get(&d->lpf, phase);
+				fprintf(debug, "%f,%f\n", symbol, 0.0);
 #endif
 				break;
 

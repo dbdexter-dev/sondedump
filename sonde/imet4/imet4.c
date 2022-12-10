@@ -233,6 +233,8 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 		dst->fields |= DATA_TIME;
 		dst->time = my_timegm(&datetime);
 		break;
+	case 0:
+		break;
 	default:
 		log_warn("Unknown subframe type 0x%x", subframe->type);
 		break;
