@@ -150,8 +150,8 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 		lon = m10_frame_9f_lon(data_frame_9f);
 		alt = m10_frame_9f_alt(data_frame_9f);
 
-		dx = m10_frame_9f_dlat(data_frame_9f);
-		dy = m10_frame_9f_dlon(data_frame_9f);
+		dx = m10_frame_9f_dlon(data_frame_9f);
+		dy = m10_frame_9f_dlat(data_frame_9f);
 		dz = m10_frame_9f_dalt(data_frame_9f);
 
 		climb = dz;

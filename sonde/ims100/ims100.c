@@ -212,28 +212,26 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 
 	/* GPS subframe parsing {{{ */
 	case PARSE_GPS_TIME:
-		dst->type = DATETIME;
 
 		/* Invalidate data if subframe is marked corrupted */
 		validmask = IMS100_GPS_MASK_TIME | IMS100_GPS_MASK_DATE;
-		if (!IMS100_DATA_VALID(self->frame.valid, validmask)) dst->type = EMPTY;
-
-		if (dst->type != EMPTY) {
+		if (IMS100_DATA_VALID(self->frame.valid, validmask)) {
+			dst->type = DATETIME;
 			dst->data.datetime.datetime = ims100_subframe_time(&self->frame.data.gps);
+
 			self->cur_alt.time = dst->data.datetime.datetime;
 		}
 
 		self->state = PARSE_GPS_POS;
 		break;
 	case PARSE_GPS_POS:
-		dst->type = POSITION;
 
 		/* Invalidate data if subframe is marked corrupted */
 		validmask = IMS100_GPS_MASK_LAT | IMS100_GPS_MASK_LON | IMS100_GPS_MASK_ALT
 				  | IMS100_GPS_MASK_SPEED | IMS100_GPS_MASK_HEADING;
-		if (!IMS100_DATA_VALID(self->frame.valid, validmask)) dst->type = EMPTY;
 
-		if (dst->type != EMPTY) {
+		if (IMS100_DATA_VALID(self->frame.valid, validmask)) {
+			dst->type = POSITION;
 			dst->data.pos.lat = ims100_subframe_lat(&self->frame.data.gps);
 			dst->data.pos.lon = ims100_subframe_lon(&self->frame.data.gps);
 			dst->data.pos.alt = ims100_subframe_alt(&self->frame.data.gps);
