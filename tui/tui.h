@@ -32,7 +32,7 @@ void tui_set_ground_location(float lat, float lon, float alt);
  *
  * @param data data to display
  */
-int tui_update(const PrintableData *data);
+int tui_update(const SondeData *data);
 
 #endif
 

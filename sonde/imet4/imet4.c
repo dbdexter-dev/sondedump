@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include "decode/ecc/crc.h"
 #include "decode/framer.h"
@@ -17,14 +18,12 @@ static uint16_t imet4_serial(int seq, time_t time);
 struct imet4decoder {
 	Framer f;
 	IMET4Frame frame[2];
-	IMET4Subframe *subframe;
 	int state;
 	uint32_t time;
 	size_t offset, frame_offset;
 	char serial[16];
 	uint32_t prev_time;
 	float prev_x, prev_y, prev_z;
-	int compute_serial;
 };
 
 enum { READ_PRE, READ, PARSE_SUBFRAME, PARSE_SUBFRAME_PTU_INFO, PARSE_SUBFRAME_GPS_POS };
@@ -69,20 +68,18 @@ ParserStatus
 imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	uint8_t *const raw_frame = (uint8_t*)self->frame;
-	size_t subframe_len;
 	int32_t pressure;
 	struct tm datetime;
 	time_t now;
-	int seq;
 	int hour, min, sec;
 	float x, y, z, dt;
 
+	IMET4Subframe *subframe;
 	IMET4Subframe_GPS *gps;
 	IMET4Subframe_GPSX *gpsx;
 	IMET4Subframe_PTU *ptu;
-	IMET4Subframe_PTUX *ptux;
+	//IMET4Subframe_PTUX *ptux;
 
-	dst->type = EMPTY;
 
 	switch (self->state) {
 	case READ_PRE:
@@ -103,186 +100,148 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 #ifndef NDEBUG
 		if (debug) fwrite(raw_frame, IMET4_FRAME_LEN/8, 1, debug);
 #endif
-		self->compute_serial = 0;
+		/* Prepare to parse subframes */
+		memset(dst, 0, sizeof(*dst));
 		self->frame_offset = 0;
-		self->state = PARSE_SUBFRAME;
-		/* FALLTHROUGH */
-	case PARSE_SUBFRAME:
-		/* Extract the next subframe */
-		self->subframe = (IMET4Subframe*)&self->frame->data[self->frame_offset];
-		subframe_len = imet4_subframe_len(self->subframe);
 
-		self->frame_offset += subframe_len;
+		/* Extract the first subframe */
+		subframe = (IMET4Subframe*)&self->frame->data[self->frame_offset];
+		self->frame_offset += imet4_subframe_len(subframe);
 
-		/* If the frame is unrecognized or ends out of bounds, we reached the end: read next */
-		if (!subframe_len || self->frame_offset >= sizeof(self->frame->data)) {
-			dst->type = FRAME_END;
-			self->state = READ_PRE;
-			break;
-		}
+		/* Continue until the end of the frame */
+		while (imet4_subframe_len(subframe) &&
+		       self->frame_offset < sizeof(self->frame->data)) {
+			/* Validate the subframe's checksum against the one received. If it
+			 * doesn't match, don't try to parse it */
+			if (crc16_aug_ccitt((uint8_t*)subframe, imet4_subframe_len(subframe))) {
+				subframe->type = 0x00;
+			}
 
-		/* Validate the subframe's checksum against the one received. If it
-		 * doesn't match, discard it and go to the next */
-		if (crc16_aug_ccitt((uint8_t*)self->subframe, subframe_len)) {
-			dst->type = EMPTY;
-			break;
-		}
+			/* Subframe parsing {{{ */
+			switch (subframe->type) {
+			case IMET4_SFTYPE_PTU:
+			case IMET4_SFTYPE_PTUX:
+				/* PTUX has the same fields as PTU, plus some extra that we are not
+				 * parsing at the moment. To avoid code duplication, "downgrade"
+				 * PTUX packets to PTU */
+				ptu = (IMET4Subframe_PTU*)subframe;
+				pressure = ptu->pressure[0] | ptu->pressure[1] << 8 | ptu->pressure[2] << 16;
+				pressure = (pressure << 8) >> 8;
 
-		/* Subframe parsing {{{ */
-		switch (self->subframe->type) {
-		case IMET4_SFTYPE_PTU:
-			ptu = (IMET4Subframe_PTU*)self->subframe;
-			pressure = ptu->pressure[0] | ptu->pressure[1] << 8 | ptu->pressure[2] << 16;
-			pressure = (pressure << 8) >> 8;
+				dst->fields |= DATA_PTU;
+				dst->calibrated = 1;
+				dst->calib_percent = 100.0;
+				dst->temp = ptu->temp / 100.0;
+				dst->rh = ptu->rh / 100.0;
+				dst->pressure = pressure / 100.0;
 
-			dst->type = PTU;
+				dst->fields |= DATA_SEQ;
+				dst->seq = ptu->seq;
+				break;
 
-			dst->data.ptu.calibrated = 1;
-			dst->data.ptu.calib_percent = 100.0;
-			dst->data.ptu.temp = ptu->temp / 100.0;
-			dst->data.ptu.rh = ptu->rh / 100.0;
-			dst->data.ptu.pressure = pressure / 100.0;
 
-			self->state = PARSE_SUBFRAME_PTU_INFO;
-			break;
-		case IMET4_SFTYPE_GPS:
-		case IMET4_SFTYPE_GPSX:
-			gpsx = (IMET4Subframe_GPSX*)self->subframe;
-
-			switch (self->subframe->type) {
 			case IMET4_SFTYPE_GPS:
-				gps = (IMET4Subframe_GPS*)self->subframe;
-
-				hour = gps->hour;
-				min = gps->min;
-				sec = gps->sec;
-				break;
-
-				break;
 			case IMET4_SFTYPE_GPSX:
-				gpsx = (IMET4Subframe_GPSX*)self->subframe;
+				/* Same reasoning as for PTU and PTUX: lat/lon/alt fields are
+				 * shared, so avoid code duplication by combining them */
+				gps = (IMET4Subframe_GPS*)subframe;
 
-				hour = gpsx->hour;
-				min = gpsx->min;
-				sec = gpsx->sec;
-				break;
-			default:
-				dst->type = EMPTY;
-				hour = min = sec = 0;
-				break;
-			}
+				dst->fields |= DATA_POS;
+				dst->lat = gps->lat;
+				dst->lon = gps->lon;
+				dst->alt = gps->alt - 5000.0;
 
-			dst->type = DATETIME;
-			self->compute_serial++;
+				/* Get time from the correct field, based on frame type */
+				switch (subframe->type) {
+				case IMET4_SFTYPE_GPS:
+					hour = gps->hour;
+					min = gps->min;
+					sec = gps->sec;
+					break;
 
-			now = time(NULL);
-			datetime = *gmtime(&now);
-			// Handle 0Z crossing
-			if (abs(hour - datetime.tm_hour) >= 12) {
-				now += (hour < datetime.tm_hour) ? 86400 : -86400;
+					break;
+				case IMET4_SFTYPE_GPSX:
+					gpsx = (IMET4Subframe_GPSX*)subframe;
+
+					hour = gpsx->hour;
+					min = gpsx->min;
+					sec = gpsx->sec;
+					break;
+				default:
+					/* unreached */
+					hour = min = sec = 0;
+					break;
+				}
+
+				/* Date is not transmitted: use current date */
+				now = time(NULL);
 				datetime = *gmtime(&now);
+				/* Handle 0Z crossing */
+				if (abs(hour - datetime.tm_hour) >= 12) {
+					now += (hour < datetime.tm_hour) ? 86400 : -86400;
+					datetime = *gmtime(&now);
+				}
+
+				datetime.tm_hour = hour;
+				datetime.tm_min = min;
+				datetime.tm_sec = sec;
+
+				dst->fields |= DATA_TIME;
+				dst->time = my_timegm(&datetime);
+				self->time = dst->time;
+
+				/* Speed calculation differs between GPS and GPSX */
+				dst->fields |= DATA_SPEED;
+				switch (subframe->type) {
+				case IMET4_SFTYPE_GPS:
+					/* Convert to ECEF coordinates to estimate speed vector */
+					dt = self->time - self->prev_time;
+					lla_to_ecef(&x, &y, &z, dst->lat, dst->lon, dst->alt);
+					ecef_to_spd_hdg(&dst->speed, &dst->heading, &dst->climb,
+					                dst->lat, dst->lon,
+					                (x - self->prev_x)/dt, (y - self->prev_y)/dt, (z - self->prev_z)/dt);
+
+					/* Update last known x/y/z */
+					self->prev_x = x;
+					self->prev_y = y;
+					self->prev_z = z;
+					self->prev_time = self->time;
+					break;
+				case IMET4_SFTYPE_GPSX:
+					gpsx = (IMET4Subframe_GPSX*)subframe;
+
+					dst->speed = sqrtf(gpsx->dlon*gpsx->dlon + gpsx->dlat*gpsx->dlat);
+					dst->climb = gpsx->climb;
+					dst->heading = atan2f(gpsx->dlat, gpsx->dlon) * 180.0 / M_PI;
+					if (dst->heading < 0) dst->heading += 360.0;
+					break;
+				}
+
+				break;
+
+			case IMET4_SFTYPE_XDATA:
+				/* TODO */
+				break;
+
+			default:
+				break;
 			}
+			/* }}} */
 
-			datetime.tm_hour = hour;
-			datetime.tm_min = min;
-			datetime.tm_sec = sec;
-
-			dst->data.datetime.datetime = my_timegm(&datetime);
-			self->time = dst->data.datetime.datetime;
-			self->state = PARSE_SUBFRAME_GPS_POS;
-			break;
-			break;
-		case IMET4_SFTYPE_PTUX:
-			ptux = (IMET4Subframe_PTUX*)self->subframe;
-			pressure = ptux->pressure[0] | ptux->pressure[1] << 8 | ptux->pressure[2] << 16;
-			pressure = (pressure << 8) >> 8;
-
-			dst->type = PTU;
-
-			dst->data.ptu.calibrated = 1;
-			dst->data.ptu.calib_percent = 100.0;
-			dst->data.ptu.temp = ptux->temp / 100.0;
-			dst->data.ptu.rh = ptux->rh / 100.0;
-			dst->data.ptu.pressure = pressure / 100.0;
-
-			self->state = PARSE_SUBFRAME_PTU_INFO;
-			break;
-		case IMET4_SFTYPE_XDATA:
-			/* TODO */
-			break;
-
-		default:
-			break;
-		}
-		/* }}} */
-		break;
-	case PARSE_SUBFRAME_PTU_INFO:
-		switch (self->subframe->type) {
-		case IMET4_SFTYPE_PTU:
-			ptu = (IMET4Subframe_PTU*)self->subframe;
-			dst->type = INFO;
-			seq = ptu->seq;
-			break;
-		case IMET4_SFTYPE_PTUX:
-			ptux = (IMET4Subframe_PTUX*)self->subframe;
-			dst->type = INFO;
-			seq = ptux->seq;
-			break;
-		default:
-			dst->type = EMPTY;
-			seq = 0;
-			break;
-		}
-		/* Compute serial from start-up time */
-		sprintf(self->serial, "iMet-%04X", imet4_serial(seq, self->time));
-		dst->data.info.sonde_serial = self->serial;
-		dst->data.info.board_model = "";
-		dst->data.info.board_serial = "";
-		dst->data.info.burstkill_status = -1;
-
-		dst->data.info.seq = seq;
-
-		self->state = PARSE_SUBFRAME;
-		break;
-	case PARSE_SUBFRAME_GPS_POS:
-		switch (self->subframe->type) {
-		case IMET4_SFTYPE_GPS:
-			gps = (IMET4Subframe_GPS*)self->subframe;
-
-			dst->data.pos.lat = gps->lat;
-			dst->data.pos.lon = gps->lon;
-			dst->data.pos.alt = gps->alt - 5000.0;
-			break;
-		case IMET4_SFTYPE_GPSX:
-			gpsx = (IMET4Subframe_GPSX*)self->subframe;
-
-			dst->data.pos.lat = gpsx->lat;
-			dst->data.pos.lon = gpsx->lon;
-			dst->data.pos.alt = gpsx->alt - 5000.0;
-			break;
-		default:
-			dst->type = EMPTY;
-
-			break;
+			/* Update pointer to the subframe */
+			subframe = (IMET4Subframe*)&self->frame->data[self->frame_offset];
+			self->frame_offset += imet4_subframe_len(subframe);
 		}
 
-		dst->type = POSITION;
+		/* Derive serial number from est. turn-on time */
+		if (dst->fields & DATA_SEQ) {
+			dst->fields |= DATA_SERIAL;
+			sprintf(self->serial, "iMet-%04X", imet4_serial(dst->seq, self->time));
+			dst->serial = self->serial;
 
-		dt = self->time - self->prev_time;
-		self->prev_time = self->time;
+		}
 
-		/* Convert to ECEF coordinates to compute speed vector */
-		lla_to_ecef(&x, &y, &z, dst->data.pos.lat, dst->data.pos.lon, dst->data.pos.alt);
-		ecef_to_spd_hdg(&dst->data.pos.speed, &dst->data.pos.heading, &dst->data.pos.climb,
-						dst->data.pos.lat, dst->data.pos.lon,
-						(x - self->prev_x)/dt, (y - self->prev_y)/dt, (z - self->prev_z)/dt);
-
-		/* Update last known x/y/z */
-		self->prev_x = x;
-		self->prev_y = y;
-		self->prev_z = z;
-
-		self->state = PARSE_SUBFRAME;
+		self->state = READ_PRE;
 		break;
 	default:
 		break;

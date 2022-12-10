@@ -169,18 +169,23 @@ redraw(void)
 	int start_row, start_col;
 	char time[64], shutdown_timer[32];
 	float az, el, slant;
+<<<<<<< HEAD
 	PrintableData *data = get_data();
+=======
+	const SondeData *data = get_data();
+>>>>>>> 0998189 (Overhauled data exchange format)
 
 	/* Draw tabs at top of the TUI */
 	draw_tabs(tui.tabs, get_active_decoder());
 
 	/* Format data to be printable */
-	strftime(time, LEN(time), "%a %b %d %Y %H:%M:%S", gmtime(&data->utc_time));
-	if (data->shutdown_timer > 0) {
+	if (data->fields & DATA_TIME)
+		strftime(time, LEN(time), "%a %b %d %Y %H:%M:%S", gmtime(&data->time));
+	if (data->fields & DATA_SHUTDOWN) {
 		sprintf(shutdown_timer, "%d:%02d:%02d",
-				data->shutdown_timer/3600,
-				data->shutdown_timer/60%60,
-				data->shutdown_timer%60
+				data->shutdown/3600,
+				data->shutdown/60%60,
+				data->shutdown%60
 				);
 	} else {
 		shutdown_timer[0] = 0;

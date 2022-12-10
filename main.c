@@ -45,7 +45,7 @@ enum input {
 
 static void usage(const char *progname);
 static void version(void);
-static int printf_data(const char *fmt, const PrintableData *data);
+static int printf_data(const char *fmt, const SondeData *data);
 static int wav_read_wrapper(float *dst, size_t count);
 static int raw_read_wrapper(float *dst, size_t count);
 static void sigint_handler(int val);
@@ -88,7 +88,7 @@ static struct option longopts[] = {
 int
 main(int argc, char *argv[])
 {
-	const PrintableData *printable;
+	const SondeData *data;
 	KMLFile kml, live_kml;
 	GPXFile gpx = {.offset = 0};
 	int samplerate;
@@ -101,7 +101,7 @@ main(int argc, char *argv[])
 	float srcbuf[BUFLEN];
 
 	/* Command-line changeable parameters {{{ */
-	const char *output_fmt = "[%f] %t'C %r%%    %l %o %am    %sm/s %h' %cm/s";
+	const char *output_fmt = "[%f] %t'C %r%%    %l %o %am    %sm/s %h' %cm/s\t%x";
 	const char *live_kml_fname = NULL;
 	const char *kml_fname = NULL;
 	const char *gpx_fname = NULL;
@@ -114,9 +114,6 @@ main(int argc, char *argv[])
 #endif
 	enum decoder active_decoder = AUTO;
 	float receiver_lat = 0, receiver_lon = 0, receiver_alt = 0;
-#ifdef ENABLE_TUI
-	ui = UI_TUI;
-#endif
 #ifdef ENABLE_AUDIO
 	input_type = INPUT_AUDIO;
 	int audio_device = -1;
@@ -193,7 +190,6 @@ main(int argc, char *argv[])
 			return 1;
 		}
 
-		input_from_audio = 1;
 
 		switch (ui) {
 		case UI_TEXT:
@@ -335,35 +331,35 @@ main(int argc, char *argv[])
 			}
 			slot = get_slot();
 
-			printable = get_data();
+			data = get_data();
 			if (ui == UI_TEXT) {
 				/* Print new data */
-				printf_data(output_fmt, printable);
+				printf_data(output_fmt, data);
 			}
 
 			/* If we are also calibrated enough, and CSV output is enabled, append
 			 * the new datapoint to the file */
-			if (csv_fd && printable->calibrated) {
+			if (csv_fd && data->calibrated) {
 				fprintf(csv_fd, "%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
-						printable->temp, printable->rh, printable->pressure,
-						printable->alt, printable->lat, printable->lon,
-						printable->speed, printable->heading, printable->climb);
+						data->temp, data->rh, data->pressure,
+						data->alt, data->lat, data->lon,
+						data->speed, data->heading, data->climb);
 			}
 
 			/* Add position to whichever files are open */
 			if (kml_fname) {
-				kml_start_track(&kml, printable->serial);
-				kml_add_trackpoint(&kml, printable->lat, printable->lon, printable->alt);
+				kml_start_track(&kml, data->serial);
+				kml_add_trackpoint(&kml, data->lat, data->lon, data->alt);
 			}
 			if (live_kml_fname) {
-				kml_start_track(&live_kml, printable->serial);
-				kml_add_trackpoint(&live_kml, printable->lat, printable->lon, printable->alt);
+				kml_start_track(&live_kml, data->serial);
+				kml_add_trackpoint(&live_kml, data->lat, data->lon, data->alt);
 			}
-			if (gpx_fname) {
-				gpx_start_track(&gpx, printable->serial);
+			if (gpx_fname && (data->fields & DATA_POS) && (data->fields & DATA_SPEED)) {
+				gpx_start_track(&gpx, data->serial);
 				gpx_add_trackpoint(&gpx,
-						printable->lat, printable->lon, printable->alt,
-						printable->speed, printable->heading, printable->utc_time);
+						data->lat, data->lon, data->alt,
+						data->speed, data->heading, data->time);
 			}
 		}
 	}
@@ -458,6 +454,7 @@ usage(const char *pname)
 			"   %%S      Sonde serial number\n"
 			"   %%t      Temperature (degrees Celsius)\n"
 			"   %%T      Timestamp (yyyy-mm-dd hh:mm::ss, local)\n"
+			"   %%x      Decoded XDATA\n"
 		   );
 #ifdef ENABLE_TUI
 	fprintf(stderr,
@@ -484,7 +481,7 @@ version(void)
 
 
 static int
-printf_data(const char *fmt, const PrintableData *data)
+printf_data(const char *fmt, const SondeData *data)
 {
 	size_t i;
 	int escape_seq;
@@ -501,11 +498,11 @@ printf_data(const char *fmt, const PrintableData *data)
 				printf("%6.0f", data->alt);
 				break;
 			case 'b':
-				if (data->shutdown_timer > 0) {
+				if (data->fields & DATA_SHUTDOWN) {
 					printf("%d:%02d:%02d",
-							data->shutdown_timer/3600,
-							data->shutdown_timer/60%60,
-							data->shutdown_timer%60
+							data->shutdown/3600,
+							data->shutdown/60%60,
+							data->shutdown%60
 							);
 				} else {
 					printf("(disabled)");
@@ -545,8 +542,11 @@ printf_data(const char *fmt, const PrintableData *data)
 				printf("%5.1f", data->temp);
 				break;
 			case 'T':
-				strftime(time, LEN(time), "%a %b %d %Y %H:%M:%S", gmtime(&data->utc_time));
+				strftime(time, LEN(time), "%a %b %d %Y %H:%M:%S", gmtime(&data->time));
 				printf("%s", time);
+				break;
+			case 'x':
+				printf("%s", data->xdata);
 				break;
 			default:
 				putchar(fmt[i]);

@@ -9,7 +9,40 @@ typedef enum {
 	PARSED
 } ParserStatus;
 
+typedef enum {
+	DATA_DELIMITER  = 1 << 0,       /* End of frame delimiter */
+	DATA_SEQ        = 1 << 1,       /* Sequence number */
+	DATA_SERIAL     = 1 << 2,       /* Sonde serial as string */
+	DATA_POS        = 1 << 3,       /* Lat/lon/alt */
+	DATA_SPEED      = 1 << 4,       /* Speed/climb/heading */
+	DATA_TIME       = 1 << 5,       /* Date/time */
+	DATA_PTU        = 1 << 6,       /* Pressure/temperature/humidity w/ calibration percentage */
+	DATA_XDATA      = 1 << 7,       /* XDATA as string */
+	DATA_SHUTDOWN   = 1 << 8,       /* Auto-shutdown time */
+} DataBitmask;
 
+typedef struct {
+	DataBitmask fields;
+
+	int seq;
+	char *serial;
+
+	float lat, lon, alt;
+	float speed, climb, heading;
+
+	time_t time;
+
+	uint8_t calibrated;
+	float calib_percent;
+	float temp, rh, pressure;
+
+	char *xdata;
+
+	int shutdown;
+} SondeData;
+
+
+#if 0
 typedef enum {
 	SOURCE_END,             /* Samples source exhausted, no more data left */
 	FRAME_END,              /* End of this frame, start of the next */
@@ -75,4 +108,5 @@ typedef struct {
 	int calibrated;
 	float calib_percent;
 } PrintableData;
+#endif
 #endif
