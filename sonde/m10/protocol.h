@@ -42,13 +42,14 @@ PACK(typedef struct {
 	uint8_t _pad0[6];
 	uint8_t week[2];
 
-	uint8_t _pad1[19];
-	uint8_t unk0[2];    /* ??? */
-	uint8_t _pad2[7];
+	uint8_t _pad1[16];
+	uint8_t rh_ref[3];
+	uint8_t rh_counts[3];    /* ??? */
+	uint8_t _pad2[6];
 	uint8_t adc_temp_range;     /* Temperature range index */
 	uint8_t adc_temp_val[2];    /* Temperature ADC value */
 	uint8_t _pad3[4];
-	uint8_t unk2[2];    /* Very linear across altitude */
+	uint8_t unk2[2];    /* Very linear across altitude, possibly battery voltage? */
 	uint8_t unk3[2];    /* Correlated to unk2, also very linear */
 	uint8_t _pad4[12];
 	uint8_t unk4[2];    /* Fairly constant */

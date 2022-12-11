@@ -10,8 +10,8 @@
 #include "gps/time.h"
 #include "physics.h"
 
-static void m10_frame_parse(SondeData *dst, M10Frame *frame);
-static void m20_frame_parse(SondeData *dst, M10Frame *frame);
+static void m10_parse_frame(SondeData *dst, M10Frame *frame);
+static void m20_parse_frame(SondeData *dst, M10Frame *frame);
 
 struct m10decoder {
 	Framer f;
@@ -66,14 +66,6 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 	manchester_decode(raw_frame, raw_frame, M10_FRAME_LEN);
 	m10_frame_descramble(self->frame);
 
-#ifndef NDEBUG
-	if (debug) {
-		if (!memcmp(self->frame[0].sync_mark, "\x00\x00\x88\x9f", 3)) {
-			fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
-			fflush(debug);
-		}
-	}
-#endif
 	/* Prepare for packet parsing */
 	dst->fields = 0;
 
@@ -82,12 +74,24 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 	case M10_FTYPE_DATA:
 		/* If corrupted, don't decode */
 		if (m10_frame_correct(self->frame) >= 0) {
-			m10_frame_parse(dst, self->frame);
+			m10_parse_frame(dst, self->frame);
+#ifndef NDEBUG
+	if (debug) {
+		fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
+		fflush(debug);
+	}
+#endif
 		}
 		break;
 	case M20_FTYPE_DATA:
 		if (m20_frame_correct(self->frame) >= 0) {
-			m20_frame_parse(dst, self->frame);
+			m20_parse_frame(dst, self->frame);
+#ifndef NDEBUG
+	if (debug) {
+		fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
+		fflush(debug);
+	}
+#endif
 		}
 		break;
 	default:
@@ -103,7 +107,7 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 }
 
 static void
-m10_frame_parse(SondeData *dst, M10Frame *frame)
+m10_parse_frame(SondeData *dst, M10Frame *frame)
 {
 	float dx, dy, dz;
 	M10Frame_9f *data_frame_9f = (M10Frame_9f*)frame;
@@ -142,7 +146,7 @@ m10_frame_parse(SondeData *dst, M10Frame *frame)
 }
 
 static void
-m20_frame_parse(SondeData *dst, M10Frame *frame)
+m20_parse_frame(SondeData *dst, M10Frame *frame)
 {
 	M20Frame_20 *data_frame_20 = (M20Frame_20*)frame;
 	float dx, dy, dz;

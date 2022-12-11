@@ -23,12 +23,25 @@ types:
         switch-on: type
         cases:
           0x9f: frame_9f
+          0x20: frame_20
           _: frame_unk
 
   frame_unk:
     seq:
     - id: nothing
       size: 0
+
+  frame_20:
+    seq:
+    - id: unk0
+      size: 4
+    - id: alt
+      size: 3
+    - id: dlat
+      type: s2
+    - id: dlon
+      type: s2
+
 
   frame_9f:
     seq:
@@ -53,12 +66,16 @@ types:
     - id: week
       type: u2
     - id: pad0
-      size: 19
-    - id: varying0
-      type: u2
+      size: 16
+    - id: rh_ref
+      size: 3
+    - id: rh_val
+      size: 3
     - id: pad1
-      size: 8
-    - id: varying1
+      size: 6
+    - id: adc_temp_range
+      type: u1
+    - id: adc_temp_val
       type: u2
     - id: pad2
       size: 4

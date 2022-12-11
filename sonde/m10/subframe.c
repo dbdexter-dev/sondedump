@@ -62,7 +62,8 @@ m10_frame_9f_dalt(const M10Frame_9f* f)
 float
 m10_frame_9f_temp(const M10Frame_9f* f)
 {
-	/* https://www.gruan.org/gruan/editor/documents/meetings/icm-6/pres/pres_306_Haeffelin.pdf
+	/**
+	 * https://www.gruan.org/gruan/editor/documents/meetings/icm-6/pres/pres_306_Haeffelin.pdf
 	 * Sensor is a PB5-41E-K1 by Shibaura
 	 * B (beta) parameters for the M10 NTC
 	 */
@@ -108,8 +109,28 @@ m10_frame_9f_temp(const M10Frame_9f* f)
 float
 m10_frame_9f_rh(const M10Frame_9f* f)
 {
-	(void)f;
-	return 0;
+	float rh_counts;
+	float rh_ref;
+	float rh;
+
+	/**
+	 * According to the PCB, what they're doing is using the RH capacitor as
+	 * part of a 555 oscillator. The output of the oscillator is fed to the
+	 * capture input of TIMERB, so that it effectively works as a frequency
+	 * counter. They must be doing something else though, because the timer has
+	 * a 16 bit rollover, but the transmitted value is 24 bits wide.
+	 * Fortunately, they have been kind enough to provide the reference RH
+	 * counts at 55% humidity, which can be used to deduce the RH directly
+	 * based on the sensor datasheet.
+	 */
+
+	rh_counts = f->rh_counts[2] << 16 | f->rh_counts[1] << 8 | f->rh_counts[0];
+	rh_ref = f->rh_ref[2] << 16 | f->rh_ref[1] << 8 | f->rh_ref[0];
+
+	/* Compute RH% given capacitance (sensor is a GTUS13 or similar) */
+	rh = (rh_counts / rh_ref - 0.8955) / 0.002;
+
+	return MAX(0, MIN(100, rh));
 }
 
 void
