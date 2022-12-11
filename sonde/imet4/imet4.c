@@ -96,9 +96,12 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 	/* Continue until the end of the frame */
 	while (imet4_subframe_len(subframe) &&
 		   self->frame_offset < sizeof(self->frame->data)) {
+
+		log_debug_hexdump(subframe, imet4_subframe_len(subframe));
 		/* Validate the subframe's checksum against the one received. If it
 		 * doesn't match, don't try to parse it */
 		if (crc16_aug_ccitt((uint8_t*)subframe, imet4_subframe_len(subframe))) {
+			log_debug("CRC mismatch");
 			subframe->type = 0x00;
 		}
 
@@ -159,7 +162,6 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 	time_t now;
 	struct tm datetime;
 
-	/* Subframe parsing {{{ */
 	switch (subframe->type) {
 	case IMET4_SFTYPE_PTU:
 	case IMET4_SFTYPE_PTUX:
@@ -180,7 +182,6 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 		dst->fields |= DATA_SEQ;
 		dst->seq = ptu->seq;
 		break;
-
 
 	case IMET4_SFTYPE_GPS:
 	case IMET4_SFTYPE_GPSX:
@@ -233,11 +234,13 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 		dst->fields |= DATA_TIME;
 		dst->time = my_timegm(&datetime);
 		break;
+	case IMET4_SFTYPE_XDATA:
+		/* TODO */
+		break;
 	case 0:
 		break;
 	default:
 		log_warn("Unknown subframe type 0x%x", subframe->type);
 		break;
 	}
-
 }

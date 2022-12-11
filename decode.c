@@ -257,12 +257,16 @@ decode(const float *srcbuf, size_t len)
 			}
 
 			if (data.fields & DATA_SEQ) {
-				track[sample_count].id = data.seq;
+				/* Generate a unique ID for this packet. Ideally would be the
+				 * sequence number, but sondes like the DFM roll over every 256
+				 * packets, which is not nearly enough to uniquely identify
+				 * every packet sent during a flight */
+				track[sample_count].id = MAX((uint32_t)data.seq, sample_count ? track[sample_count - 1].id + 1 : 0);
 
 				printable.fields |= DATA_SEQ;
 				printable.seq = data.seq;
 			} else if (sample_count) {
-				track[sample_count].id = track[sample_count - 1].id;
+				track[sample_count].id = track[sample_count - 1].id + 1;
 			}
 			/* }}} */
 
