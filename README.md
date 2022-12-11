@@ -18,7 +18,7 @@ Compatibility matrix:
 | Manufacturer | Model    | GPS                | Temperature        | Humidity           |
 |--------------|----------|--------------------|--------------------|--------------------|
 | Vaisala      | RS41-SG  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Meteomodem   | M10/M20  | :heavy_check_mark: |                    |                    |
+| Meteomodem   | M10/M20  | :heavy_check_mark: | :heavy_check_mark: |                    |
 | GRAW         | DFM06/09 | :heavy_check_mark: | :heavy_check_mark: |                    |
 | Meisei       | iMS-100  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | InterMet     | iMet-1/4 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
@@ -62,6 +62,7 @@ sondedump [options] file_in
                                 dfm: GRAW DFM06/09
                                 m10: MeteoModem M10
                                 ims100: Meisei iMS-100
+   -T, --tui                    Enable TUI display
 
    -h, --help                   Print this help screen
    -v, --version                Print version info
@@ -81,6 +82,7 @@ Available format specifiers:
    %S      Sonde serial number
    %t      Temperature (degrees Celsius)
    %T      Timestamp (yyyy-mm-dd hh:mm::ss, local)
+   %x      Decoded XDATA
 
 TUI keybinds:
    Arrow keys: change active decoder

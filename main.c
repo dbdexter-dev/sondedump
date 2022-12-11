@@ -434,6 +434,9 @@ usage(const char *pname)
 			"                                m10: MeteoModem M10/M20\n"
 			"                                ims100: Meisei iMS-100\n"
 			"                                imet4: InterMet iMet-4\n"
+#ifdef ENABLE_TUI
+			"   -T, --tui                    Enable TUI display\n"
+#endif
 	        "\n"
 	        "   -h, --help                   Print this help screen\n"
 	        "   -v, --version                Print version info\n"
