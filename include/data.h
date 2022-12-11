@@ -10,15 +10,14 @@ typedef enum {
 } ParserStatus;
 
 typedef enum {
-	DATA_DELIMITER  = 1 << 0,       /* End of frame delimiter */
-	DATA_SEQ        = 1 << 1,       /* Sequence number */
-	DATA_SERIAL     = 1 << 2,       /* Sonde serial as string */
-	DATA_POS        = 1 << 3,       /* Lat/lon/alt */
-	DATA_SPEED      = 1 << 4,       /* Speed/climb/heading */
-	DATA_TIME       = 1 << 5,       /* Date/time */
-	DATA_PTU        = 1 << 6,       /* Pressure/temperature/humidity w/ calibration percentage */
-	DATA_XDATA      = 1 << 7,       /* XDATA as string */
-	DATA_SHUTDOWN   = 1 << 8,       /* Auto-shutdown time */
+	DATA_SEQ        = 1 << 0,       /* Sequence number */
+	DATA_SERIAL     = 1 << 1,       /* Sonde serial as string */
+	DATA_POS        = 1 << 2,       /* Lat/lon/alt */
+	DATA_SPEED      = 1 << 3,       /* Speed/climb/heading */
+	DATA_TIME       = 1 << 4,       /* Date/time */
+	DATA_PTU        = 1 << 5,       /* Pressure/temperature/humidity w/ calibration percentage */
+	DATA_XDATA      = 1 << 6,       /* XDATA as string */
+	DATA_SHUTDOWN   = 1 << 7,       /* Auto-shutdown time */
 } DataBitmask;
 
 typedef struct {

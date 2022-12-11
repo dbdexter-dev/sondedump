@@ -145,35 +145,35 @@ decode(const float *srcbuf, size_t len)
 	switch (active_decoder) {
 	case AUTO:
 		while (rs41_decode(rs41decoder, &data, srcbuf, len) != PROCEED) {
-			if (data.fields & ~DATA_DELIMITER) {
+			if (data.fields) {
 				log_info("Autodetected: RS41");
 				set_active_decoder(RS41);
 				break;
 			}
 		}
 		while (m10_decode(m10decoder, &data, srcbuf, len) != PROCEED) {
-			if (data.fields & ~DATA_DELIMITER) {
+			if (data.fields) {
 				log_info("Autodetected: M10");
 				set_active_decoder(M10);
 				break;
 			}
 		}
 		while (ims100_decode(ims100decoder, &data, srcbuf, len) != PROCEED) {
-			if (data.fields & ~DATA_DELIMITER) {
+			if (data.fields) {
 				log_info("Autodetected: iMS100");
 				set_active_decoder(IMS100);
 				break;
 			}
 		}
 		while (dfm09_decode(dfm09decoder, &data, srcbuf, len) != PROCEED) {
-			if (data.fields & ~DATA_DELIMITER) {
+			if (data.fields) {
 				log_info("Autodetected: DFM09");
 				set_active_decoder(DFM09);
 				break;
 			}
 		}
 		while (imet4_decode(imet4decoder, &data, srcbuf, len) != PROCEED) {
-			if (data.fields & ~DATA_DELIMITER) {
+			if (data.fields) {
 				log_info("Autodetected: iMet-4");
 				set_active_decoder(IMET4);
 				break;

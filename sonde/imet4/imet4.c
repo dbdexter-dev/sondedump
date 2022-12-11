@@ -97,7 +97,6 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 	while (imet4_subframe_len(subframe) &&
 		   self->frame_offset < sizeof(self->frame->data)) {
 
-		log_debug_hexdump(subframe, imet4_subframe_len(subframe));
 		/* Validate the subframe's checksum against the one received. If it
 		 * doesn't match, don't try to parse it */
 		if (crc16_aug_ccitt((uint8_t*)subframe, imet4_subframe_len(subframe))) {
