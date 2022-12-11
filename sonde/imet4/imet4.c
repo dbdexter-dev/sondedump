@@ -21,9 +21,7 @@ static void imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe);
 struct imet4decoder {
 	Framer f;
 	IMET4Frame frame[2];
-	uint32_t time;
-	size_t offset, frame_offset;
-	char serial[16];
+	size_t offset;
 	uint32_t prev_time;
 	float prev_x, prev_y, prev_z;
 };
@@ -42,8 +40,6 @@ imet4_decoder_init(int samplerate)
 			IMET4_SYNCWORD, IMET4_SYNC_LEN);
 
 	d->offset = 0;
-	d->serial[0] = 0;
-	d->time = 0;
 
 #ifndef NDEBUG
 	debug = fopen("/tmp/imet4frames.data", "wb");
@@ -68,6 +64,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	uint8_t *const raw_frame = (uint8_t*)self->frame;
 	float x, y, z, dt;
+	size_t i;
 
 	IMET4Subframe *subframe;
 
@@ -85,36 +82,27 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 #ifndef NDEBUG
 	if (debug) fwrite(raw_frame, IMET4_FRAME_LEN/8, 1, debug);
 #endif
+
 	/* Prepare to parse subframes */
-	memset(dst, 0, sizeof(*dst));
-	self->frame_offset = 0;
+	dst->fields = 0;
 
-	/* Extract the first subframe */
-	subframe = (IMET4Subframe*)&self->frame->data[self->frame_offset];
-	self->frame_offset += imet4_subframe_len(subframe);
+	for (i = 0; i < sizeof(self->frame->data); i += imet4_subframe_len(subframe)) {
+		/* Extract subframe */
+		subframe = (IMET4Subframe*)&self->frame->data[i];
 
-	/* Continue until the end of the frame */
-	while (imet4_subframe_len(subframe) &&
-		   self->frame_offset < sizeof(self->frame->data)) {
+		/* If zero-length, stop parsing the entire frame */
+		if (!imet4_subframe_len(subframe)) break;
 
-		/* Validate the subframe's checksum against the one received. If it
-		 * doesn't match, don't try to parse it */
-		if (crc16_aug_ccitt((uint8_t*)subframe, imet4_subframe_len(subframe))) {
-			log_debug("CRC mismatch");
-			subframe->type = 0x00;
+		/* Verify CRC, and invalidate frame if it doesn't match */
+		if (!crc16_aug_ccitt((uint8_t*)subframe, imet4_subframe_len(subframe))) {
+			/* Parse subframe */
+			imet4_parse_subframe(dst, subframe);
 		}
-
-		/* Parse subframe */
-		imet4_parse_subframe(dst, subframe);
-
-		/* Update pointer to the subframe */
-		subframe = (IMET4Subframe*)&self->frame->data[self->frame_offset];
-		self->frame_offset += imet4_subframe_len(subframe);
 	}
 
-	/* If speed data is missing, but both position and time data is
-	 * available, compute it based on the position data */
-	if (!(dst->fields & DATA_SPEED) && BITMASK_CHECK(dst->fields, DATA_POS | DATA_TIME)) {
+	/* If speed data is missing, but both position and time data is available,
+	 * compute it based on the position difference */
+	if (!BITMASK_CHECK(dst->fields, DATA_SPEED) && BITMASK_CHECK(dst->fields, DATA_POS | DATA_TIME)) {
 		dst->fields |= DATA_SPEED;
 
 		/* Convert to ECEF coordinates to estimate speed vector */
@@ -235,8 +223,6 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 		break;
 	case IMET4_SFTYPE_XDATA:
 		/* TODO */
-		break;
-	case 0:
 		break;
 	default:
 		log_warn("Unknown subframe type 0x%x", subframe->type);

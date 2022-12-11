@@ -95,7 +95,8 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	manchester_decode(ecc_frame, raw_frame, IMS100_FRAME_LEN);
 	ims100_frame_descramble(&self->ecc_frame);
 
-	memset(dst, 0, sizeof(*dst));
+	/* Prepare for subframe parsing */
+	dst->fields = 0;
 
 	/* Error correct and remove all ECC bits */
 	if (ims100_frame_error_correct(&self->ecc_frame, &self->rs) < 0) {

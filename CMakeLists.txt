@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 option(ENABLE_TUI "Enable Ncurses TUI (requires ncurses)" ON)
 option(ENABLE_AUDIO "Enable audio input (requires portaudio)" ON)
-option(FULL_OPTIMIZE "Enable platform-specific optimizaions" OFF)
+option(FULL_OPTIMIZE "Enable platform-specific optimizations" OFF)
 option(UNINSTALL_TARGET "Generate uninstall target" ON)
 
 project(sondedump

@@ -75,7 +75,7 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 #endif
 	/* Prepare for packet parsing */
-	memset(dst, 0, sizeof(*dst));
+	dst->fields = 0;
 
 	/* Parse based on packet type */
 	switch (self->frame[0].type) {

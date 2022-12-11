@@ -158,7 +158,7 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 #endif
 
 	/* Prepare to parse subframes */
-	memset(dst, 0, sizeof(*dst));
+	dst->fields = 0;
 	self->frame_offset = 0;
 
 	/* Parse expected data length from extended flag */

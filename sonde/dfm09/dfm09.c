@@ -91,7 +91,7 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	if (debug) fwrite((uint8_t*)self->frame, DFM09_FRAME_LEN/8/2, 1, debug);
 #endif
 
-	memset(dst, 0, sizeof(*dst));
+	dst->fields = 0;
 
 	/* Error correct, and exit prematurely if too many errors are found */
 	errcount = dfm09_frame_correct(self->frame);
