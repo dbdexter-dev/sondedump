@@ -107,7 +107,7 @@ m10_frame_9f_temp(const M10Frame_9f* f)
 }
 
 float
-m10_frame_9f_rh(const M10Frame_9f* f)
+m10_frame_9f_rh(const M10Frame_9f *f)
 {
 	float rh_counts;
 	float rh_ref;
@@ -119,8 +119,8 @@ m10_frame_9f_rh(const M10Frame_9f* f)
 	 * capture input of TIMERB, so that it effectively works as a frequency
 	 * counter. They must be doing something else though, because the timer has
 	 * a 16 bit rollover, but the transmitted value is 24 bits wide.
-	 * Fortunately, they have been kind enough to provide the reference RH
-	 * counts at 55% humidity, which can be used to deduce the RH directly
+	 * Fortunately, it seems they have been kind enough to provide the reference
+	 * RH counts at 55% humidity, which can be used to deduce the RH directly
 	 * based on the sensor datasheet.
 	 */
 
@@ -131,6 +131,16 @@ m10_frame_9f_rh(const M10Frame_9f* f)
 	rh = (rh_counts / rh_ref - 0.8955) / 0.002;
 
 	return MAX(0, MIN(100, rh));
+}
+
+float
+m10_frame_9f_battery(const M10Frame_9f *f)
+{
+	const float empirical_coeff = 28.2f;    /* TODO figure out actual Vdd and voltage divider ratio */
+
+	float raw_adc_batt = f->adc_batt_val[0] | f->adc_batt_val[1] << 8;
+
+	return raw_adc_batt / (1 << 12) * empirical_coeff;
 }
 
 void
