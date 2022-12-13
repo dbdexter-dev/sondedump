@@ -25,13 +25,13 @@ struct rs41decoder {
 	RSDecoder rs;
 	RS41Frame frame[2];
 	size_t offset, frame_offset;
-	float calib_percent; int calibrated;
 	RS41Metadata metadata;
 	char serial[9];
 };
 
 static void rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metadata);
-static float rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s);
+static void rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s);
+static float rs41_get_calib_percent(RS41Metadata *m);
 static int rs41_metadata_ptu_calibrated(RS41Metadata *m);
 
 #ifndef NDEBUG
@@ -104,14 +104,10 @@ rs41_decoder_init(int samplerate)
 
 	d->metadata.initialized = 0;
 	d->offset = 0;
-	d->calib_percent = 0;
-	d->calibrated = 0;
 
 	/* Initialize calibration data struct and metadata */
 	memcpy(&d->metadata.data, _default_calib_data, sizeof(d->metadata.data));
 	memset(&d->metadata.bitmask, 0x00, sizeof(d->metadata.bitmask));
-	d->metadata.bitmask[sizeof(d->metadata.bitmask)-1] |= ((1 << (8 - RS41_CALIB_FRAGCOUNT%8)) - 1);
-	d->metadata.data.burstkill_timer = 0xFFFF;
 
 #ifndef NDEBUG
 	debug = fopen("/tmp/rs41frames.data", "wb");
@@ -188,21 +184,26 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 }
 
 /* Static functions {{{ */
-static float
+static void
 rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s)
 {
 	size_t frag_offset;
-	int num_received;
 
 	/* Copy the fragment and update the bitmap of the fragments left */
 	frag_offset = s->frag_seq * LEN(s->frag_data);
 	memcpy((uint8_t*)&m->data + frag_offset, s->frag_data, LEN(s->frag_data));
 	m->bitmask[s->frag_seq/8] |= (1 << (7 - s->frag_seq%8));
+}
+
+static float
+rs41_get_calib_percent(RS41Metadata *m)
+{
+	float num_received;
 
 	/* Check if we have all the sub-segments populated */
 	num_received = count_ones(m->bitmask, sizeof(m->bitmask));
 
-	return (num_received * 100.0) / (8 * sizeof(m->bitmask));
+	return (num_received * 100.0) / RS41_CALIB_FRAGCOUNT;
 }
 
 static int
@@ -237,8 +238,7 @@ rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metada
 	case RS41_SFTYPE_INFO:
 		/* Frame sequence number, serial no., board info, calibration data */
 		status = (RS41Subframe_Info*)subframe;
-		dst->calib_percent = rs41_update_metadata(metadata, status);
-		dst->calibrated = rs41_metadata_ptu_calibrated(metadata);
+		rs41_update_metadata(metadata, status);
 
 		dst->fields |= DATA_SERIAL;
 		strncpy(dst->serial, status->serial, sizeof(dst->serial)-1);
@@ -262,6 +262,8 @@ rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metada
 		dst->temp = rs41_subframe_temp(ptu, &metadata->data);
 		dst->rh = rs41_subframe_humidity(ptu, &metadata->data);
 		dst->pressure = rs41_subframe_pressure(ptu, &metadata->data);
+		dst->calib_percent = rs41_get_calib_percent(metadata);
+		dst->calibrated = rs41_metadata_ptu_calibrated(metadata);
 		break;
 
 	case RS41_SFTYPE_GPSPOS:
