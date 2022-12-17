@@ -158,6 +158,10 @@ m20_parse_frame(SondeData *dst, M10Frame *frame)
 	dst->fields |= DATA_SERIAL;
 	m20_frame_20_serial(dst->serial, data_frame_20);
 
+	/* Parse sequence number */
+	dst->fields |= DATA_SEQ;
+	dst->seq = data_frame_20->seq;
+
 	/* Parse GPS time */
 	dst->fields |= DATA_TIME;
 	dst->time = m20_frame_20_time(data_frame_20);

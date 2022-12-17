@@ -14,7 +14,11 @@ time_t m10_frame_9f_time(const M10Frame_9f* f) {
 void
 m10_frame_9f_serial(char *dst, const M10Frame_9f *frame)
 {
-	sprintf(dst, "ME%02X%01X%02X%02X", frame->data[4], frame->data[2], frame->data[6], frame->data[5]);
+	const uint32_t serial_0 = (frame->serial[2] >> 4) * 100 + (frame->serial[2] & 0xF);
+	const uint32_t serial_1 = frame->serial[0];
+	const uint32_t serial_2 = frame->serial[3] | frame->serial[4] << 8;
+
+	sprintf(dst, "M10-%03d-%d-%1d%04d", serial_0, serial_1, serial_2 >> 13, serial_2 & 0x1FFF);
 }
 
 float
