@@ -20,7 +20,8 @@ static void imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe);
 
 struct imet4decoder {
 	Framer f;
-	IMET4Frame frame[2];
+	IMET4Frame raw_frame[2];
+	IMET4Frame frame;
 	size_t offset;
 	uint32_t prev_time;
 	float prev_x, prev_y, prev_z;
@@ -62,7 +63,7 @@ imet4_decoder_deinit(IMET4Decoder *d) {
 ParserStatus
 imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 {
-	uint8_t *const raw_frame = (uint8_t*)self->frame;
+	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;
 	float x, y, z, dt;
 	size_t i;
 
@@ -77,7 +78,10 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 
 	/* Reformat data inside the frame */
-	imet4_frame_descramble(self->frame);
+	imet4_frame_descramble(&self->frame, self->raw_frame);
+
+	/* Copy residual bits from the previous frame */
+	self->raw_frame[0] = self->raw_frame[1];
 
 #ifndef NDEBUG
 	if (debug) fwrite(raw_frame, IMET4_FRAME_LEN/8, 1, debug);
@@ -86,9 +90,9 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 	/* Prepare to parse subframes */
 	dst->fields = 0;
 
-	for (i = 0; i < sizeof(self->frame->data); i += imet4_subframe_len(subframe)) {
+	for (i = 0; i < sizeof(self->frame.data); i += imet4_subframe_len(subframe)) {
 		/* Extract subframe */
-		subframe = (IMET4Subframe*)&self->frame->data[i];
+		subframe = (IMET4Subframe*)&self->frame.data[i];
 
 		/* If zero-length, stop parsing the entire frame */
 		if (!imet4_subframe_len(subframe)) break;
@@ -125,7 +129,6 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 		sprintf(dst->serial, "iMet-%04X", imet4_serial(dst->seq, dst->time));
 	}
 
-	self->frame[0] = self->frame[1];
 	return PARSED;
 }
 

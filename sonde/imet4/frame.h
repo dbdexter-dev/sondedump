@@ -6,8 +6,9 @@
 /**
  * Process frame so as to recover the raw encoded data
  *
- * @param frame frame to descramble
+ * @param src   frame to descramble
+ * @param dst   frame to write descrambled data into
  */
-void imet4_frame_descramble(IMET4Frame *frame);
+void imet4_frame_descramble(IMET4Frame *dst, IMET4Frame *src);
 
 #endif

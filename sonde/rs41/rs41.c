@@ -23,10 +23,10 @@ typedef struct {
 struct rs41decoder {
 	Framer f;
 	RSDecoder rs;
-	RS41Frame frame[2];
-	size_t offset, frame_offset;
+	RS41Frame raw_frame[2];
+	RS41Frame frame;
+	size_t offset;
 	RS41Metadata metadata;
-	char serial[9];
 };
 
 static void rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metadata);
@@ -132,8 +132,8 @@ ParserStatus
 rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	RS41Subframe *subframe;
-	size_t frame_data_len;
-	uint8_t *const raw_frame = (uint8_t*)self->frame;
+	size_t frame_offset, frame_data_len;
+	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;
 
 	/* Read a new frame */
 	switch (framer_read(&self->f, raw_frame, &self->offset, RS41_FRAME_LEN, src, len)) {
@@ -144,42 +144,43 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 
 	/* Descramble and error correct */
-	rs41_frame_descramble(self->frame);
-	rs41_frame_correct(self->frame, &self->rs);
+	rs41_frame_descramble(&self->frame, self->raw_frame);
+	rs41_frame_correct(&self->frame, &self->rs);
+
+	/* Copy residual bits from the previous frame */
+	self->raw_frame[0] = self->raw_frame[1];
 
 #ifndef NDEBUG
 	if (debug) {
 		/* Output the frame to file */
-		fwrite(self->frame, RS41_FRAME_LEN/8, 1, debug);
+		fwrite(&self->frame, RS41_FRAME_LEN/8, 1, debug);
 	}
 #endif
 
 	/* Prepare to parse subframes */
 	dst->fields = 0;
-	self->frame_offset = 0;
+	frame_offset = 0;
 
 	/* Parse expected data length from extended flag */
-	frame_data_len = RS41_DATA_LEN + (rs41_frame_is_extended(self->frame) ? RS41_XDATA_LEN : 0);
+	frame_data_len = RS41_DATA_LEN + (rs41_frame_is_extended(&self->frame) ? RS41_XDATA_LEN : 0);
 
 	/* Initialize pointer to the subframe */
-	subframe = (RS41Subframe*)&self->frame->data[self->frame_offset];
-	self->frame_offset += subframe->len + 4;
+	subframe = (RS41Subframe*)&self->frame.data[frame_offset];
+	frame_offset += subframe->len + 4;
 
 	/* Keep going until the end of the frame is reached */
-	while (self->frame_offset < frame_data_len && subframe->len) {
-		/* Validate the subframe's checksum against the one received.
-		 * If it doesn't match, discard it */
+	while (frame_offset < frame_data_len && subframe->len) {
+		/* Validate the subframe's checksum against the one received. If it
+		 * doesn't match, discard it */
 		if (crc16_ccitt_false(subframe->data, subframe->len) == *(uint16_t*)&subframe->data[subframe->len]) {
 			rs41_parse_subframe(dst, subframe, &self->metadata);
 		}
 
 		/* Update pointer to the subframe */
-		subframe = (RS41Subframe*)&self->frame->data[self->frame_offset];
-		self->frame_offset += subframe->len + 4;
+		subframe = (RS41Subframe*)&self->frame.data[frame_offset];
+		frame_offset += subframe->len + 4;
 	}
 	/* }}} */
-	/* Copy residual bits from the previous frame */
-	self->frame[0] = self->frame[1];
 
 	return PARSED;
 }

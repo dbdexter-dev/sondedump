@@ -13,7 +13,8 @@
 
 struct dfm09decoder {
 	Framer f;
-	DFM09ECCFrame frame[4];
+	DFM09ECCFrame raw_frame[4];
+	DFM09ECCFrame frame[2];
 	DFM09Frame parsed_frame;
 	DFM09Calib calib;
 	struct tm gps_time;
@@ -73,7 +74,7 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	uint16_t serial_shard;
 	uint64_t local_serial;
 	int serial_idx;
-	uint8_t *const raw_frame = (uint8_t*)self->frame;
+	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;
 
 	/* Read a new frame */
 	switch (framer_read(&self->f, raw_frame, &self->offset, DFM09_FRAME_LEN, src, len)) {
@@ -84,8 +85,12 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 
 	/* Rebuild frame from received bits */
-	manchester_decode(raw_frame, raw_frame, DFM09_FRAME_LEN);
+	manchester_decode((uint8_t*)self->frame, raw_frame, DFM09_FRAME_LEN);
 	dfm09_frame_deinterleave(self->frame);
+
+	/* Copy residual bits from the previous frame */
+	self->raw_frame[0] = self->raw_frame[2];
+	self->raw_frame[1] = self->raw_frame[3];
 
 #ifndef NDEBUG
 	if (debug) fwrite((uint8_t*)self->frame, DFM09_FRAME_LEN/8/2, 1, debug);
@@ -96,7 +101,7 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	/* Error correct, and exit prematurely if too many errors are found */
 	errcount = dfm09_frame_correct(self->frame);
 	if (errcount < 0 || errcount > 8) {
-		goto next;
+		return PARSED;
 	}
 
 	/* Remove parity bits */
@@ -110,7 +115,7 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 		}
 	}
 	/* If frame is all zeroes, discard and go to next */
-	if (!valid) goto next;
+	if (!valid) return PARSED;
 
 	/* PTU subframe parsing {{{ */
 	ptu_subframe = &self->parsed_frame.ptu;
@@ -226,9 +231,5 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 	/* }}} */
 
-next:
-	/* Copy residual bits from the previous frame */
-	self->frame[0] = self->frame[2];
-	self->frame[1] = self->frame[3];
 	return PARSED;
 }

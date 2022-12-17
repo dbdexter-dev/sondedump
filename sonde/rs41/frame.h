@@ -8,9 +8,10 @@
  * Descramble the bits inside of the frame, both in terms of ordering and by
  * xor'ing with a PRN sequence
  *
- * @param frame the frame to descramble
+ * @param src   the frame to descramble
+ * @param dst   destination to write the resulting frame into
  */
-void rs41_frame_descramble(RS41Frame *frame);
+void rs41_frame_descramble(RS41Frame *dst, RS41Frame *src);
 
 /**
  * Attempt to correct errors in the frame by using the Reed-Solomon symbols

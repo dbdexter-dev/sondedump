@@ -18,20 +18,20 @@ static const uint8_t _prn[RS41_PRN_PERIOD] = {
 };
 
 void
-rs41_frame_descramble(RS41Frame *frame)
+rs41_frame_descramble(RS41Frame *dst, RS41Frame *src)
 {
 	int i;
-	uint8_t *raw_frame;
+	uint8_t *raw_src = (uint8_t*)src;
+	uint8_t *raw_dst = (uint8_t*)dst;
 
-	raw_frame = (uint8_t*)frame;
 
 	/* Reorder bits in the frame and descramble */
 	for (i=0; i<RS41_MAX_FRAME_LEN; i++) {
 		uint8_t tmp = 0;
 		for (int j=0; j<8; j++) {
-			tmp |= ((raw_frame[i] >> (7-j)) & 0x1) << j;
+			tmp |= ((raw_src[i] >> (7-j)) & 0x1) << j;
 		}
-		raw_frame[i] = tmp ^ _prn[i % LEN(_prn)];
+		raw_dst[i] = tmp ^ _prn[i % LEN(_prn)];
 	}
 }
 
