@@ -1,5 +1,6 @@
 #include "decode/ecc/crc.h"
 #include "subframe.h"
+#include "xdata/xdata.h"
 
 size_t
 imet4_subframe_len(IMET4Subframe *sf)
@@ -20,4 +21,13 @@ imet4_subframe_len(IMET4Subframe *sf)
 	}
 
 	return 0;
+}
+
+float
+imet4_subframe_xdata_ozone(float pressure, IMET4Subframe_XDATA_Ozone *sf)
+{
+	const float cell_current = (sf->cell_current[0] << 8 | sf->cell_current[1]) / 1000.0;
+	const float pump_temp = (sf->pump_temp[0] << 8 | sf->pump_temp[1]) / 100.0;
+
+	return xdata_ozone_ppb(pressure, cell_current, DEFAULT_O3_FLOWRATE, pump_temp);
 }

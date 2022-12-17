@@ -144,6 +144,10 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 	IMET4Subframe_PTU *ptu = (IMET4Subframe_PTU*)subframe;
 	IMET4Subframe_GPS *gps = (IMET4Subframe_GPS*)subframe;
 	IMET4Subframe_GPSX *gpsx = (IMET4Subframe_GPSX*)subframe;
+	IMET4Subframe_XDATA *xdata = (IMET4Subframe_XDATA*)subframe;
+
+	IMET4Subframe_XDATA_Ozone *ozone_xdata;
+
 	int32_t pressure;
 	int hour, min, sec;
 	time_t now;
@@ -155,7 +159,6 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 		/* PTUX has the same fields as PTU, plus some extra that we are not
 		 * parsing at the moment. To avoid code duplication, "downgrade"
 		 * PTUX packets to PTU */
-		ptu = (IMET4Subframe_PTU*)subframe;
 		pressure = ptu->pressure[0] | ptu->pressure[1] << 8 | ptu->pressure[2] << 16;
 		pressure = (pressure << 8) >> 8;
 
@@ -222,7 +225,16 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 		dst->time = my_timegm(&datetime);
 		break;
 	case IMET4_SFTYPE_XDATA:
-		/* TODO */
+		switch (xdata->instr_id) {
+		case IMET4_XDATA_INSTR_OZONE:
+			ozone_xdata = (IMET4Subframe_XDATA_Ozone*)(&xdata->data);
+			dst->fields |= DATA_XDATA;
+			dst->xdata.o3_ppb = imet4_subframe_xdata_ozone(dst->pressure, ozone_xdata);
+			break;
+		default:
+			log_warn("Unknown XDATA instrument ID %02x", xdata->instr_id);
+			break;
+		}
 		break;
 	default:
 		log_warn("Unknown subframe type 0x%x", subframe->type);

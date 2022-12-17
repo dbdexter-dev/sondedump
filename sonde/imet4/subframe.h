@@ -12,4 +12,10 @@
  */
 size_t imet4_subframe_len(IMET4Subframe *sf);
 
+
+/**
+ * Parse ozone concentration
+ */
+float imet4_subframe_xdata_ozone(float pressure, IMET4Subframe_XDATA_Ozone *sf);
+
 #endif
