@@ -5,13 +5,13 @@
 #include "bitops.h"
 #include "decode/framer.h"
 #include "decode/ecc/crc.h"
-#include "decode/xdata.h"
 #include "frame.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
 #include "log/log.h"
 #include "physics.h"
 #include "subframe.h"
+#include "xdata/xdata.h"
 
 typedef struct {
 	int initialized;
@@ -33,6 +33,7 @@ static void rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Meta
 static void rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s);
 static float rs41_get_calib_percent(RS41Metadata *m);
 static int rs41_metadata_ptu_calibrated(RS41Metadata *m);
+static void rs41_xdata_decode(SondeXdata *dst, float curPressure, const char *asciiData, int len);
 
 #ifndef NDEBUG
 static FILE *debug;
@@ -300,11 +301,43 @@ rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metada
 		if (!(dst->pressure > 0)) dst->pressure = altitude_to_pressure(dst->alt);
 
 		dst->fields |= DATA_XDATA;
-		xdata_decode(&dst->xdata, dst->pressure, xdata->ascii_data, xdata->len-1);
+		rs41_xdata_decode(&dst->xdata, dst->pressure, xdata->ascii_data, xdata->len-1);
 		break;
 	default:
 		/* Unknown */
 		break;
+	}
+}
+
+static void
+rs41_xdata_decode(SondeXdata *dst, float curPressure, const char *asciiData, int len)
+{
+	unsigned int r_pumpTemp, r_o3Current, r_battVoltage, r_pumpCurrent, r_extVoltage;
+	float pumpTemp, o3Current;
+	unsigned int instrumentID, instrumentNum;
+
+	while (len > 0) {
+		sscanf(asciiData, "%02X%02X", &instrumentID, &instrumentNum);
+		asciiData += 4;
+		len -= 4;
+
+		switch (instrumentID) {
+		case RS41_XDATA_ENSCI_OZONE:
+			if (sscanf(asciiData, "%04X%05X%02X%03X%02X",
+			           &r_pumpTemp, &r_o3Current, &r_battVoltage, &r_pumpCurrent, &r_extVoltage) == 5) {
+				asciiData += 16;
+				pumpTemp = (r_pumpTemp & 0x8000 ? -1 : 1) * 0.001 * (r_pumpTemp & 0x7FFF) + 273.15;
+				o3Current = r_o3Current * 1e-5;
+
+				dst->o3_ppb = xdata_ozone_ppb(curPressure, o3Current, DEFAULT_O3_FLOWRATE, pumpTemp);
+			} else {
+				/* Diagnostic data */
+				asciiData += 17;
+			}
+			break;
+		default:
+			break;
+		}
 	}
 }
 /* }}} */

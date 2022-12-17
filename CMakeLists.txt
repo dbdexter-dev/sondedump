@@ -55,7 +55,6 @@ set(LIBRARY_SOURCES
 
 	decode/manchester.c decode/manchester.h
 	decode/framer.c decode/framer.h
-	decode/xdata.c decode/xdata.h
 
 	decode/ecc/crc.c decode/ecc/crc.h
 	decode/ecc/rs.c decode/ecc/rs.h
@@ -91,6 +90,8 @@ set(LIBRARY_SOURCES
 	include/ims100.h
 	include/rs41.h
 	include/data.h
+
+	xdata/xdata.c xdata/xdata.h
 
 	gps/ecef.c gps/ecef.h
 	gps/time.c gps/time.h
