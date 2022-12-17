@@ -21,28 +21,13 @@ m10_frame_descramble(M10Frame *frame)
 int
 m10_frame_correct(M10Frame *frame)
 {
-	uint8_t *raw_frame = (uint8_t*)&frame->len;
-	const uint16_t expected = frame->crc[0] << 8 | frame->crc[1];
+	const uint8_t *raw_frame = (uint8_t*)&frame->len;
+	const uint8_t *crc_ptr = (uint8_t*)&frame->len + frame->len - 1;
+	const uint16_t expected = crc_ptr[0] << 8 | crc_ptr[1];
 	uint16_t crc;
 
 	crc = 0;
-	for (; raw_frame < frame->crc; raw_frame++) {
-		crc = m10_crc_step(crc, *raw_frame);
-	}
-
-	return (crc == expected) ? 0 : -1;
-}
-
-int
-m20_frame_correct(M10Frame *frame)
-{
-	uint8_t *raw_frame = (uint8_t*)&frame->len;
-	const uint16_t expected = frame->data[66] << 8 | frame->data[67];
-	uint16_t crc;
-
-	crc = 0;
-
-	for (; raw_frame < (frame->data + 66); raw_frame++) {
+	for (; raw_frame < crc_ptr; raw_frame++) {
 		crc = m10_crc_step(crc, *raw_frame);
 	}
 

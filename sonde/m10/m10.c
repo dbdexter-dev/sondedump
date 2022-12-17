@@ -75,30 +75,31 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 	/* Prepare for packet parsing */
 	dst->fields = 0;
 
+	/* Check CRC. If packet is corrupted, don't parse */
+	if (m10_frame_correct(self->frame) < 0) {
+		return PARSED;
+	}
+
+
 	/* Parse based on packet type */
 	switch (self->frame[0].type) {
 	case M10_FTYPE_DATA:
-		/* If corrupted, don't decode */
-		if (m10_frame_correct(self->frame) >= 0) {
-			m10_parse_frame(dst, self->frame);
+		m10_parse_frame(dst, self->frame);
 #ifndef NDEBUG
 	if (debug) {
 		fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
 		fflush(debug);
 	}
 #endif
-		}
 		break;
 	case M20_FTYPE_DATA:
-		if (m20_frame_correct(self->frame) >= 0) {
-			m20_parse_frame(dst, self->frame);
+		m20_parse_frame(dst, self->frame);
 #ifndef NDEBUG
 	if (debug) {
 		fwrite(&self->frame[0], sizeof(self->frame[0]), 1, debug);
 		fflush(debug);
 	}
 #endif
-		}
 		break;
 	default:
 		break;
@@ -189,4 +190,5 @@ m20_parse_frame(SondeData *dst, M10Frame *frame)
 	dst->calibrated = 1;
 	dst->temp = m20_frame_20_temp(data_frame_20);
 	dst->rh = 0;
+	dst->pressure = altitude_to_pressure(dst->alt);
 }

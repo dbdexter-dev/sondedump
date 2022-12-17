@@ -12,6 +12,7 @@
 
 #define M10_SYNCWORD 0x66666666b366
 #define M10_SYNC_LEN 6
+#define M10_MAX_DATA_LEN 99
 
 #define M10_FTYPE_DATA 0x9F
 #define M20_FTYPE_DATA 0x20
@@ -20,8 +21,7 @@ PACK(typedef struct {
 	uint8_t sync_mark[3];
 	uint8_t len;
 	uint8_t type;
-	uint8_t data[97];
-	uint8_t crc[2];
+	uint8_t data[M10_MAX_DATA_LEN];
 }) M10Frame;
 
 
@@ -64,10 +64,10 @@ PACK(typedef struct {
 PACK(typedef struct {
 	uint8_t sync_mark[3];
 	uint8_t len;
-	uint8_t type;                       /* 0x20 */
-	uint8_t unk0[2];
+	uint8_t type;           /* 0x20 */
+	uint8_t rh_counts[2];
 	uint8_t adc_temp[2];    /* Temperature range + ADC value */
-	uint8_t unk1[2];
+	uint8_t adc_rh_temp[2];
 	uint8_t alt[3];
 	uint8_t dlat[2];    /* x velocity */
 	uint8_t dlon[2];    /* y velocity */
@@ -79,7 +79,9 @@ PACK(typedef struct {
 	uint8_t week[2];
 	uint8_t lat[4];
 	uint8_t lon[4];
-	uint8_t data[33];
+	uint8_t unk1[11];
+	uint8_t rh_ref[2];
+	uint8_t data[32];
 }) M20Frame_20;
 /* }}} */
 
