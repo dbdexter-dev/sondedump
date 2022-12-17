@@ -183,6 +183,10 @@ m20_parse_frame(SondeData *dst, M10Frame *frame)
 	dst->heading = atan2f(dy, dx) * 180.0 / M_PI;
 	if (dst->heading < 0) dst->heading += 360;
 
-	/* TODO parse PTU data */
-
+	/* Parse PTU data */
+	dst->fields |= DATA_PTU;
+	dst->calib_percent = 100.0f;
+	dst->calibrated = 1;
+	dst->temp = m20_frame_20_temp(data_frame_20);
+	dst->rh = 0;
 }

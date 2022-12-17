@@ -97,11 +97,19 @@ m10_frame_9f_temp(const M10Frame_9f* f)
 	adc_percent = adc_val / (float)adc_max;
 
 	/* Compute thermistor resistance given series/parallel pairs */
-	if (range_idx == 0) {
+	switch (range_idx) {
+	case 0:
 		resist = adc_percent * ntc_bias[0] / (1 - adc_percent);
-	} else {
+		break;
+	case 1:
+	case 2:
 		resist = adc_percent * ntc_bias[range_idx] * ntc_parallel[range_idx]
 			   / (ntc_parallel[range_idx] - adc_percent * (ntc_bias[range_idx] + ntc_parallel[range_idx]));
+		break;
+	default:
+		/* Invalid range index */
+		resist = ntc_rinf;
+		break;
 	}
 
 	/* Compute temperature given thermistor resistance */
@@ -187,4 +195,60 @@ float m20_frame_20_dlon(const M20Frame_20* f) {
 float m20_frame_20_dalt(const M20Frame_20* f) {
 	int16_t dalt = f->dalt[0] << 8 | f->dalt[1];
 	return dalt / 100.0;
+}
+
+
+float
+m20_frame_20_temp(const M20Frame_20 *f)
+{
+	/**
+	 * https://www.gruan.org/gruan/editor/documents/meetings/icm-6/pres/pres_306_Haeffelin.pdf
+	 * Sensor is a PB5-41E-K1 by Shibaura
+	 * B (beta) parameters for the M10 NTC
+	 */
+	const float ntc_beta = 3450.0f;
+	const float ntc_r0 = 15000.0f;
+	const float ntc_t0 = 273.15f;
+	const float ntc_rinf = ntc_r0 * expf(-ntc_beta / ntc_t0);
+	/**
+	 * Series/parallel resistors to the NTC, found using
+	 * https://youtu.be/a73tuQhQQHE?t=48 and available photos of the m10 board
+	 */
+	const float ntc_bias[] = {12.1e3, 36.5e3, 475e3};
+	const float ntc_parallel[] = {FLT_MAX, 330e3, 2e6};
+
+	const uint16_t adc_max = (1 << 12) - 1;
+	uint16_t raw_val, adc_val;
+	uint8_t range_idx;
+	float adc_percent;
+	float resist;
+	float temp;
+
+	/* Extract ADC value and range from raw reading */
+	raw_val = (f->adc_temp[0] | f->adc_temp[1] << 8);
+	adc_val = raw_val & ((1 << 12) - 1);
+	range_idx = raw_val >> 12;
+
+	adc_percent = adc_val / (float)adc_max;
+
+	/* Compute thermistor resistance given series/parallel pairs */
+	switch (range_idx) {
+	case 0:
+		resist = adc_percent * ntc_bias[0] / (1 - adc_percent);
+		break;
+	case 1:
+	case 2:
+		resist = adc_percent * ntc_bias[range_idx] * ntc_parallel[range_idx]
+			   / (ntc_parallel[range_idx] - adc_percent * (ntc_bias[range_idx] + ntc_parallel[range_idx]));
+		break;
+	default:
+		/* Invalid range index */
+		resist = ntc_rinf;
+		break;
+	}
+
+	/* Compute temperature given thermistor resistance */
+	temp = ntc_beta / logf(resist / ntc_rinf) - 273.15;
+
+	return temp;
 }

@@ -25,5 +25,6 @@ float m20_frame_20_alt(const M20Frame_20* f);
 float m20_frame_20_dlat(const M20Frame_20* f);
 float m20_frame_20_dlon(const M20Frame_20* f);
 float m20_frame_20_dalt(const M20Frame_20* f);
+float m20_frame_20_temp(const M20Frame_20* f);
 
 #endif

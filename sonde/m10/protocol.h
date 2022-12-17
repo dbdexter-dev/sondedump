@@ -65,7 +65,9 @@ PACK(typedef struct {
 	uint8_t sync_mark[3];
 	uint8_t len;
 	uint8_t type;                       /* 0x20 */
-	uint8_t small_values[6];
+	uint8_t unk0[2];
+	uint8_t adc_temp[2];    /* Temperature range + ADC value */
+	uint8_t unk1[2];
 	uint8_t alt[3];
 	uint8_t dlat[2];    /* x velocity */
 	uint8_t dlon[2];    /* y velocity */
