@@ -39,10 +39,13 @@ PACK(typedef struct {
 	uint8_t lat[4];
 	uint8_t lon[4];
 	uint8_t alt[4];
-	uint8_t _pad0[6];
-	uint8_t week[2];
+	uint8_t _pad0[4];
+	uint8_t gps_sats;   /* Number of satellites used for fix */
+	uint8_t _pad3;
+	uint8_t week[2];    /* GPS week */
 
-	uint8_t _pad1[16];
+	uint8_t prn[12];            /* PRNs of satellites used for fix */
+	uint8_t _pad1[4];
 	uint8_t rh_ref[3];          /* RH reading @ 55% */
 	uint8_t rh_counts[3];       /* RH reading */
 	uint8_t _pad2[6];

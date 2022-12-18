@@ -69,9 +69,9 @@ m10_frame_9f_temp(const M10Frame_9f* f)
 	/**
 	 * https://www.gruan.org/gruan/editor/documents/meetings/icm-6/pres/pres_306_Haeffelin.pdf
 	 * Sensor is a PB5-41E-K1 by Shibaura
-	 * B (beta) parameters for the M10 NTC
+	 * B (beta) parameters for the M10 NTC (corrected based on real sounding data)
 	 */
-	const float ntc_beta = 3450.0f;
+	const float ntc_beta = 3100.0f;
 	const float ntc_r0 = 15000.0f;
 	const float ntc_t0 = 273.15f;
 	const float ntc_rinf = ntc_r0 * expf(-ntc_beta / ntc_t0);
@@ -121,8 +121,9 @@ m10_frame_9f_temp(const M10Frame_9f* f)
 float
 m10_frame_9f_rh(const M10Frame_9f *f)
 {
-	float rh_counts;
-	float rh_ref;
+	const float temp_rh_ppm = 400.0e-6f;
+	float rh_counts, rh_ref;
+	float temp_corr_factor;
 	float rh;
 
 	/**
@@ -139,8 +140,10 @@ m10_frame_9f_rh(const M10Frame_9f *f)
 	rh_counts = f->rh_counts[2] << 16 | f->rh_counts[1] << 8 | f->rh_counts[0];
 	rh_ref = f->rh_ref[2] << 16 | f->rh_ref[1] << 8 | f->rh_ref[0];
 
+	temp_corr_factor = 1.0f - temp_rh_ppm * m10_frame_9f_temp(f);
+
 	/* Compute RH% given capacitance (sensor is a GTUS13 or similar) */
-	rh = (rh_counts / rh_ref - 0.8955) / 0.002;
+	rh = (rh_counts * temp_corr_factor / rh_ref - 0.8955) / 0.002;
 
 	return MAX(0, MIN(100, rh));
 }
