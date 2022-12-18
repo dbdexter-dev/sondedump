@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include "bitops.h"
 #include "kml.h"
 #include "utils.h"
 
@@ -104,16 +105,17 @@ kml_start_track(KMLFile *kml, const char *name)
 }
 
 void
-kml_add_trackpoint(KMLFile *kml, float lat, float lon, float alt)
+kml_add_trackpoint(KMLFile *kml, const SondeData *data)
 {
 	if (!kml->track_active) return;
-	if (isnan(lat) || isnan(lon) || isnan(alt)) return;
+	if (!BITMASK_CHECK(data->fields, DATA_POS)) return;
+	if (isnan(data->lat) || isnan(data->lon) || isnan(data->alt)) return;
 
 	if (kml->live_update) fseek(kml->fd, kml->next_update_fseek, SEEK_SET);
-	fprintf(kml->fd, "%f,%f,%f\n", lon, lat, alt);
-	kml->lat = lat;
-	kml->lon = lon;
-	kml->alt = alt;
+	fprintf(kml->fd, "%f,%f,%f\n", data->lon, data->lat, data->alt);
+	kml->lat = data->lat;
+	kml->lon = data->lon;
+	kml->alt = data->alt;
 	if (kml->live_update) kml_temp_close(kml);
 }
 

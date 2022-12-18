@@ -1,6 +1,7 @@
 #ifndef gpx_h
 #define gpx_h
 
+#include <include/data.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -49,7 +50,7 @@ void gpx_start_track(GPXFile *file, const char *name);
  * @param hdg heading of the point, degrees
  * @param time timestamp of the point, UTC
  */
-void gpx_add_trackpoint(GPXFile *file, float lat, float lon, float alt, float spd, float hdg, time_t time);
+void gpx_add_trackpoint(GPXFile *file, const SondeData *data);
 
 /**
  * End a previously opened GPX track on the file. Will silently fail if no track

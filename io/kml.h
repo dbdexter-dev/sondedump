@@ -1,6 +1,7 @@
 #ifndef kml_h
 #define kml_h
 
+#include <include/data.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -52,7 +53,7 @@ void kml_start_track(KMLFile *file, const char *name);
  * @param lon longitude of the point, decimal degrees
  * @param alt altitude of the point, meters
  */
-void kml_add_trackpoint(KMLFile *file, float lat, float lon, float alt);
+void kml_add_trackpoint(KMLFile *file, const SondeData *data);
 
 /**
  * End a previously opened KML track on the file. Will silently fail if no track

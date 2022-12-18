@@ -112,6 +112,7 @@ set(AUDIO_SOURCES
 )
 
 set(EXEC_SOURCES
+	io/csv.c io/csv.h
 	io/gpx.c io/gpx.h
 	io/kml.c io/kml.h
 	io/wavfile.c io/wavfile.h

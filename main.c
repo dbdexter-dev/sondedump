@@ -11,6 +11,7 @@
 #include "decode.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
+#include "io/csv.h"
 #include "io/gpx.h"
 #include "io/kml.h"
 #include "io/wavfile.h"
@@ -26,7 +27,7 @@
 
 #define BUFLEN 1024
 
-#define SHORTOPTS "a:c:f:g:hk:l:o:r:t:Tv"
+#define SHORTOPTS "a:c:f:g:hk:l:o:r:t:Tuv"
 
 /* UI types */
 enum ui {
@@ -91,12 +92,12 @@ main(int argc, char *argv[])
 	const SondeData *data;
 	KMLFile kml, live_kml;
 	GPXFile gpx = {.offset = 0};
+	CSVFile csv;
 	int samplerate;
 	int (*read_wrapper)(float *dst, size_t count);
 
 	int c;
-	int slot = -1;
-	FILE *csv_fd = NULL;
+	int data_count = -1;
 
 	float srcbuf[BUFLEN];
 
@@ -266,11 +267,8 @@ main(int argc, char *argv[])
 
 
 	/* Open CSV output */
-	if (csv_fname) {
-		if (!(csv_fd = fopen(csv_fname, "wb"))) {
-			log_error("Error creating CSV file %s", csv_fname);
-		}
-		fprintf(csv_fd, "Temperature,RH,Pressure,Altitude,Latitude,Longitude,Speed,Heading,Climb\n");
+	if (csv_fname && csv_init(&csv, csv_fname)) {
+		log_error("Error creating CSV file %s", csv_fname);
 	}
 
 	/* Open GPX/KML output */
@@ -326,40 +324,33 @@ main(int argc, char *argv[])
 		/* Send them to decoder */
 		while (decode(srcbuf, LEN(srcbuf)) != PROCEED) {
 			/* If no new data, immediately go to next iteration */
-			if (slot == get_slot()) {
+			if (data_count == get_data_count()) {
 				continue;
 			}
-			slot = get_slot();
 
+			data_count = get_data_count();
 			data = get_data();
+
 			if (ui == UI_TEXT) {
 				/* Print new data */
 				printf_data(output_fmt, data);
 			}
 
-			/* If we are also calibrated enough, and CSV output is enabled, append
-			 * the new datapoint to the file */
-			if (csv_fd && data->calibrated) {
-				fprintf(csv_fd, "%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
-						data->temp, data->rh, data->pressure,
-						data->alt, data->lat, data->lon,
-						data->speed, data->heading, data->climb);
+			/* Add data to whichever files are open */
+			if (csv_fname) {
+				csv_add_point(&csv, data);
 			}
-
-			/* Add position to whichever files are open */
 			if (kml_fname) {
 				kml_start_track(&kml, data->serial);
-				kml_add_trackpoint(&kml, data->lat, data->lon, data->alt);
+				kml_add_trackpoint(&kml, data);
 			}
 			if (live_kml_fname) {
 				kml_start_track(&live_kml, data->serial);
-				kml_add_trackpoint(&live_kml, data->lat, data->lon, data->alt);
+				kml_add_trackpoint(&live_kml, data);
 			}
-			if (gpx_fname && (data->fields & DATA_POS) && (data->fields & DATA_SPEED)) {
+			if (gpx_fname && (data->fields & DATA_SERIAL)) {
 				gpx_start_track(&gpx, data->serial);
-				gpx_add_trackpoint(&gpx,
-						data->lat, data->lon, data->alt,
-						data->speed, data->heading, data->time);
+				gpx_add_trackpoint(&gpx, data);
 			}
 		}
 	}
@@ -368,7 +359,7 @@ main(int argc, char *argv[])
 	if (kml_fname) kml_close(&kml);
 	if (live_kml_fname) kml_close(&live_kml);
 	if (gpx_fname) gpx_close(&gpx);
-	if (csv_fd) fclose(csv_fd);
+	if (csv_fname) csv_close(&csv);
 
 	if (_wav) fclose(_wav);
 #ifdef ENABLE_AUDIO

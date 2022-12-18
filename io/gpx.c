@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include "bitops.h"
 #include "gpx.h"
 #include "utils.h"
 
@@ -67,26 +68,29 @@ gpx_start_track(GPXFile *file, const char *name)
 }
 
 void
-gpx_add_trackpoint(GPXFile *file, float lat, float lon, float alt, float spd, float hdg, time_t time)
+gpx_add_trackpoint(GPXFile *file, const SondeData *data)
 {
 	if (!file->cur_serial) return;
 	char timestr[sizeof("YYYY-MM-DDThh:mm:ssZ")+1];
+	float hdg;
+
+	if (!BITMASK_CHECK(data->fields, DATA_POS | DATA_SPEED)) return;
 
 	/* Prevent NaNs from breaking the GPX specification */
-	if (isnan(lat) || isnan(lon) || isnan(alt)) return;
-	if (lat == 0 && lon == 0 && alt == 0) return;
-	if (lat > 90 || lat < -90) return;
-	if (lon > 180 || lon < -180) return;
-	hdg = fmod(hdg, 360.0);
+	if (isnan(data->lat) || isnan(data->lon) || isnan(data->alt)) return;
+	if (data->lat == 0 && data->lon == 0 && data->alt == 0) return;
+	if (data->lat > 90 || data->lat < -90) return;
+	if (data->lon > 180 || data->lon < -180) return;
+	hdg = fmod(data->heading, 360.0);
 
-	strftime(timestr, sizeof(timestr), GPX_TIME_FORMAT, gmtime(&time));
+	strftime(timestr, sizeof(timestr), GPX_TIME_FORMAT, gmtime(&data->time));
 
 	/* Add trackpoint */
 	fseek(file->fd, file->offset, SEEK_SET);
-	fprintf(file->fd, "<trkpt lat=\"%f\" lon=\"%f\">\n", lat, lon);
+	fprintf(file->fd, "<trkpt lat=\"%f\" lon=\"%f\">\n", data->lat, data->lon);
 	fprintf(file->fd, "<time>%s</time>\n", timestr);
-	fprintf(file->fd, "<ele>%f</ele>\n", alt);
-	fprintf(file->fd, "<speed>%f</speed>\n", spd);
+	fprintf(file->fd, "<ele>%f</ele>\n", data->alt);
+	fprintf(file->fd, "<speed>%f</speed>\n", data->speed);
 	fprintf(file->fd, "<course>%f</course>\n", hdg);
 	fprintf(file->fd, "</trkpt>\n");
 	file->offset = ftell(file->fd);
