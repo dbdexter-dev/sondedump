@@ -15,13 +15,14 @@ Features:
 
 Compatibility matrix:
 
-| Manufacturer | Model    | GPS                | Temperature        | Humidity           |
-|--------------|----------|--------------------|--------------------|--------------------|
-| Vaisala      | RS41-SG  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Meteomodem   | M10/M20  | :heavy_check_mark: | :heavy_check_mark: |                    |
-| GRAW         | DFM06/09 | :heavy_check_mark: | :heavy_check_mark: |                    |
-| Meisei       | iMS-100  | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| InterMet     | iMet-1/4 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Manufacturer | Model       | GPS                | Temperature        | Humidity           |
+|--------------|-------------|--------------------|--------------------|--------------------|
+| Vaisala      | RS41-SG     | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Meteomodem   | M10         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Meteomodem   | M20         | :heavy_check_mark: | :heavy_check_mark: |                    |
+| GRAW         | DFM06/09/17 | :heavy_check_mark: | :heavy_check_mark: |                    |
+| Meisei       | iMS-100     | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| InterMet     | iMet-1/4    | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 
 
 Build/install instructions
@@ -59,7 +60,7 @@ sondedump [options] file_in
    -t, --type <type>            Enable decoder for the given sonde type. Supported values:
                                 auto: Autodetect
                                 rs41: Vaisala RS41-SG(P,M)
-                                dfm: GRAW DFM06/09
+                                dfm: GRAW DFM06/09/17
                                 m10: MeteoModem M10
                                 ims100: Meisei iMS-100
    -T, --tui                    Enable TUI display
