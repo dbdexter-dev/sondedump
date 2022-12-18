@@ -54,7 +54,7 @@ framer_read(Framer *f, uint8_t *dst, const float *src, size_t len)
 	switch (f->state) {
 	case READ_PRE:
 		/* Copy bits from the previous frame */
-		memcpy(dst, dst + f->framelen/8, f->framelen/8);
+		memcpy(dst, dst + f->framelen/8, f->bit_offset/8+1);
 		f->state = READ;
 		/* FALLTHROUGH */
 	case READ:
