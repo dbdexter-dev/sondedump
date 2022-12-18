@@ -1,29 +1,34 @@
+#include <string.h>
 #include "bitops.h"
 #include "framer.h"
 #include "log/log.h"
 
 static ParserStatus framer_demod_internal(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len);
 
-enum { READ, REALIGN } state;
+enum { READ_PRE, READ, REALIGN } state;
 
 int
-framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword, int synclen)
+framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword, int synclen, size_t framelen)
 {
 	f->type = GFSK;
 	gfsk_init(&f->demod.gfsk, samplerate, baudrate);
 	correlator_init(&f->corr, syncword, synclen);
 	f->state = READ;
+	f->bit_offset = 0;
+	f->framelen = framelen;
 
 	return 0;
 }
 
 int
-framer_init_afsk(Framer *f, int samplerate, int baudrate, float f_mark, float f_space, uint64_t syncword, int synclen)
+framer_init_afsk(Framer *f, int samplerate, int baudrate, float f_mark, float f_space, uint64_t syncword, int synclen, size_t framelen)
 {
 	f->type = AFSK;
 	afsk_init(&f->demod.afsk, samplerate, baudrate, f_mark, f_space);
 	correlator_init(&f->corr, syncword, synclen);
 	f->state = READ;
+	f->bit_offset = 0;
+	f->framelen = framelen;
 
 	return 0;
 }
@@ -42,13 +47,18 @@ framer_deinit(Framer *f)
 }
 
 ParserStatus
-framer_read(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len)
+framer_read(Framer *f, uint8_t *dst, const float *src, size_t len)
 {
 	int i;
 
 	switch (f->state) {
+	case READ_PRE:
+		/* Copy bits from the previous frame */
+		memcpy(dst, dst + f->framelen/8, f->framelen/8);
+		f->state = READ;
+		/* FALLTHROUGH */
 	case READ:
-		switch (framer_demod_internal(f, dst, bit_offset, framelen + 8*f->corr.sync_len, src, len)) {
+		switch (framer_demod_internal(f, dst, &f->bit_offset, f->framelen + 8*f->corr.sync_len, src, len)) {
 		case PROCEED:
 			return PROCEED;
 		case PARSED:
@@ -56,9 +66,9 @@ framer_read(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const 
 		}
 
 		/* Find offset of the sync marker */
-		f->sync_offset = correlate(&f->corr, &f->inverted, dst, framelen/8);
-		f->offset = framelen + 8*f->corr.sync_len;
-		*bit_offset = MAX(8*(size_t)f->corr.sync_len, f->sync_offset);
+		f->sync_offset = correlate(&f->corr, &f->inverted, dst, f->framelen/8);
+		f->offset = f->framelen + 8*f->corr.sync_len;
+		f->bit_offset = MAX(8*(size_t)f->corr.sync_len, f->sync_offset);
 
 		log_debug("Offset %d", f->sync_offset);
 
@@ -67,7 +77,7 @@ framer_read(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const 
 	case REALIGN:
 		/* Conditionally read more bits to get a full frame worth of bits */
 		if (f->sync_offset > (size_t)f->corr.sync_len*8) {
-			switch (framer_demod_internal(f, dst, &f->offset, framelen + f->sync_offset, src, len)) {
+			switch (framer_demod_internal(f, dst, &f->offset, f->framelen + f->sync_offset, src, len)) {
 			case PROCEED:
 				return PROCEED;
 			case PARSED:
@@ -76,16 +86,16 @@ framer_read(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const 
 		}
 
 		/* Realign frame to the beginning of the buffer */
-		if (f->sync_offset) bitcpy(dst, dst, f->sync_offset, framelen);
+		if (f->sync_offset) bitcpy(dst, dst, f->sync_offset, f->framelen);
 
 		/* Undo inversion */
 		if (f->inverted) {
-			for (i=0; i < ((int)framelen - 7)/8 + 1; i++) {
+			for (i=0; i < ((int)f->framelen - 7)/8 + 1; i++) {
 				dst[i] ^= 0xFF;
 			}
 		}
 
-		f->state = READ;
+		f->state = READ_PRE;
 		return PARSED;
 	}
 

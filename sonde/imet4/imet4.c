@@ -22,7 +22,6 @@ struct imet4decoder {
 	Framer f;
 	IMET4Frame raw_frame[2];
 	IMET4Frame frame;
-	size_t offset;
 	uint32_t prev_time;
 	float prev_x, prev_y, prev_z;
 };
@@ -38,9 +37,7 @@ imet4_decoder_init(int samplerate)
 	IMET4Decoder *d = malloc(sizeof(*d));
 	framer_init_afsk(&d->f, samplerate, IMET4_BAUDRATE,
 			IMET4_MARK_FREQ, IMET4_SPACE_FREQ,
-			IMET4_SYNCWORD, IMET4_SYNC_LEN);
-
-	d->offset = 0;
+			IMET4_SYNCWORD, IMET4_SYNC_LEN, IMET4_FRAME_LEN);
 
 #ifndef NDEBUG
 	debug = fopen("/tmp/imet4frames.data", "wb");
@@ -70,7 +67,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 	IMET4Subframe *subframe;
 
 	/* Read a new frame */
-	switch(framer_read(&self->f, raw_frame, &self->offset, IMET4_FRAME_LEN, src, len)) {
+	switch(framer_read(&self->f, raw_frame, src, len)) {
 	case PROCEED:
 		return PROCEED;
 	case PARSED:
@@ -79,9 +76,6 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 
 	/* Reformat data inside the frame */
 	imet4_frame_descramble(&self->frame, self->raw_frame);
-
-	/* Copy residual bits from the previous frame */
-	self->raw_frame[0] = self->raw_frame[1];
 
 #ifndef NDEBUG
 	if (debug) fwrite(raw_frame, IMET4_FRAME_LEN/8, 1, debug);

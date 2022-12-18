@@ -2,10 +2,11 @@
 #include <stdlib.h>
 #include "agc.h"
 #include "utils.h"
+#include "log/log.h"
 
 #define FLOAT_TARGET_MAG 5
-#define BIAS_POLE 0.01
-#define GAIN_POLE 0.001
+#define BIAS_POLE 0.01f
+#define GAIN_POLE 0.001f
 
 void
 agc_init(Agc *agc)

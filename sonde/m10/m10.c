@@ -17,7 +17,6 @@ struct m10decoder {
 	Framer f;
 	M10Frame raw_frame[4];
 	M10Frame frame[2];
-	size_t offset;
 	char serial[16];
 };
 
@@ -30,8 +29,7 @@ m10_decoder_init(int samplerate)
 {
 	M10Decoder *d = malloc(sizeof(*d));
 
-	framer_init_gfsk(&d->f, samplerate, M10_BAUDRATE, M10_SYNCWORD, M10_SYNC_LEN);
-	d->offset = 0;
+	framer_init_gfsk(&d->f, samplerate, M10_BAUDRATE, M10_SYNCWORD, M10_SYNC_LEN, M10_FRAME_LEN);
 
 #ifndef NDEBUG
 	debug = fopen("/tmp/m10frames.data", "wb");
@@ -57,7 +55,7 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 	uint8_t *const frame = (uint8_t*)self->frame;
 
 	/* Read a new frame */
-	switch (framer_read(&self->f, raw_frame, &self->offset, M10_FRAME_LEN, src, len)) {
+	switch (framer_read(&self->f, raw_frame, src, len)) {
 	case PROCEED:
 		return PROCEED;
 	case PARSED:
@@ -67,10 +65,6 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 	/* Manchester decode, then massage bits into shape */
 	manchester_decode(frame, raw_frame, M10_FRAME_LEN);
 	m10_frame_descramble(self->frame);
-
-	/* Copy residual bits from the previous frame */
-	self->raw_frame[0] = self->raw_frame[2];
-	self->raw_frame[1] = self->raw_frame[3];
 
 	/* Prepare for packet parsing */
 	dst->fields = 0;

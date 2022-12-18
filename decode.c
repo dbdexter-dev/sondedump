@@ -267,6 +267,8 @@ decode(const float *srcbuf, size_t len)
 				printable.seq = data.seq;
 			} else if (sample_count) {
 				track[sample_count].id = track[sample_count - 1].id + 1;
+			} else {
+				track[sample_count].id = 0;
 			}
 			/* }}} */
 

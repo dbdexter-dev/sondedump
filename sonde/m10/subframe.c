@@ -140,6 +140,7 @@ m10_frame_9f_rh(const M10Frame_9f *f)
 	rh_counts = f->rh_counts[2] << 16 | f->rh_counts[1] << 8 | f->rh_counts[0];
 	rh_ref = f->rh_ref[2] << 16 | f->rh_ref[1] << 8 | f->rh_ref[0];
 
+	/* Apply correction factor as per datasheet */
 	temp_corr_factor = 1.0f - temp_rh_ppm * m10_frame_9f_temp(f);
 
 	/* Compute RH% given capacitance (sensor is a GTUS13 or similar) */

@@ -21,6 +21,7 @@ typedef struct {
 
 	int state;
 	size_t offset, sync_offset;
+	size_t bit_offset, framelen;
 	int inverted;
 } Framer;
 
@@ -32,10 +33,11 @@ typedef struct {
  * @param baudrate baud rate of the signal to decode
  * @param syncword synchronization sequence
  * @param synclen size of the synchronization sequence, in bytes
+ * @param framelen frame length, in bits
  *
  * @return 0 on success, nonzero otherwise
  */
-int framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword, int synclen);
+int framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword, int synclen, size_t framelen);
 
 /**
  * Initialize an AFSK framer object
@@ -47,8 +49,9 @@ int framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword,
  * @param f_space AFSK frequency for a space (0) bit
  * @param syncword synchronization sequence
  * @param synclen size of the synchronization sequence, in bytes
+ * @param framelen frame length, in bits
  */
-int framer_init_afsk(Framer *f, int samplerate, int baudrate, float f_mark, float f_space, uint64_t syncword, int synclen);
+int framer_init_afsk(Framer *f, int samplerate, int baudrate, float f_mark, float f_space, uint64_t syncword, int synclen, size_t framelen);
 
 
 /**
@@ -64,15 +67,12 @@ void framer_deinit(Framer *f);
  *
  * @param framer framer to use to decode a frame
  * @param dst destination buffer to write the frame to
- * @param bit_offset pointer to number of bits to assume as correct within dst,
- *        automatically updated by the function
- * @param framelen size of the frame, in bits
  * @param src source buffer to read samples from
  * @param len number of samples in the buffer
  *
  * @return PROCEED if the src buffer has been fully processed
  *         PARSED  if a frame has been decoded into *dst
  */
-ParserStatus framer_read(Framer *framer, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len);
+ParserStatus framer_read(Framer *framer, uint8_t *dst, const float *src, size_t len);
 
 #endif

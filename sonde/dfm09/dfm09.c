@@ -20,7 +20,6 @@ struct dfm09decoder {
 	struct tm gps_time;
 	int gps_idx, ptu_type_serial;
 	SondeData gps_data, ptu_data;
-	size_t offset;
 
 	char serial[10];
 	uint64_t raw_serial;
@@ -36,8 +35,7 @@ dfm09_decoder_init(int samplerate)
 	DFM09Decoder *d = malloc(sizeof(*d));
 	if (!d) return NULL;
 
-	framer_init_gfsk(&d->f, samplerate, DFM09_BAUDRATE, DFM09_SYNCWORD, DFM09_SYNC_LEN);
-	d->offset = 0;
+	framer_init_gfsk(&d->f, samplerate, DFM09_BAUDRATE, DFM09_SYNCWORD, DFM09_SYNC_LEN, DFM09_FRAME_LEN);
 	d->gps_idx = 0;
 	d->raw_serial = 0;
 	d->ptu_type_serial = -1;
@@ -77,7 +75,7 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;
 
 	/* Read a new frame */
-	switch (framer_read(&self->f, raw_frame, &self->offset, DFM09_FRAME_LEN, src, len)) {
+	switch (framer_read(&self->f, raw_frame, src, len)) {
 	case PROCEED:
 		return PROCEED;
 	case PARSED:
@@ -87,10 +85,6 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	/* Rebuild frame from received bits */
 	manchester_decode((uint8_t*)self->frame, raw_frame, DFM09_FRAME_LEN);
 	dfm09_frame_deinterleave(self->frame);
-
-	/* Copy residual bits from the previous frame */
-	self->raw_frame[0] = self->raw_frame[2];
-	self->raw_frame[1] = self->raw_frame[3];
 
 	dst->fields = 0;
 

@@ -25,7 +25,6 @@ struct rs41decoder {
 	RSDecoder rs;
 	RS41Frame raw_frame[2];
 	RS41Frame frame;
-	size_t offset;
 	RS41Metadata metadata;
 };
 
@@ -99,12 +98,11 @@ RS41Decoder*
 rs41_decoder_init(int samplerate)
 {
 	RS41Decoder *d = malloc(sizeof(*d));
-	framer_init_gfsk(&d->f, samplerate, RS41_BAUDRATE, RS41_SYNCWORD, RS41_SYNC_LEN);
+	framer_init_gfsk(&d->f, samplerate, RS41_BAUDRATE, RS41_SYNCWORD, RS41_SYNC_LEN, RS41_FRAME_LEN);
 	rs_init(&d->rs, RS41_REEDSOLOMON_N, RS41_REEDSOLOMON_K, RS41_REEDSOLOMON_POLY,
 			RS41_REEDSOLOMON_FIRST_ROOT, RS41_REEDSOLOMON_ROOT_SKIP);
 
 	d->metadata.initialized = 0;
-	d->offset = 0;
 
 	/* Initialize calibration data struct and metadata */
 	memcpy(&d->metadata.data, _default_calib_data, sizeof(d->metadata.data));
@@ -136,7 +134,7 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;
 
 	/* Read a new frame */
-	switch (framer_read(&self->f, raw_frame, &self->offset, RS41_FRAME_LEN, src, len)) {
+	switch (framer_read(&self->f, raw_frame, src, len)) {
 	case PROCEED:
 		return PROCEED;
 	case PARSED:
@@ -146,9 +144,6 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 	/* Descramble and error correct */
 	rs41_frame_descramble(&self->frame, self->raw_frame);
 	rs41_frame_correct(&self->frame, &self->rs);
-
-	/* Copy residual bits from the previous frame */
-	self->raw_frame[0] = self->raw_frame[1];
 
 #ifndef NDEBUG
 	if (debug) {

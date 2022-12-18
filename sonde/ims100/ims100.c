@@ -22,7 +22,6 @@ struct ims100decoder {
 	IMS100ECCFrame ecc_frame;
 	IMS100Frame frame;
 	IMS100Calibration calib;
-	size_t offset;
 
 	uint64_t calib_bitmask;
 	char serial[16];
@@ -41,11 +40,9 @@ ims100_decoder_init(int samplerate)
 {
 	IMS100Decoder *d = malloc(sizeof(*d));
 
-	framer_init_gfsk(&d->f, samplerate, IMS100_BAUDRATE, IMS100_SYNCWORD, IMS100_SYNC_LEN);
+	framer_init_gfsk(&d->f, samplerate, IMS100_BAUDRATE, IMS100_SYNCWORD, IMS100_SYNC_LEN, IMS100_FRAME_LEN);
 	bch_init(&d->rs, IMS100_REEDSOLOMON_N, IMS100_REEDSOLOMON_K,
 			IMS100_REEDSOLOMON_POLY, ims100_bch_roots, IMS100_REEDSOLOMON_T);
-
-	d->offset = 0;
 
 	d->calib_bitmask = 0;
 	d->prev_alt.alt = 0;
@@ -80,7 +77,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	uint32_t validmask;
 
 	/* Read a new frame */
-	switch (framer_read(&self->f, raw_frame, &self->offset, IMS100_FRAME_LEN, src, len)) {
+	switch (framer_read(&self->f, raw_frame, src, len)) {
 	case PROCEED:
 		return PROCEED;
 	case PARSED:
@@ -101,7 +98,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	/* Error correct and remove all ECC bits */
 	if (ims100_frame_error_correct(&self->ecc_frame, &self->rs) < 0) {
 		/* ECC failed: go to next frame */
-		goto next;
+		return PARSED;
 	}
 	ims100_frame_unpack(&self->frame, &self->ecc_frame);
 
@@ -199,9 +196,6 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 		strncpy(dst->serial, self->serial, sizeof(dst->serial) - 1);
 	}
 
-next:
-	self->raw_frame[0] = self->raw_frame[2];
-	self->raw_frame[1] = self->raw_frame[3];
 	return PARSED;
 }
 
