@@ -105,7 +105,7 @@ count_days(unsigned int year, unsigned int month, unsigned int day)
 	unsigned int day_count;
 
 	is_leap = (!(year%4) && year%100) || !(year%400);
-	day_count = days[is_leap][month] + day;
+	day_count = days[is_leap][month%12] + day;
 
 	/* Normalize day/month */
 	while (day_count >= 365U + is_leap) {
