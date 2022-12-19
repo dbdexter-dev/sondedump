@@ -37,17 +37,16 @@ typedef struct {
 	float climb;        /* Climb rate, m/s up */
 	float heading;      /* Heading, degrees */
 
-	time_t time;
+	time_t time;        /* GPS time, seconds since Jan 1 1970 */
 
-	uint8_t calibrated;
-	float calib_percent;
-	float temp;
-	float rh;
-	float pressure;
+	float calib_percent;    /* Overall calibration percentage */
+	float temp;             /* Air temperature, 'C */
+	float rh;               /* Relavite humidity, percentage */
+	float pressure;         /* Air pressure, hPa */
 
 	SondeXdata xdata;
 
-	int shutdown;
+	int shutdown;       /* Shutdown timer */
 } SondeData;
 
 #endif

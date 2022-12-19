@@ -8,7 +8,7 @@ static ParserStatus framer_demod_internal(Framer *f, uint8_t *dst, size_t *bit_o
 enum { READ_PRE, READ, REALIGN } state;
 
 int
-framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword, int synclen, size_t framelen)
+framer_init_gfsk(Framer *f, int samplerate, int baudrate, size_t framelen, uint64_t syncword, int synclen)
 {
 	f->type = GFSK;
 	gfsk_init(&f->demod.gfsk, samplerate, baudrate);
@@ -21,7 +21,7 @@ framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword, int
 }
 
 int
-framer_init_afsk(Framer *f, int samplerate, int baudrate, float f_mark, float f_space, uint64_t syncword, int synclen, size_t framelen)
+framer_init_afsk(Framer *f, int samplerate, int baudrate, size_t framelen, float f_mark, float f_space, uint64_t syncword, int synclen)
 {
 	f->type = AFSK;
 	afsk_init(&f->demod.afsk, samplerate, baudrate, f_mark, f_space);

@@ -35,9 +35,9 @@ IMET4Decoder*
 imet4_decoder_init(int samplerate)
 {
 	IMET4Decoder *d = malloc(sizeof(*d));
-	framer_init_afsk(&d->f, samplerate, IMET4_BAUDRATE,
+	framer_init_afsk(&d->f, samplerate, IMET4_BAUDRATE, IMET4_FRAME_LEN,
 			IMET4_MARK_FREQ, IMET4_SPACE_FREQ,
-			IMET4_SYNCWORD, IMET4_SYNC_LEN, IMET4_FRAME_LEN);
+			IMET4_SYNCWORD, IMET4_SYNC_LEN);
 
 #ifndef NDEBUG
 	debug = fopen("/tmp/imet4frames.data", "wb");
@@ -160,7 +160,6 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 		pressure = (pressure << 8) >> 8;
 
 		dst->fields |= DATA_PTU;
-		dst->calibrated = 1;
 		dst->calib_percent = 100.0;
 		dst->temp = ptu->temp / 100.0;
 		dst->rh = ptu->rh / 100.0;

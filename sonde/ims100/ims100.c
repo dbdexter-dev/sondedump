@@ -40,7 +40,7 @@ ims100_decoder_init(int samplerate)
 {
 	IMS100Decoder *d = malloc(sizeof(*d));
 
-	framer_init_gfsk(&d->f, samplerate, IMS100_BAUDRATE, IMS100_SYNCWORD, IMS100_SYNC_LEN, IMS100_FRAME_LEN);
+	framer_init_gfsk(&d->f, samplerate, IMS100_BAUDRATE, IMS100_FRAME_LEN, IMS100_SYNCWORD, IMS100_SYNC_LEN);
 	bch_init(&d->rs, IMS100_REEDSOLOMON_N, IMS100_REEDSOLOMON_K,
 			IMS100_REEDSOLOMON_POLY, ims100_bch_roots, IMS100_REEDSOLOMON_T);
 
@@ -139,7 +139,6 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 		dst->temp = ims100_frame_temp(&self->adc, &self->calib);
 		dst->rh = ims100_frame_rh(&self->adc, &self->calib);
 		dst->pressure = 0;
-		dst->calibrated = BITMASK_CHECK(self->calib_bitmask, IMS100_CALIB_PTU_MASK);
 		dst->calib_percent = 100.0 * count_ones((uint8_t*)&self->calib_bitmask,
 												sizeof(self->calib_bitmask))
 						   / IMS100_CALIB_FRAGCOUNT;

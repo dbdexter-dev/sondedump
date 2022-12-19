@@ -14,7 +14,6 @@
 #include "xdata/xdata.h"
 
 typedef struct {
-	int initialized;
 	RS41Calibration data;
 	uint8_t bitmask[sizeof(RS41Calibration)/8/RS41_CALIB_FRAGSIZE+1];
 } RS41Metadata;
@@ -31,7 +30,6 @@ struct rs41decoder {
 static void rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metadata);
 static void rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s);
 static float rs41_get_calib_percent(RS41Metadata *m);
-static int rs41_metadata_ptu_calibrated(RS41Metadata *m);
 static void rs41_xdata_decode(SondeXdata *dst, float curPressure, const char *asciiData, int len);
 
 #ifndef NDEBUG
@@ -98,11 +96,9 @@ RS41Decoder*
 rs41_decoder_init(int samplerate)
 {
 	RS41Decoder *d = malloc(sizeof(*d));
-	framer_init_gfsk(&d->f, samplerate, RS41_BAUDRATE, RS41_SYNCWORD, RS41_SYNC_LEN, RS41_FRAME_LEN);
+	framer_init_gfsk(&d->f, samplerate, RS41_BAUDRATE, RS41_FRAME_LEN, RS41_SYNCWORD, RS41_SYNC_LEN);
 	rs_init(&d->rs, RS41_REEDSOLOMON_N, RS41_REEDSOLOMON_K, RS41_REEDSOLOMON_POLY,
 			RS41_REEDSOLOMON_FIRST_ROOT, RS41_REEDSOLOMON_ROOT_SKIP);
-
-	d->metadata.initialized = 0;
 
 	/* Initialize calibration data struct and metadata */
 	memcpy(&d->metadata.data, _default_calib_data, sizeof(d->metadata.data));
@@ -203,19 +199,6 @@ rs41_get_calib_percent(RS41Metadata *m)
 	return (num_received * 100.0) / RS41_CALIB_FRAGCOUNT;
 }
 
-static int
-rs41_metadata_ptu_calibrated(RS41Metadata *m)
-{
-	const uint8_t cmp[] = {0x1F, 0xFF, 0xF8, 0x00, 0x0E};
-	size_t i;
-
-	for (i=0; i<LEN(cmp); i++) {
-		if ((m->bitmask[i] & cmp[i]) != cmp[i]) return 0;
-	}
-
-	return 1;
-}
-
 static void
 rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metadata)
 {
@@ -260,7 +243,6 @@ rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metada
 		dst->rh = rs41_subframe_humidity(ptu, &metadata->data);
 		dst->pressure = rs41_subframe_pressure(ptu, &metadata->data);
 		dst->calib_percent = rs41_get_calib_percent(metadata);
-		dst->calibrated = rs41_metadata_ptu_calibrated(metadata);
 		break;
 
 	case RS41_SFTYPE_GPSPOS:

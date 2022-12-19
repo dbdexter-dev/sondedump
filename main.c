@@ -27,7 +27,7 @@
 
 #define BUFLEN 1024
 
-#define SHORTOPTS "a:c:f:g:hk:l:o:r:t:Tuv"
+#define SHORTOPTS "a:c:f:g:hk:l:o:qr:t:Tuv"
 
 /* UI types */
 enum ui {
@@ -76,6 +76,7 @@ static struct option longopts[] = {
 	{ "kml",          1, NULL, 'k' },
 	{ "live-kml",     1, NULL, 'l' },
 	{ "output",       1, NULL, 'o' },
+	{ "quiet",        0, NULL, 'q' },
 	{ "location",     1, NULL, 'r' },
 	{ "type",         1, NULL, 't' },
 #ifdef ENABLE_TUI
@@ -170,6 +171,9 @@ main(int argc, char *argv[])
 			output_fmt = optarg;
 			ui = UI_TEXT;
 			break;
+		case 'q':
+			log_enable(0);
+			break;
 		case 'h':
 			usage(argv[0]);
 			return 0;
@@ -241,13 +245,13 @@ main(int argc, char *argv[])
 	case INPUT_WAV:
 	case INPUT_RAW:
 		if (!(_wav = fopen(input_fname, "rb"))) {
-			fprintf(stderr, "[ERROR] Could not open input file\n");
+			log_error("Could not open input file");
 			return 1;
 		}
 
 		if (wav_parse(_wav, &samplerate, &_bps)) {
-			fprintf(stderr, "Could not recognize input file type\n");
-			fprintf(stderr, "Will assume raw, mono, 32 bit float, 48kHz\n");
+			log_warn("Could not recognize input file type");
+			log_warn("Will assume raw, mono, 32 bit float, 48kHz");
 			samplerate = 48000;
 
 			read_wrapper = &raw_read_wrapper;
@@ -265,12 +269,11 @@ main(int argc, char *argv[])
 		return 1;
 	}
 
-
 	/* Open CSV output */
 	if (csv_fname && csv_init(&csv, csv_fname)) {
 		log_error("Error creating CSV file %s", csv_fname);
+		return 1;
 	}
-
 	/* Open GPX/KML output */
 	if (kml_fname && kml_init(&kml, kml_fname, 0)) {
 		log_error("Error creating KML file %s", kml_fname);
@@ -287,7 +290,7 @@ main(int argc, char *argv[])
 
 	/* Initialize decoder */
 	if (decoder_init(samplerate)) {
-		log_error("Error while initializing decoder subsystem");
+		log_error("Failed to initialize decoder");
 		return 1;
 	}
 	set_active_decoder(active_decoder);

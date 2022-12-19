@@ -29,7 +29,7 @@ m10_decoder_init(int samplerate)
 {
 	M10Decoder *d = malloc(sizeof(*d));
 
-	framer_init_gfsk(&d->f, samplerate, M10_BAUDRATE, M10_SYNCWORD, M10_SYNC_LEN, M10_FRAME_LEN);
+	framer_init_gfsk(&d->f, samplerate, M10_BAUDRATE, M10_FRAME_LEN, M10_SYNCWORD, M10_SYNC_LEN);
 
 #ifndef NDEBUG
 	debug = fopen("/tmp/m10frames.data", "wb");
@@ -74,7 +74,6 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 		return PARSED;
 	}
 
-
 	/* Parse based on packet type */
 	switch (self->frame[0].type) {
 	case M10_FTYPE_DATA:
@@ -98,12 +97,11 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 	default:
 		break;
 	}
-	/* }}} */
-
 
 	return PARSED;
 }
 
+/* Static functions {{{ */
 static void
 m10_parse_frame(SondeData *dst, M10Frame *frame)
 {
@@ -181,8 +179,8 @@ m20_parse_frame(SondeData *dst, M10Frame *frame)
 	/* Parse PTU data */
 	dst->fields |= DATA_PTU;
 	dst->calib_percent = 100.0f;
-	dst->calibrated = 1;
 	dst->temp = m20_frame_20_temp(data_frame_20);
 	dst->rh = 0;
 	dst->pressure = altitude_to_pressure(dst->alt);
 }
+/* }}} */

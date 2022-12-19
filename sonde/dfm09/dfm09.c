@@ -1,29 +1,37 @@
 #include <include/dfm09.h>
 #include <stdio.h>
 #include <string.h>
+#include "bitops.h"
 #include "decode/framer.h"
 #include "decode/manchester.h"
 #include "decode/correlator/correlator.h"
 #include "demod/gfsk.h"
 #include "frame.h"
+#include "log/log.h"
+#include "physics.h"
 #include "protocol.h"
 #include "subframe.h"
-#include "bitops.h"
-#include "log/log.h"
+
+typedef struct {
+	DFM09Calib calib;
+	uint8_t ptu_serial_ch;
+	uint64_t raw_serial;
+	struct tm time;
+} DFM09Data;
 
 struct dfm09decoder {
 	Framer f;
 	DFM09ECCFrame raw_frame[4];
 	DFM09ECCFrame frame[2];
 	DFM09Frame parsed_frame;
-	DFM09Calib calib;
-	struct tm gps_time;
-	int gps_idx, ptu_type_serial;
-	SondeData gps_data, ptu_data;
 
-	char serial[10];
-	uint64_t raw_serial;
+	SondeData partial_dst;
+
+	DFM09Data data;
 };
+
+static void dfm09_parse_ptu(SondeData *dst, DFM09Data *data, const DFM09Subframe_PTU *subframe);
+static void dfm09_parse_gps(SondeData *dst, DFM09Data *data, const DFM09Subframe_GPS *subframe);
 
 #ifndef NDEBUG
 static FILE *debug;
@@ -35,13 +43,9 @@ dfm09_decoder_init(int samplerate)
 	DFM09Decoder *d = malloc(sizeof(*d));
 	if (!d) return NULL;
 
-	framer_init_gfsk(&d->f, samplerate, DFM09_BAUDRATE, DFM09_SYNCWORD, DFM09_SYNC_LEN, DFM09_FRAME_LEN);
-	d->gps_idx = 0;
-	d->raw_serial = 0;
-	d->ptu_type_serial = -1;
-	memset(&d->ptu_data, 0, sizeof(d->ptu_data));
-	memset(&d->gps_data, 0, sizeof(d->gps_data));
-	memset(&d->serial, 0, sizeof(d->serial));
+	framer_init_gfsk(&d->f, samplerate, DFM09_BAUDRATE, DFM09_FRAME_LEN, DFM09_SYNCWORD, DFM09_SYNC_LEN);
+	memset(&d->data, 0, sizeof(d->data));
+	d->partial_dst.fields = 0;
 #ifndef NDEBUG
 	debug = fopen("/tmp/dfm09frames.data", "wb");
 #endif
@@ -66,12 +70,9 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	DFM09Subframe_PTU *ptu_subframe = &self->parsed_frame.ptu;
 	DFM09Subframe_GPS *gps_subframe;
+	int i;
 	int valid;
 	int errcount;
-	int i;
-	uint16_t serial_shard;
-	uint64_t local_serial;
-	int serial_idx;
 	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;
 
 	/* Read a new frame */
@@ -111,115 +112,122 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	if (debug) fwrite((uint8_t*)&self->parsed_frame, sizeof(self->parsed_frame), 1, debug);
 #endif
 
-	/* PTU subframe parsing {{{ */
-	self->calib.raw[ptu_subframe->type] = bitmerge(ptu_subframe->data, 24);
+	/* PTU subframe parsing */
+	dfm09_parse_ptu(&self->partial_dst, &self->data, ptu_subframe);
 
-	/* Last subframe before serial number is all zeroes */
-	if ((bitmerge(ptu_subframe->data, 24) & 0xFFFF) == 0) {
-		self->ptu_type_serial = ptu_subframe->type + 1;
+	/* GPS/info subframe parsing */
+	for (i=0; i<2; i++) {
+		gps_subframe = &self->parsed_frame.gps[i];
+		dfm09_parse_gps(&self->partial_dst, &self->data, gps_subframe);
 	}
 
-	switch (ptu_subframe->type) {
-	case DFM_SFTYPE_TEMP:
-		/* Return previous completed PTU */
-		*dst = self->ptu_data;
-		dst->fields |= DATA_PTU;
-		dst->calibrated = 1;
-		dst->calib_percent = 100.0;
-		dst->temp = self->ptu_data.temp;
-		dst->rh = self->ptu_data.rh;
-		dst->pressure = self->ptu_data.pressure;
+	self->partial_dst.pressure = altitude_to_pressure(self->partial_dst.alt);
+	memcpy(dst, &self->partial_dst, sizeof(*dst));
+	self->partial_dst.fields = 0;
 
+	return PARSED;
+}
+
+static void
+dfm09_parse_ptu(SondeData *dst, DFM09Data *data, const DFM09Subframe_PTU *subframe)
+{
+	uint32_t ch;
+	uint16_t serial_shard;
+	int serial_idx;
+	uint64_t local_serial;
+
+	/* Get channel data as uint24_t */
+	ch = bitmerge(subframe->data, 24);
+	data->calib.raw[subframe->type] = ch;
+
+	/* Last subframe before serial number is all zeroes */
+	if ((ch & 0xFFFF) == 0) {
+		data->ptu_serial_ch = subframe->type + 1;
+	}
+
+	switch (subframe->type) {
+	case DFM_SFTYPE_TEMP:
 		/* Temperature */
-		self->ptu_data.temp = dfm09_subframe_temp(ptu_subframe, &self->calib);
+		dst->temp = dfm09_subframe_temp(subframe, &data->calib);
+		dst->fields |= DATA_PTU;
+		dst->calib_percent = 100.0;
 		break;
 	case DFM_SFTYPE_RH:
 		/* RH? */
-		self->ptu_data.rh = 0;
+		dst->rh = 0;
 		break;
 	default:
-		if (ptu_subframe->type == self->ptu_type_serial) {
+		if (subframe->type == data->ptu_serial_ch) {
 			/* Serial number */
-			if (ptu_subframe->type == DFM06_SERIAL_TYPE) {
+			dst->fields |= DATA_SERIAL;
+
+			if (subframe->type == DFM06_SERIAL_TYPE) {
 				/* DFM06: direct serial number */
-				sprintf(self->serial, "D%06lX", bitmerge(ptu_subframe->data, 24));
+				sprintf(dst->serial, "D%06X", ch);
 			} else {
 				/* DFM09: serial number spans multiple subframes */
-				serial_idx = 3 - (bitmerge(ptu_subframe->data, 24) & 0xF);
-				serial_shard = (bitmerge(ptu_subframe->data, 24) >> 4) & 0xFFFF;
+				serial_idx = 3 - (ch & 0xF);
+				serial_shard = (ch >> 4) & 0xFFFF;
 
 				/* Write 16 bit shard into the overall serial number */
-				self->raw_serial &= ~((uint64_t)((1 << 16) - 1) << (16*serial_idx));
-				self->raw_serial |= (uint64_t)serial_shard << (16*serial_idx);
+				data->raw_serial &= ~((uint64_t)((1 << 16) - 1) << (16*serial_idx));
+				data->raw_serial |= (uint64_t)serial_shard << (16*serial_idx);
 
 				/* If potentially complete, convert raw serial to string */
-				if ((bitmerge(ptu_subframe->data, 24) & 0xF) == 0) {
-					local_serial = self->raw_serial;
+				if ((ch & 0xF) == 0) {
+					local_serial = data->raw_serial;
 					while (local_serial && !(local_serial & 0xFFFF)) local_serial >>= 16;
-					sprintf(self->serial, "D%08ld", local_serial);
+					sprintf(dst->serial, "D%08ld", local_serial);
 				}
 			}
 		}
 		break;
 	}
-	/* }}} */
+}
 
-	/* GPS/info subframe parsing {{{ */
-	for (i=0; i<2; i++) {
-		gps_subframe = &self->parsed_frame.gps[i];
+static void
+dfm09_parse_gps(SondeData *dst, DFM09Data *data, const DFM09Subframe_GPS *subframe)
+{
+	switch (subframe->type) {
+	case DFM_SFTYPE_SEQ:
+		/* Frame number */
+		dst->fields |= DATA_SEQ;
+		dst->seq = dfm09_subframe_seq(subframe);
+		break;
 
-		switch (gps_subframe->type) {
-		case DFM_SFTYPE_SEQ:
-			/* Frame number */
-			dst->fields |= DATA_SEQ | DATA_SERIAL;
-			dst->seq = dfm09_subframe_seq(gps_subframe);
-			strncpy(dst->serial, self->serial, sizeof(dst->serial) - 1);
-			break;
+	case DFM_SFTYPE_TIME:
+		/* GPS time */
+		data->time.tm_sec = dfm09_subframe_time(subframe);
+		break;
 
-		case DFM_SFTYPE_TIME:
-			/* GPS time */
-			self->gps_time.tm_sec = dfm09_subframe_time(gps_subframe);
-			break;
+	case DFM_SFTYPE_LAT:
+		/* Latitude and speed */
+		dst->lat = dfm09_subframe_lat(subframe);
+		dst->speed = dfm09_subframe_spd(subframe);
+		break;
 
-		case DFM_SFTYPE_LAT:
-			/* Latitude and speed */
-			self->gps_data.lat = dfm09_subframe_lat(gps_subframe);
-			self->gps_data.speed = dfm09_subframe_spd(gps_subframe);
-			break;
+	case DFM_SFTYPE_LON:
+		/* Longitude and heading */
+		dst->lon = dfm09_subframe_lon(subframe);
+		dst->heading = dfm09_subframe_hdg(subframe);
+		break;
 
-		case DFM_SFTYPE_LON:
-			/* Longitude and heading */
-			self->gps_data.lon = dfm09_subframe_lon(gps_subframe);
-			self->gps_data.heading = dfm09_subframe_hdg(gps_subframe);
-			break;
+	case DFM_SFTYPE_ALT:
+		/* Altitude and climb rate */
+		dst->alt = dfm09_subframe_alt(subframe);
+		dst->climb = dfm09_subframe_climb(subframe);
+		dst->fields |= DATA_POS | DATA_SPEED;
+		break;
 
-		case DFM_SFTYPE_ALT:
-			/* Altitude and climb rate */
-			self->gps_data.alt = dfm09_subframe_alt(gps_subframe);
-			self->gps_data.climb = dfm09_subframe_climb(gps_subframe);
+	case DFM_SFTYPE_DATE:
+		/* GPS date */
+		dfm09_subframe_date(&data->time, subframe);
 
-			dst->fields |= DATA_POS | DATA_SPEED;
-			dst->lat = self->gps_data.lat;
-			dst->lon = self->gps_data.lon;
-			dst->alt = self->gps_data.alt;
-			dst->speed = self->gps_data.speed;
-			dst->heading = self->gps_data.heading;
-			dst->climb = self->gps_data.climb;
-			break;
+		dst->fields |= DATA_TIME;
+		dst->time = my_timegm(&data->time);
+		break;
 
-		case DFM_SFTYPE_DATE:
-			/* GPS date */
-			dfm09_subframe_date(&self->gps_time, gps_subframe);
-
-			dst->fields |= DATA_TIME;
-			dst->time = my_timegm(&self->gps_time);
-			break;
-
-		default:
-			break;
-		}
+	default:
+		break;
 	}
-	/* }}} */
-
-	return PARSED;
 }

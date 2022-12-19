@@ -37,7 +37,7 @@ typedef struct {
  *
  * @return 0 on success, nonzero otherwise
  */
-int framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword, int synclen, size_t framelen);
+int framer_init_gfsk(Framer *f, int samplerate, int baudrate, size_t framelen, uint64_t syncword, int synclen);
 
 /**
  * Initialize an AFSK framer object
@@ -51,7 +51,7 @@ int framer_init_gfsk(Framer *f, int samplerate, int baudrate, uint64_t syncword,
  * @param synclen size of the synchronization sequence, in bytes
  * @param framelen frame length, in bits
  */
-int framer_init_afsk(Framer *f, int samplerate, int baudrate, float f_mark, float f_space, uint64_t syncword, int synclen, size_t framelen);
+int framer_init_afsk(Framer *f, int samplerate, int baudrate, size_t framelen, float f_mark, float f_space, uint64_t syncword, int synclen);
 
 
 /**

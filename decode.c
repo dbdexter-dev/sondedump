@@ -208,7 +208,6 @@ decode(const float *srcbuf, size_t len)
 				printable.pressure = data.pressure;
 
 				printable.calib_percent = data.calib_percent;
-				printable.calibrated = data.calibrated;
 			}
 
 			if (data.fields & DATA_TIME) {
