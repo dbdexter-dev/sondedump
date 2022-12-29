@@ -71,13 +71,11 @@ ims100_decoder_deinit(IMS100Decoder *d)
 ParserStatus
 ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 {
-	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;
-	uint8_t *const ecc_frame = (uint8_t*)&self->ecc_frame;
 	unsigned int seq;
 	uint32_t validmask;
 
 	/* Read a new frame */
-	switch (framer_read(&self->f, raw_frame, src, len)) {
+	switch (framer_read(&self->f, self->raw_frame, src, len)) {
 	case PROCEED:
 		return PROCEED;
 	case PARSED:
@@ -89,7 +87,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 
 
 	/* Decode bits and move them in the right place */
-	manchester_decode(ecc_frame, raw_frame, IMS100_FRAME_LEN);
+	manchester_decode(&self->ecc_frame, self->raw_frame, IMS100_FRAME_LEN);
 	ims100_frame_descramble(&self->ecc_frame);
 
 	/* Prepare for subframe parsing */

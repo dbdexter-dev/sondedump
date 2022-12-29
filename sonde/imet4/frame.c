@@ -5,7 +5,6 @@ void
 imet4_frame_descramble(IMET4Frame *dst, IMET4Frame *src)
 {
 	int i;
-	uint8_t *raw_src = (uint8_t*)src->data;
 	uint8_t *raw_dst = (uint8_t*)dst->data;
 
 	uint8_t byte, tmp;
@@ -13,7 +12,7 @@ imet4_frame_descramble(IMET4Frame *dst, IMET4Frame *src)
 	/* Reorder bits in the frame and remove start/stop bits */
 	for (i=0; i < IMET4_FRAME_LEN/8; i++) {
 
-		bitcpy(&byte, raw_src, i * 10 + 1, 8);
+		bitcpy(&byte, src->data, i * 10 + 1, 8);
 
 		tmp = 0;
 		for (int j=0; j<8; j++) {

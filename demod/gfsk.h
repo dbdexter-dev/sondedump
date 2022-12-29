@@ -47,6 +47,6 @@ void gfsk_deinit(GFSKDemod *g);
  *
  * @return offset of the last bit decoded
  */
-ParserStatus gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const float *src, size_t len);
+ParserStatus gfsk_demod(GFSKDemod *g, void *dst, size_t *bit_offset, size_t count, const float *src, size_t len);
 
 #endif

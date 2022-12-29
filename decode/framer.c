@@ -3,7 +3,7 @@
 #include "framer.h"
 #include "log/log.h"
 
-static ParserStatus framer_demod_internal(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len);
+static ParserStatus framer_demod_internal(Framer *f, void *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len);
 
 enum { READ_PRE, READ, REALIGN } state;
 
@@ -47,8 +47,9 @@ framer_deinit(Framer *f)
 }
 
 ParserStatus
-framer_read(Framer *f, uint8_t *dst, const float *src, size_t len)
+framer_read(Framer *f, void *v_dst, const float *src, size_t len)
 {
+	uint8_t *dst = v_dst;
 	int i;
 
 	switch (f->state) {
@@ -103,7 +104,7 @@ framer_read(Framer *f, uint8_t *dst, const float *src, size_t len)
 }
 
 static ParserStatus
-framer_demod_internal(Framer *f, uint8_t *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len)
+framer_demod_internal(Framer *f, void *dst, size_t *bit_offset, size_t framelen, const float *src, size_t len)
 {
 	switch (f->type) {
 	case GFSK:

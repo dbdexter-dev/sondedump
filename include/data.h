@@ -21,7 +21,7 @@ typedef enum {
 } DataBitmask;
 
 typedef struct {
-	float o3_ppb;   /* Ozone concentration, in ppb */
+	float o3_ppb;   /* Ozone concentration, [ppb] */
 } SondeXdata;
 
 typedef struct {
@@ -32,21 +32,21 @@ typedef struct {
 
 	float lat;          /* Latitude, degrees North */
 	float lon;          /* Longitude, degrees East */
-	float alt;          /* Altitude, meters */
-	float speed;        /* Horizontal speed, m/s */
-	float climb;        /* Climb rate, m/s up */
-	float heading;      /* Heading, degrees */
+	float alt;          /* Altitude, [m] */
+	float speed;        /* Horizontal speed, [m/s] */
+	float climb;        /* Climb rate, [m/s] up */
+	float heading;      /* Heading, [degrees] */
 
 	time_t time;        /* GPS time, seconds since Jan 1 1970 */
 
 	float calib_percent;    /* Overall calibration percentage */
-	float temp;             /* Air temperature, 'C */
+	float temp;             /* Air temperature, ['C] */
 	float rh;               /* Relavite humidity, percentage */
-	float pressure;         /* Air pressure, hPa */
+	float pressure;         /* Air pressure, [hPa] */
 
 	SondeXdata xdata;
 
-	int shutdown;       /* Shutdown timer */
+	int shutdown;       /* Shutdown timer, [s] */
 } SondeData;
 
 #endif

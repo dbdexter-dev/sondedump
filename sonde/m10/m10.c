@@ -51,11 +51,9 @@ m10_decoder_deinit(M10Decoder *d)
 ParserStatus
 m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 {
-	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;
-	uint8_t *const frame = (uint8_t*)self->frame;
 
 	/* Read a new frame */
-	switch (framer_read(&self->f, raw_frame, src, len)) {
+	switch (framer_read(&self->f, self->raw_frame, src, len)) {
 	case PROCEED:
 		return PROCEED;
 	case PARSED:
@@ -63,7 +61,7 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 
 	/* Manchester decode, then massage bits into shape */
-	manchester_decode(frame, raw_frame, M10_FRAME_LEN);
+	manchester_decode(self->frame, self->raw_frame, M10_FRAME_LEN);
 	m10_frame_descramble(self->frame);
 
 	/* Prepare for packet parsing */

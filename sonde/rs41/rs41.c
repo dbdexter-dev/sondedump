@@ -127,10 +127,9 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	RS41Subframe *subframe;
 	size_t frame_offset, frame_data_len;
-	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;
 
 	/* Read a new frame */
-	switch (framer_read(&self->f, raw_frame, src, len)) {
+	switch (framer_read(&self->f, self->raw_frame, src, len)) {
 	case PROCEED:
 		return PROCEED;
 	case PARSED:

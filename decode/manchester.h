@@ -10,6 +10,6 @@
  * @param src source buffer to read bit pairs from
  * @param nbits number of bits to decode (= output bits)
  */
-void manchester_decode(uint8_t *dst, uint8_t *src, int nbits);
+void manchester_decode(void *dst, const void *src, int nbits);
 
 #endif

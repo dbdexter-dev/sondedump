@@ -60,14 +60,13 @@ imet4_decoder_deinit(IMET4Decoder *d) {
 ParserStatus
 imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 {
-	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;
 	float x, y, z, dt;
 	size_t i;
 
 	IMET4Subframe *subframe;
 
 	/* Read a new frame */
-	switch(framer_read(&self->f, raw_frame, src, len)) {
+	switch(framer_read(&self->f, self->raw_frame, src, len)) {
 	case PROCEED:
 		return PROCEED;
 	case PARSED:
@@ -78,7 +77,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 	imet4_frame_descramble(&self->frame, self->raw_frame);
 
 #ifndef NDEBUG
-	if (debug) fwrite(raw_frame, IMET4_FRAME_LEN/8, 1, debug);
+	if (debug) fwrite(self->raw_frame, IMET4_FRAME_LEN/8, 1, debug);
 #endif
 
 	/* Prepare to parse subframes */

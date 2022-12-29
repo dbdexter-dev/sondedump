@@ -62,8 +62,9 @@ afsk_deinit(AFSKDemod *d)
 }
 
 ParserStatus
-afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, const float *src, size_t len)
+afsk_demod(AFSKDemod *const d, void *v_dst, size_t *bit_offset, size_t count, const float *src, size_t len)
 {
+	uint8_t *dst = v_dst;
 	float symbol;
 	uint8_t tmp;
 	int phase;

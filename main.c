@@ -92,8 +92,8 @@ main(int argc, char *argv[])
 {
 	const SondeData *data;
 	KMLFile kml, live_kml;
-	GPXFile gpx = {.offset = 0};
-	CSVFile csv;
+	GPXFile gpx = {.fd = NULL, .offset = 0};
+	CSVFile csv = {.fd = NULL};
 	int samplerate;
 	int (*read_wrapper)(float *dst, size_t count);
 

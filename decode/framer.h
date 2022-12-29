@@ -73,6 +73,6 @@ void framer_deinit(Framer *f);
  * @return PROCEED if the src buffer has been fully processed
  *         PARSED  if a frame has been decoded into *dst
  */
-ParserStatus framer_read(Framer *framer, uint8_t *dst, const float *src, size_t len);
+ParserStatus framer_read(Framer *framer, void *dst, const float *src, size_t len);
 
 #endif

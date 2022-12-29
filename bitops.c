@@ -4,8 +4,11 @@
 #include "bitops.h"
 
 void
-bitcpy(uint8_t *dst, const uint8_t *src, size_t offset, size_t bits)
+bitcpy(void *v_dst, const void *v_src, size_t offset, size_t bits)
 {
+	uint8_t *dst = v_dst;
+	const uint8_t *src = v_src;
+
 	src += offset / 8;
 	offset %= 8;
 
@@ -26,8 +29,9 @@ bitcpy(uint8_t *dst, const uint8_t *src, size_t offset, size_t bits)
 }
 
 uint64_t
-bitmerge(const uint8_t *data, int nbits)
+bitmerge(const void *v_data, int nbits)
 {
+	const uint8_t *data = v_data;
 	uint64_t ret = 0;
 
 	for (; nbits >= 8; nbits-=8) {
@@ -38,8 +42,11 @@ bitmerge(const uint8_t *data, int nbits)
 }
 
 void
-bitpack(uint8_t *dst, const uint8_t *src, int bit_offset, int nbits)
+bitpack(void *v_dst, const void *v_src, int bit_offset, int nbits)
 {
+	const uint8_t *src = v_src;
+	uint8_t *dst = v_dst;
+
 	uint8_t tmp;
 
 	dst += bit_offset/8;
@@ -63,8 +70,10 @@ bitpack(uint8_t *dst, const uint8_t *src, int bit_offset, int nbits)
 }
 
 void
-bitclear(uint8_t *dst, int bit_offset, int nbits)
+bitclear(void *v_dst, int bit_offset, int nbits)
 {
+	uint8_t *dst = v_dst;
+
 	dst += bit_offset/8;
 	bit_offset %= 8;
 
@@ -90,8 +99,9 @@ bitclear(uint8_t *dst, int bit_offset, int nbits)
 }
 
 int
-count_ones(const uint8_t *data, size_t len)
+count_ones(const void *v_data, size_t len)
 {
+	const uint8_t *data = v_data;
 	uint8_t tmp;
 	int count = 0;
 
@@ -106,8 +116,9 @@ count_ones(const uint8_t *data, size_t len)
 }
 
 float
-ieee754_be(const uint8_t *raw)
+ieee754_be(const void *v_raw)
 {
+	const uint8_t *raw = v_raw;
 	union {
 		uint32_t raw;
 		float value;

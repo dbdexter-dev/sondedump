@@ -15,7 +15,7 @@
  * @param src_offset offset of the first bit to copy
  * @param num_bits number of bits to copy
  */
-void bitcpy(uint8_t *dst, const uint8_t *src, size_t src_offset, size_t num_bits);
+void bitcpy(void *dst, const void *src, size_t src_offset, size_t num_bits);
 
 /**
  * Merge contiguous bits into a number
@@ -24,7 +24,7 @@ void bitcpy(uint8_t *dst, const uint8_t *src, size_t src_offset, size_t num_bits
  * @param nbits number of bits to merge
  * @return merged bits
  */
-uint64_t bitmerge(const uint8_t *data, int nbits);
+uint64_t bitmerge(const void *data, int nbits);
 
 /**
  * Pack loose bits together, with an optional offset
@@ -34,7 +34,7 @@ uint64_t bitmerge(const uint8_t *data, int nbits);
  * @param bit_offset dst offset to start writing bits from
  * @param nbits number of bits to write
  */
-void bitpack(uint8_t *dst, const uint8_t *src, int bit_offset, int nbits);
+void bitpack(void *dst, const void *src, int bit_offset, int nbits);
 
 /**
  * Clear bits within a buffer
@@ -43,7 +43,7 @@ void bitpack(uint8_t *dst, const uint8_t *src, int bit_offset, int nbits);
  * @param bit_offset offset from the start of dst to write zeros from, in bits
  * @param nbits number of bits to clear
  */
-void bitclear(uint8_t *dst, int bit_offset, int nbits);
+void bitclear(void *dst, int bit_offset, int nbits);
 
 /**
  * Count the number of bits set within a byte array
@@ -52,11 +52,11 @@ void bitclear(uint8_t *dst, int bit_offset, int nbits);
  * @param len length of the input arary, in bytes
  * @return number of bits set in the array
  */
-int count_ones(const uint8_t *data, size_t len);
+int count_ones(const void *data, size_t len);
 
 /**
  * Convert 4 bytes into a IEEE754 float
  */
-float ieee754_be(const uint8_t *raw);
+float ieee754_be(const void *raw);
 
 #endif

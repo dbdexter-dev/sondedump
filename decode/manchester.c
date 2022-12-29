@@ -3,7 +3,7 @@
 #include "bitops.h"
 
 void
-manchester_decode(uint8_t *dst, uint8_t *src, int nbits)
+manchester_decode(void *dst, const void *src, int nbits)
 {
 	uint8_t *raw_dst = (uint8_t*)dst;
 	uint8_t out;

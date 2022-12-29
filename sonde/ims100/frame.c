@@ -34,7 +34,6 @@ ims100_frame_error_correct(IMS100ECCFrame *frame, const RSDecoder *rs)
 	int i, j, k;
 	int offset;
 	int errcount, errdelta;
-	uint8_t *const raw_frame = (uint8_t*)frame;
 	uint8_t staging[IMS100_MESSAGE_LEN/8+1];
 	/* FIXME this should not need the +1, but Windows compiled versions get
 	 * angry because of some buffer overflow. Check BCH code, one of the roots
@@ -50,7 +49,7 @@ ims100_frame_error_correct(IMS100ECCFrame *frame, const RSDecoder *rs)
 		for (j=8*sizeof(frame->syncword); j < IMS100_SUBFRAME_LEN; j += IMS100_MESSAGE_LEN) {
 			offset = i + j;
 
-			bitcpy(staging, raw_frame, offset, IMS100_MESSAGE_LEN);
+			bitcpy(staging, frame, offset, IMS100_MESSAGE_LEN);
 
 			/* Expand bits to bytes, zero-padding to a (64,51) code */
 			for (k=0; k<IMS100_MESSAGE_LEN; k++) {
@@ -67,10 +66,10 @@ ims100_frame_error_correct(IMS100ECCFrame *frame, const RSDecoder *rs)
 
 			if (errdelta < 0) {
 				/* If ECC fails, clear the message */
-				bitclear(raw_frame, offset, 2 * IMS100_SUBFRAME_VALUELEN);
+				bitclear(frame, offset, 2 * IMS100_SUBFRAME_VALUELEN);
 			} else if (errdelta) {
 				/* Else, copy corrected bits back */
-				bitpack(raw_frame, message + start_idx, offset, IMS100_MESSAGE_LEN);
+				bitpack(frame, message + start_idx, offset, IMS100_MESSAGE_LEN);
 			}
 		}
 	}
@@ -83,7 +82,6 @@ ims100_frame_unpack(IMS100Frame *frame, const IMS100ECCFrame *ecc_frame)
 {
 	int i, j, offset;
 	uint8_t staging[3];
-	const uint8_t *src = (uint8_t*)ecc_frame;
 	uint8_t *dst = (uint8_t*)frame;
 	uint32_t validmask = 0;
 
@@ -94,7 +92,7 @@ ims100_frame_unpack(IMS100Frame *frame, const IMS100ECCFrame *ecc_frame)
 			offset = i + j;
 
 			/* Copy first message */
-			bitcpy(staging, src, offset, IMS100_SUBFRAME_VALUELEN);
+			bitcpy(staging, ecc_frame, offset, IMS100_SUBFRAME_VALUELEN);
 
 			/* Check parity */
 			validmask = validmask << 1 | ((count_ones(staging, 2) & 0x1) != staging[2] >> 7 ? 1 : 0);
@@ -104,7 +102,7 @@ ims100_frame_unpack(IMS100Frame *frame, const IMS100ECCFrame *ecc_frame)
 			*dst++ = staging[1];
 
 			/* Copy second message */
-			bitcpy(staging, src, offset + IMS100_SUBFRAME_VALUELEN, IMS100_SUBFRAME_VALUELEN);
+			bitcpy(staging, ecc_frame, offset + IMS100_SUBFRAME_VALUELEN, IMS100_SUBFRAME_VALUELEN);
 
 			/* Check parity */
 			validmask = validmask << 1 | ((count_ones(staging, 2) & 0x1) != staging[2] >> 7 ? 1 : 0);

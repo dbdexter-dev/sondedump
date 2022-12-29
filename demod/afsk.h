@@ -62,7 +62,7 @@ void afsk_deinit(AFSKDemod *d);
  *
  * @return offset of the last bit decoded
  */
-ParserStatus afsk_demod(AFSKDemod *const d, uint8_t *dst, size_t *bit_offset, size_t count, const float *src, size_t len);
+ParserStatus afsk_demod(AFSKDemod *const d, void *dst, size_t *bit_offset, size_t count, const float *src, size_t len);
 
 
 #endif

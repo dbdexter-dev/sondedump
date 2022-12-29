@@ -73,10 +73,9 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	int i;
 	int valid;
 	int errcount;
-	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;
 
 	/* Read a new frame */
-	switch (framer_read(&self->f, raw_frame, src, len)) {
+	switch (framer_read(&self->f, self->raw_frame, src, len)) {
 	case PROCEED:
 		return PROCEED;
 	case PARSED:
@@ -84,7 +83,7 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 
 	/* Rebuild frame from received bits */
-	manchester_decode((uint8_t*)self->frame, raw_frame, DFM09_FRAME_LEN);
+	manchester_decode((uint8_t*)self->frame, self->raw_frame, DFM09_FRAME_LEN);
 	dfm09_frame_deinterleave(self->frame);
 
 	dst->fields = 0;

@@ -53,8 +53,9 @@ gfsk_deinit(GFSKDemod *g)
 }
 
 ParserStatus
-gfsk_demod(GFSKDemod *g, uint8_t *dst, size_t *bit_offset, size_t count, const float *src, size_t len)
+gfsk_demod(GFSKDemod *g, void *v_dst, size_t *bit_offset, size_t count, const float *src, size_t len)
 {
+	uint8_t *dst = v_dst;
 	float symbol;
 	uint8_t tmp;
 	int phase;
