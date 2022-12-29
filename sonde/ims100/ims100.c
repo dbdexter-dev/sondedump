@@ -82,7 +82,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 		break;
 	}
 #ifndef NDEBUG
-	fwrite(raw_frame, 2*sizeof(self->ecc_frame), 1, debug);
+	fwrite(self->raw_frame, 2*sizeof(self->ecc_frame), 1, debug);
 #endif
 
 
