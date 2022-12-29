@@ -5,16 +5,17 @@
 #include "utils.h"
 
 static float rc_coeff(float cutoff, int stage_no, unsigned num_taps, float osf, float alpha);
+static int log2i(uint32_t x);
 
 int
 filter_init_lpf(Filter *flt, int order, float cutoff, int num_phases)
 {
 	int i, phase;
 	const int taps = order * 2 + 1;
+	const int taps_pow2 = 1 << log2i(taps);
 
+	/* Allocate and generate coefficients */
 	if (!(flt->coeffs = malloc(num_phases * sizeof(*flt->coeffs) * taps))) return 1;
-	if (!(flt->mem = calloc(2 * taps, sizeof(*flt->mem)))) return 1;
-
 	cutoff /= num_phases;
 
 	for (phase = 0; phase < num_phases; phase++) {
@@ -23,8 +24,13 @@ filter_init_lpf(Filter *flt, int order, float cutoff, int num_phases)
 		}
 	}
 
+	/* Allocate sample memory */
+	if (!(flt->mem = calloc(2 * taps_pow2, sizeof(*flt->mem)))) return 1;
+
 	flt->num_phases = num_phases;
 	flt->size = taps;
+	flt->memsize = taps_pow2;
+	flt->modulo_mask = taps_pow2 - 1;
 	flt->idx = 0;
 
 	return 0;
@@ -41,12 +47,12 @@ void
 filter_fwd_sample(Filter *flt, float sample)
 {
 	/* Store two copies to make output computation faster */
-	flt->mem[flt->idx] = flt->mem[flt->idx + flt->size] = sample;
-	flt->idx = (flt->idx + 1) % flt->size;
+	flt->mem[flt->idx] = flt->mem[flt->idx + flt->memsize] = sample;
+	flt->idx = (flt->idx + 1) & flt->modulo_mask;
 }
 
 float
-filter_get(Filter *flt, int phase)
+filter_get(const Filter *const flt, int phase)
 {
 	int i, j;
 	float result;
@@ -56,9 +62,10 @@ filter_get(Filter *flt, int phase)
 
 	/* No need to wrap around because of the second copy of all samples stored
 	 * starting from flt->size */
-	for (i=flt->idx; i<flt->size + flt->idx; i++, j++) {
-		result += flt->mem[i] * flt->coeffs[j];
+	for (i=flt->idx; i<flt->size/2 + flt->idx; i++, j++) {
+		result += (flt->mem[i] + flt->mem[flt->size + 2 * flt->idx - i - 1]) * flt->coeffs[j];
 	}
+	result += flt->mem[i] * flt->coeffs[j];
 
 	return result;
 }
@@ -90,4 +97,16 @@ rc_coeff(float cutoff, int stage_no, unsigned taps, float osf, float alpha)
 		+ 0.08*cosf(4*M_PI*stage_no/(taps-1));
 
 	return norm * rc_coeff * hamming_coeff;
+}
+
+static int
+log2i(uint32_t x)
+{
+	int ret;
+
+	for (ret=0; x > 0; x >>= 1) {
+		ret++;
+	}
+
+	return ret;
 }

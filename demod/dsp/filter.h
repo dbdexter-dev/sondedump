@@ -8,6 +8,8 @@ typedef struct {
 	float *coeffs;
 
 	int size;
+	int memsize;
+	int modulo_mask;
 	int num_phases;
 	int idx;
 } Filter;
@@ -40,7 +42,7 @@ void filter_fwd_sample(Filter *flt, float sample);
  * @param phase index of the phase to get the value of
  * @return filter output
  */
-float filter_get(Filter *flt, int phase);
+float filter_get(const Filter *const flt, int phase);
 
 
 /**
