@@ -81,9 +81,6 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	case PARSED:
 		break;
 	}
-#ifndef NDEBUG
-	fwrite(self->raw_frame, 2*sizeof(self->ecc_frame), 1, debug);
-#endif
 
 
 	/* Decode bits and move them in the right place */
@@ -171,14 +168,21 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 			self->cur_alt.alt = dst->alt;
 
 			/* Derive climb rate from altitude */
-			if (self->cur_alt.time > self->prev_alt.time) {
+			if (self->cur_alt.time > self->prev_alt.time
+			    && BITMASK_CHECK(self->frame.valid, IMS100_GPS_MASK_TIME)) {
 				dst->climb = (self->cur_alt.alt - self->prev_alt.alt)
 						   / (self->cur_alt.time - self->prev_alt.time);
+
+				self->prev_alt = self->cur_alt;
 			}
-			self->prev_alt = self->cur_alt;
 		}
 		break;
 	case IMS100_SUBTYPE_META:
+#ifndef NDEBUG
+	fwrite(&self->frame, sizeof(self->frame), 1, debug);
+#endif
+
+
 		/* TODO any interesting data here? */
 		break;
 	default:

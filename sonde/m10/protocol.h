@@ -40,7 +40,7 @@ PACK(typedef struct {
 	uint8_t lon[4];
 	uint8_t alt[4];
 	uint8_t _pad0[4];
-	uint8_t gps_sats;   /* Number of satellites used for fix */
+	uint8_t sat_count;   /* Number of satellites used for fix */
 	uint8_t _pad3;
 	uint8_t week[2];    /* GPS week */
 

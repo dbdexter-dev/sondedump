@@ -62,7 +62,11 @@ types:
     - id: alt
       type: u4
     - id: unk1
-      size: 6
+      size: 4
+    - id: sat_count
+      type: u1
+    - id: unk2
+      size: 1
     - id: week
       type: u2
     - id: pad0

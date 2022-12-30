@@ -3,3 +3,4 @@ build/
 .cache/
 **/__pycache__
 docs/
+.ccls-cache/

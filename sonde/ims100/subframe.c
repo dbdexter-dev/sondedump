@@ -1,7 +1,8 @@
 #include "subframe.h"
 
 time_t
-ims100_subframe_time(const IMS100FrameGPS *frame) {
+ims100_subframe_time(const IMS100FrameGPS *frame)
+{
 	const uint16_t raw_date = (uint16_t)frame->date[0] << 8 | frame->date[1];
 	const uint16_t ms = (uint16_t)frame->ms[0] << 8 | frame->ms[1];
 	struct tm tm;
@@ -25,7 +26,8 @@ ims100_subframe_time(const IMS100FrameGPS *frame) {
 }
 
 float
-ims100_subframe_lat(const IMS100FrameGPS *frame) {
+ims100_subframe_lat(const IMS100FrameGPS *frame)
+{
 	const int32_t raw_lat = ((int32_t)frame->lat[0] << 24
 	                      | (int32_t)frame->lat[1] << 16
 	                      | (int32_t)frame->lat[2] << 8
@@ -38,7 +40,8 @@ ims100_subframe_lat(const IMS100FrameGPS *frame) {
 }
 
 float
-ims100_subframe_lon(const IMS100FrameGPS *frame) {
+ims100_subframe_lon(const IMS100FrameGPS *frame)
+{
 	const int32_t raw_lon = ((int32_t)frame->lon[0] << 24
 	                      | (int32_t)frame->lon[1] << 16
 	                      | (int32_t)frame->lon[2] << 8
@@ -50,7 +53,8 @@ ims100_subframe_lon(const IMS100FrameGPS *frame) {
 }
 
 float
-ims100_subframe_alt(const IMS100FrameGPS *frame) {
+ims100_subframe_alt(const IMS100FrameGPS *frame)
+{
 	const int32_t raw_alt = (int32_t)frame->alt[0] << 24
 	                      | (int32_t)frame->alt[1] << 16
 	                      | (int32_t)frame->alt[2] << 8;
@@ -59,14 +63,16 @@ ims100_subframe_alt(const IMS100FrameGPS *frame) {
 }
 
 float
-ims100_subframe_speed(const IMS100FrameGPS *frame) {
+ims100_subframe_speed(const IMS100FrameGPS *frame)
+{
 	const uint16_t raw_speed = (uint16_t)frame->speed[0] << 8 | (uint16_t)frame->speed[1];
 
 	return raw_speed / 1.943844e2;  // knots*100 -> m/s
 }
 
 float
-ims100_subframe_heading(const IMS100FrameGPS *frame) {
+ims100_subframe_heading(const IMS100FrameGPS *frame)
+{
 	const int16_t raw_heading = (int16_t)frame->heading[0] << 8 | (int16_t)frame->heading[1];
 
 	return abs(raw_heading) / 1e2;
