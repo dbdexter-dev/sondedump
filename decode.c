@@ -278,7 +278,6 @@ decode(const float *srcbuf, size_t len)
 				track[sample_count].pressure = printable.pressure;
 			}
 
-			update_minmax(&track[sample_count]);
 			sample_count++;
 			if (sample_count >= reserved_count) {
 				reserved_count += CHUNKSIZE;

@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include "log.h"
 
@@ -82,18 +83,20 @@ do_log_debug(const char *tag, int line, const char *fmt, ...)
 }
 
 void
-do_log_debug_hexdump(const char *tag, int line, const uint8_t *data, int len)
+do_log_debug_hexdump(const char *tag, int line, const void *v_data, size_t len)
 {
-	int i;
+	const uint8_t *data = v_data;
+	size_t i;
 
 	if (!_log_enabled) return;
 
 	printf("[" COLOR_DEBUG "%s:%d" COLOR_DEFAULT "]", tag + SOURCE_BASE_PATH_SIZE, line);
 
 	for (i=0; i < len; i++) {
-		if (!(i % 16)) printf("\n%04x\t", i);
+		if (!(i % 16)) printf("\n%04lx\t", i);
 		if (!(i % 8)) printf(" ");
 		printf("%02x ", data[i]);
 	}
+	printf("\n");
 
 }

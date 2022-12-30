@@ -167,11 +167,7 @@ redraw(void)
 	int start_row, start_col;
 	char time[64], shutdown_timer[32];
 	float az, el, slant;
-<<<<<<< HEAD
-	PrintableData *data = get_data();
-=======
 	const SondeData *data = get_data();
->>>>>>> 0998189 (Overhauled data exchange format)
 
 	/* Draw tabs at top of the TUI */
 	draw_tabs(tui.tabs, get_active_decoder());

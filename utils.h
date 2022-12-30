@@ -2,6 +2,7 @@
 #define utils_h
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -9,10 +10,12 @@
 #define VERSION "(unknown version)"
 #endif
 
-/* setenv() and unsetenv() for Windows */
+/* setenv(), unsetenv() and strcasecmp() for Windows */
 #ifdef _WIN32
 #define setenv(env, val, overwrite)  _putenv_s(env, val)
 #define unsetenv(env)                _putenv_s(env, "=")
+#define strcasecmp _stricmp
+#define mkdir _mkdir
 #endif
 
 /* Portable unroll pragma, for some reason clang defines __GNUC__ but uses the
@@ -42,7 +45,7 @@
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
-#define LEN(x) (sizeof(x)/sizeof(x[0]))
+#define LEN(x) (sizeof(x)/sizeof(*(x)))
 #ifndef sgn
 #define sgn(x) ((x) < 0 ? -1 : 1)
 #endif

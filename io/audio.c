@@ -2,17 +2,30 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#ifdef _MSC_VER
+#include <windows.h>
+#else
+#include <semaphore.h>
+#endif
 #include "audio.h"
+#include "log/log.h"
 #include "utils.h"
 
 static PaError print_error(PaError err);
 static int audio_stop_stream(void);
+static int pa_callback(const void *in, void *out, unsigned long frame_count, const PaStreamCallbackTimeInfo* time_info, PaStreamCallbackFlags status, void *user_data);
 
 static const double _samplerates[] = {48000, 44100};
 static struct {
 	PaStream *stream;
 	float buffer[BUFFER_SIZE];
-	unsigned long idx;
+	unsigned long head, tail;
+
+#ifdef _MSC_VER
+	HANDLE sem_rdy;
+#else
+	sem_t sem_rdy;
+#endif
 
 	const char **device_names;
 	int *device_idxs;
@@ -27,7 +40,8 @@ audio_init()
 	int i;
 	int dev_count;
 
-	_state.idx = 0;
+	_state.head = 0;
+	_state.tail = 0;
 
 	/* Initialize portaudio */
 	if ((err = Pa_Initialize()) != paNoError) {
@@ -36,7 +50,7 @@ audio_init()
 
 	/* Query devices */
 	if ((dev_count = Pa_GetDeviceCount()) < 0) {
-		fprintf(stderr, "[ERROR] Pa_GetDeviceCount returned %d\n", dev_count);
+		log_error("Pa_GetDeviceCount returned %d", dev_count);
 		return dev_count;
 	}
 
@@ -56,6 +70,13 @@ audio_init()
 	}
 
 	_state.stream = NULL;
+
+	/* Initialize callback-to-main signalling */
+#ifdef _MSC_VER
+	_state.sem_rdy = CreateSemaphore(NULL, 0, 0xFFFF, NULL);
+#else
+	sem_init(&_state.sem_rdy, 0, 0);
+#endif
 
 	return 0;
 }
@@ -100,7 +121,7 @@ audio_open_device(int device_idx)
 		}
 	}
 	if (samplerate < 0) {
-		fprintf(stderr, "[ERROR] Could not initialize specified device with sane parameters\n");
+		log_error("Could not initialize specified device with sane parameters");
 		_state.stream = NULL;
 		return -1;
 	}
@@ -110,9 +131,9 @@ audio_open_device(int device_idx)
 	                    &input_params,
 	                    NULL,                                   /* Input-only stream */
 	                    samplerate,                             /* Agreed upon samplerate */
-	                    paFramesPerBufferUnspecified,           /* Let portaudio choose the best size */
+	                    BUFFER_SIZE/4,                          /* Very high frame size reduces CPU usage */
 	                    paNoFlag | paDitherOff | paClipOff,     /* Disable extra audio processing */
-	                    NULL,
+	                    pa_callback,                            /* Callback function */
 	                    NULL
 	);
 	if (err != paNoError) {
@@ -137,6 +158,11 @@ audio_deinit(void)
 
 	Pa_Terminate();
 
+#ifdef _MSC_VER
+	CloseHandle(_state.sem_rdy);
+#else
+	sem_destroy(&_state.sem_rdy);
+#endif
 	_state.device_count = 0;
 	free(_state.device_names);
 	free(_state.device_idxs);
@@ -147,12 +173,43 @@ audio_deinit(void)
 int
 audio_read(float *ptr, size_t count)
 {
+	size_t valid_count, first_read, second_read;
+
 	/* If stream is not yet open, exit */
 	if (!_state.stream || Pa_IsStreamStopped(_state.stream)) {
 		return 1;
 	}
 
-	Pa_ReadStream(_state.stream, ptr, count);
+	/* While there's data left to read */
+	while (count) {
+		/* Get number of valid samples in the ring buffer */
+		valid_count = (_state.head - _state.tail + LEN(_state.buffer)) % LEN(_state.buffer);
+		first_read = MIN(MIN(valid_count, count), LEN(_state.buffer) - _state.tail);
+
+		/* First chunk, up to end of buffer */
+		memcpy(ptr, _state.buffer + _state.tail, sizeof(*_state.buffer) * first_read);
+		_state.tail = (_state.tail + first_read) % LEN(_state.buffer);
+
+		ptr += first_read;
+		second_read = MIN(count, valid_count) - first_read;
+
+		/* Second chunk, from start to whatever is left (optional) */
+		memcpy(ptr, _state.buffer, sizeof(*_state.buffer) * second_read);
+		_state.tail = (_state.tail + second_read) % LEN(_state.buffer);
+
+		count -= MIN(count, valid_count);
+		ptr += second_read;
+
+		/* Wait for more data to be available */
+		if (count) {
+#ifdef _MSC_VER
+			WaitForSingleObject(_state.sem_rdy, INFINITE);
+#else
+			sem_wait(&_state.sem_rdy);
+#endif
+		}
+	}
+
 	return 1;
 }
 
@@ -169,20 +226,54 @@ audio_get_device_names(void)
 }
 
 /* Static functions {{{ */
+static int
+pa_callback(const void *in, void *out, unsigned long frame_count, const PaStreamCallbackTimeInfo* time_info, PaStreamCallbackFlags status, void *user_data)
+{
+	unsigned int first_write;
+	const float *in_float = (const float*)in;
+
+	(void)out;
+	(void)user_data;
+	(void)time_info;
+	(void)status;
+
+	/* First chunk, up to end of ring buffer */
+	first_write = MIN(frame_count, LEN(_state.buffer) - _state.head);
+
+	memcpy(_state.buffer + _state.head, in_float, sizeof(*_state.buffer) * first_write);
+	_state.head = (_state.head + first_write) % LEN(_state.buffer);
+
+	frame_count -= first_write;
+
+	/* Second chunk, up to end of input */
+	memcpy(_state.buffer, in_float + first_write, sizeof(*_state.buffer) * frame_count);
+	_state.head = (_state.head + frame_count) % LEN(_state.buffer);
+
+#ifdef _MSC_VER
+	ReleaseSemaphore(_state.sem_rdy, 1, NULL);
+#else
+	sem_post(&_state.sem_rdy);
+#endif
+	return paContinue;
+}
+
 static PaError
 print_error(PaError err)
 {
-	fprintf(stderr, "Portaudio error: %s\n", Pa_GetErrorText(err));
+	log_error("Portaudio error: %s", Pa_GetErrorText(err));
 	return err;
 }
 
 static int
 audio_stop_stream(void)
 {
+	int err;
 	if (!_state.stream) return 0;
 
 	/* Stop streaming audio and deinitialize stream */
-	Pa_CloseStream(&_state.stream);
+	if ((err = Pa_AbortStream(_state.stream))) {
+		print_error(err);
+	}
 	_state.stream = NULL;
 
 	return 0;

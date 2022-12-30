@@ -8,8 +8,6 @@ typedef struct {
 	float *coeffs;
 
 	int size;
-	int memsize;
-	int modulo_mask;
 	int num_phases;
 	int idx;
 } Filter;

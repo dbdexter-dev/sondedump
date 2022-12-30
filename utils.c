@@ -64,35 +64,6 @@ cspline(const float *xs, const float *ys, float count, float x)
 	return -1;
 }
 
-float
-lat_to_y(float lat, int zoom)
-{
-	const float lat_rad = lat * M_PI/180.0;
-
-	return (1 << zoom) * (1.0 - logf(tanf(lat_rad) + 1.0/cosf(lat_rad)) / M_PI) / 2.0;
-}
-
-float
-lon_to_x(float lon, int zoom)
-{
-	lon = fmod(lon, 360.0);
-	return (1 << zoom) * (lon  + 180.0) / 360.0;
-}
-
-float
-y_to_lat(float y, int zoom)
-{
-	float n = M_PI - 2.0 * M_PI * y / (1 << zoom);
-	return 180.0 / M_PI * atanf(0.5 * (expf(n) - expf(-n)));
-}
-
-float
-x_to_lon(float x, int zoom)
-{
-	return x / (1 << zoom) * 360.0 - 180.0;
-}
-
-
 /* Static functions {{{ */
 static unsigned int
 count_days(unsigned int year, unsigned int month, unsigned int day)

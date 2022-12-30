@@ -21,6 +21,6 @@ void do_log_warn(const char *tag, int line, const char *fmt, ...);
 void do_log_info(const char *tag, int line, const char *fmt, ...);
 void do_log_debug(const char *tag, int line, const char *fmt, ...);
 
-void do_log_debug_hexdump(const char *tag, const void *data, size_t len);
+void do_log_debug_hexdump(const char *tag, int line, const void *data, size_t len);
 
 #endif

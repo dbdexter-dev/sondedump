@@ -17,10 +17,8 @@ csv_init(CSVFile *file, const char *fname)
 void
 csv_close(CSVFile *file)
 {
-	if (file && file->fd) {
-		fclose(file->fd);
-		file->fd = NULL;
-	}
+	fclose(file->fd);
+	file->fd = NULL;
 }
 
 void
