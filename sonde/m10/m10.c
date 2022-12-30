@@ -164,8 +164,8 @@ m20_parse_frame(SondeData *dst, M10Frame *frame)
 	dst->alt = m20_frame_20_alt(data_frame_20);
 
 	/* Parse GPS speed */
-	dx = m20_frame_20_dlat(data_frame_20);
-	dy = m20_frame_20_dlon(data_frame_20);
+	dx = m20_frame_20_dlon(data_frame_20);
+	dy = m20_frame_20_dlat(data_frame_20);
 	dz = m20_frame_20_dalt(data_frame_20);
 
 	dst->fields |= DATA_SPEED;
