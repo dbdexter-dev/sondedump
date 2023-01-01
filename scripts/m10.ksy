@@ -33,14 +33,27 @@ types:
 
   frame_20:
     seq:
-    - id: unk0
-      size: 4
+    - id: rh_counts
+      type: u2
+    - id: adc_temp
+      type: u2
+    - id: adc_rh_temp
+      type: u2
     - id: alt
       size: 3
     - id: dlat
       type: s2
     - id: dlon
       type: s2
+    - id: time
+      size: 3
+    - id: serial
+      size: 3
+    - id: seq
+      type: u1
+    - id: checksum
+      size: 2
+
 
 
   frame_9f:

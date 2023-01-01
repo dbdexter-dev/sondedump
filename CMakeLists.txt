@@ -23,6 +23,7 @@ if (MSVC)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Wall /std:c11")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ftree-vectorize")
 else()
+	add_definitions(-D__global=__attribute__\(\(visibility\(\"default\"\)\)\))
 	set(CMAKE_C_STANDARD 99)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -pipe -Wall -Wextra -pedantic -Wimplicit-fallthrough")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto")
@@ -39,6 +40,8 @@ execute_process(COMMAND "${CMAKE_C_COMPILER}" "-dumpmachine" COMMAND "grep" "arm
 if (is_arm EQUAL "0")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -mcpu=native -mfpu=auto")
 endif()
+
+set(CMAKE_C_VISIBILIITY_PRESET hidden)
 
 # Used by the log_*() functions to retrieve the base name of the source file
 string(LENGTH "${CMAKE_SOURCE_DIR}/" SOURCE_BASE_PATH_SIZE)

@@ -14,7 +14,7 @@
 #define COLOR_INFO "\033[;32m"
 #define COLOR_DEBUG "\033[;34m"
 
-int _log_enabled = 1;
+static int _log_enabled = 1;
 
 void
 log_enable(int enable)

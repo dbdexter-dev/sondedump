@@ -37,7 +37,7 @@ static void dfm09_parse_gps(SondeData *dst, DFM09Data *data, const DFM09Subframe
 static FILE *debug;
 #endif
 
-DFM09Decoder*
+__global DFM09Decoder*
 dfm09_decoder_init(int samplerate)
 {
 	DFM09Decoder *d = malloc(sizeof(*d));
@@ -54,7 +54,7 @@ dfm09_decoder_init(int samplerate)
 }
 
 
-void
+__global void
 dfm09_decoder_deinit(DFM09Decoder *d)
 {
 	framer_deinit(&d->f);
@@ -65,7 +65,7 @@ dfm09_decoder_deinit(DFM09Decoder *d)
 }
 
 
-ParserStatus
+__global ParserStatus
 dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	DFM09Subframe_PTU *ptu_subframe = &self->parsed_frame.ptu;
@@ -127,6 +127,7 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 	return PARSED;
 }
 
+/* Static functions {{{ */
 static void
 dfm09_parse_ptu(SondeData *dst, DFM09Data *data, const DFM09Subframe_PTU *subframe)
 {
@@ -230,3 +231,4 @@ dfm09_parse_gps(SondeData *dst, DFM09Data *data, const DFM09Subframe_GPS *subfra
 		break;
 	}
 }
+/* }}} */

@@ -31,7 +31,7 @@ static FILE *debug;
 #endif
 
 
-IMET4Decoder*
+__global IMET4Decoder*
 imet4_decoder_init(int samplerate)
 {
 	IMET4Decoder *d = malloc(sizeof(*d));
@@ -46,7 +46,7 @@ imet4_decoder_init(int samplerate)
 	return d;
 }
 
-void
+__global void
 imet4_decoder_deinit(IMET4Decoder *d) {
 	framer_deinit(&d->f);
 	free(d);
@@ -57,7 +57,7 @@ imet4_decoder_deinit(IMET4Decoder *d) {
 
 }
 
-ParserStatus
+__global ParserStatus
 imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	float x, y, z, dt;
@@ -125,6 +125,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 	return PARSED;
 }
 
+/* Static functions {{{ */
 static uint16_t
 imet4_serial(int seq, time_t time)
 {
@@ -236,3 +237,4 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 		break;
 	}
 }
+/* }}} */

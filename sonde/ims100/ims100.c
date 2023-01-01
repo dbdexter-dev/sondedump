@@ -33,9 +33,9 @@ struct ims100decoder {
 	IMS100FrameADC adc;
 };
 
-static void update_calibration(IMS100Decoder *self, int seq, uint8_t *fragment);
+static void update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment);
 
-IMS100Decoder*
+__global IMS100Decoder*
 ims100_decoder_init(int samplerate)
 {
 	IMS100Decoder *d = malloc(sizeof(*d));
@@ -56,7 +56,7 @@ ims100_decoder_init(int samplerate)
 	return d;
 }
 
-void
+__global void
 ims100_decoder_deinit(IMS100Decoder *d)
 {
 	framer_deinit(&d->f);
@@ -68,7 +68,7 @@ ims100_decoder_deinit(IMS100Decoder *d)
 #endif
 }
 
-ParserStatus
+__global ParserStatus
 ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	unsigned int seq;
@@ -200,8 +200,9 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	return PARSED;
 }
 
+/* Static functions {{{ */
 static void
-update_calibration(IMS100Decoder *self, int seq, uint8_t *fragment)
+update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment)
 {
 	const int calib_offset = seq % IMS100_CALIB_FRAGCOUNT;
 	memcpy(((uint8_t*)&self->calib) + IMS100_CALIB_FRAGSIZE * calib_offset, fragment + 2, 2);
@@ -209,3 +210,4 @@ update_calibration(IMS100Decoder *self, int seq, uint8_t *fragment)
 
 	self->calib_bitmask |= (1ULL << (63 - calib_offset));
 }
+/* }}} */

@@ -10,8 +10,8 @@
 #include "gps/time.h"
 #include "physics.h"
 
-static void m10_parse_frame(SondeData *dst, M10Frame *frame);
-static void m20_parse_frame(SondeData *dst, M10Frame *frame);
+static void m10_parse_frame(SondeData *dst, const M10Frame *frame);
+static void m20_parse_frame(SondeData *dst, const M10Frame *frame);
 
 struct m10decoder {
 	Framer f;
@@ -24,7 +24,7 @@ struct m10decoder {
 static FILE *debug;
 #endif
 
-M10Decoder*
+__global M10Decoder*
 m10_decoder_init(int samplerate)
 {
 	M10Decoder *d = malloc(sizeof(*d));
@@ -38,7 +38,7 @@ m10_decoder_init(int samplerate)
 	return d;
 }
 
-void
+__global void
 m10_decoder_deinit(M10Decoder *d)
 {
 	framer_deinit(&d->f);
@@ -48,7 +48,7 @@ m10_decoder_deinit(M10Decoder *d)
 #endif
 }
 
-ParserStatus
+__global ParserStatus
 m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 
@@ -101,7 +101,7 @@ m10_decode(M10Decoder *self, SondeData *dst, const float *src, size_t len)
 
 /* Static functions {{{ */
 static void
-m10_parse_frame(SondeData *dst, M10Frame *frame)
+m10_parse_frame(SondeData *dst, const M10Frame *frame)
 {
 	float dx, dy, dz;
 	M10Frame_9f *data_frame_9f = (M10Frame_9f*)frame;
@@ -140,7 +140,7 @@ m10_parse_frame(SondeData *dst, M10Frame *frame)
 }
 
 static void
-m20_parse_frame(SondeData *dst, M10Frame *frame)
+m20_parse_frame(SondeData *dst, const M10Frame *frame)
 {
 	M20Frame_20 *data_frame_20 = (M20Frame_20*)frame;
 	float dx, dy, dz;

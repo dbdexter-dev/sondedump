@@ -92,7 +92,7 @@ static const uint8_t _default_calib_data[sizeof(RS41Calibration)] = {
 };
 /* }}} */
 
-RS41Decoder*
+__global RS41Decoder*
 rs41_decoder_init(int samplerate)
 {
 	RS41Decoder *d = malloc(sizeof(*d));
@@ -111,7 +111,7 @@ rs41_decoder_init(int samplerate)
 	return d;
 }
 
-void
+__global void
 rs41_decoder_deinit(RS41Decoder *d)
 {
 	framer_deinit(&d->f);
@@ -122,7 +122,7 @@ rs41_decoder_deinit(RS41Decoder *d)
 #endif
 }
 
-ParserStatus
+__global ParserStatus
 rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	RS41Subframe *subframe;
