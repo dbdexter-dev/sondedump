@@ -87,8 +87,12 @@ set(LIBRARY_SOURCES
 	sonde/imet4/subframe.c sonde/imet4/subframe.h
 	sonde/imet4/protocol.h
 
+	sonde/mrz-n1/mrzn1.c
+	sonde/mrz-n1/protocol.h
+
 	include/dfm09.h
 	include/m10.h
+	include/mrzn1.h
 	include/imet4.h
 	include/ims100.h
 	include/rs41.h

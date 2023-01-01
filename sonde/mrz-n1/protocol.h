@@ -1,0 +1,17 @@
+#ifndef mrzn1_protocol_h
+#define mrzn1_protocol_h
+
+#include <stdint.h>
+#include "utils.h"
+
+#define MRZN1_BAUDRATE 2400
+#define MRZN1_SYNCWORD 0x666666666555a599
+#define MRZN1_SYNC_LEN 8
+
+#define MRZN1_FRAME_LEN 800
+
+PACK(typedef struct {
+	uint8_t data[MRZN1_FRAME_LEN/8];
+}) MRZN1Frame;
+
+#endif
