@@ -8,6 +8,7 @@
 #define log_debug_hexdump(buf, len) do_log_debug_hexdump(__FILE__, __LINE__, buf, len)
 #else
 #define log_debug(...)
+#define log_debug_hexdump(...)
 #endif
 
 #define log_info(...) do_log_info(__FILE__, __LINE__, __VA_ARGS__)
