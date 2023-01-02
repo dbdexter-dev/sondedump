@@ -127,6 +127,7 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	RS41Subframe *subframe;
 	size_t frame_offset, frame_data_len;
+	int errcount;
 
 	/* Read a new frame */
 	switch (framer_read(&self->f, self->raw_frame, src, len)) {
@@ -138,13 +139,15 @@ rs41_decode(RS41Decoder *self, SondeData *dst, const float *src, size_t len)
 
 	/* Descramble and error correct */
 	rs41_frame_descramble(&self->frame, self->raw_frame);
-	rs41_frame_correct(&self->frame, &self->rs);
+	errcount = rs41_frame_correct(&self->frame, &self->rs);
 
 #ifndef NDEBUG
-	if (debug) {
+	if (debug && errcount >= 0) {
 		/* Output the frame to file */
 		fwrite(&self->frame, RS41_FRAME_LEN/8, 1, debug);
 	}
+#else
+	(void)errcount;
 #endif
 
 	/* Prepare to parse subframes */

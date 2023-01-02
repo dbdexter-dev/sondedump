@@ -3,6 +3,7 @@
 #include <complex.h>
 
 typedef struct {
+	float bias;
 	float moving_avg;
 } Agc;
 
