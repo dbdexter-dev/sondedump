@@ -159,10 +159,10 @@ dfm09_parse_ptu(SondeData *dst, DFM09Data *data, const DFM09Subframe_PTU *subfra
 	default:
 		if (subframe->type == data->ptu_serial_ch) {
 			/* Serial number */
-			dst->fields |= DATA_SERIAL;
 
 			if (subframe->type == DFM06_SERIAL_TYPE) {
 				/* DFM06: direct serial number */
+				dst->fields |= DATA_SERIAL;
 				sprintf(dst->serial, "D%06X", ch);
 			} else {
 				/* DFM09: serial number spans multiple subframes */
@@ -176,7 +176,10 @@ dfm09_parse_ptu(SondeData *dst, DFM09Data *data, const DFM09Subframe_PTU *subfra
 				/* If potentially complete, convert raw serial to string */
 				if ((ch & 0xF) == 0) {
 					local_serial = data->raw_serial;
+
 					while (local_serial && !(local_serial & 0xFFFF)) local_serial >>= 16;
+
+					dst->fields |= DATA_SERIAL;
 					sprintf(dst->serial, "D%08ld", local_serial);
 				}
 			}
