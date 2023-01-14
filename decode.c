@@ -245,9 +245,9 @@ decode(const float *srcbuf, size_t len)
 				printable.serial[sizeof(printable.serial) - 1] = 0;
 			}
 
-			if (data.fields & DATA_XDATA) {
-				printable.fields |= DATA_XDATA;
-				printable.xdata = data.xdata;
+			if (data.fields & DATA_OZONE) {
+				printable.fields |= DATA_OZONE;
+				printable.o3_mpa = data.o3_mpa;
 			}
 
 			if (data.fields & DATA_SHUTDOWN) {

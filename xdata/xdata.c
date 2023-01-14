@@ -13,12 +13,21 @@ static const float _cfFactor[]   = {1.24, 1.124, 1.087, 1.066, 1.048, 1.041,
 
 
 float
-xdata_ozone_ppb(float pressure, float o3_current, float o3_flowrate, float pump_temp)
+xdata_ozone_mpa(float o3_current, float o3_flowrate, float pump_temp)
 {
-	float o3_pressure, o3_ppb;
+	float o3_mpa;
 
-	o3_pressure = 4.307e-3 * o3_current * pump_temp * o3_flowrate * o3_correction_factor(pressure);
-	o3_ppb = o3_pressure * 1000.0 / pressure;
+	o3_mpa = 4.307e-3 * o3_current * pump_temp * o3_flowrate;
+
+	return o3_mpa;
+}
+
+float
+xdata_ozone_mpa_to_ppb(float o3_mpa, float pressure)
+{
+	float o3_ppb;
+
+	o3_ppb = o3_mpa * o3_correction_factor(pressure) * 1000.0 / pressure;
 
 	return o3_ppb;
 }

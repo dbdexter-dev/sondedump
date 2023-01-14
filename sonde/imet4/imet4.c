@@ -166,7 +166,6 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 	int hour, min, sec;
 	time_t now;
 	struct tm datetime;
-	float synth_pressure;
 
 	switch (subframe->type) {
 	case IMET4_SFTYPE_PTU:
@@ -245,14 +244,9 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 		switch (xdata->instr_id) {
 		case IMET4_XDATA_INSTR_OZONE:
 			/* If no pressure data was provided, derive it from the GPS altitude */
-			if (dst->pressure) {
-				synth_pressure = dst->pressure;
-			} else {
-				synth_pressure = altitude_to_pressure(dst->alt);
-			}
 			ozone_xdata = (IMET4Subframe_XDATA_Ozone*)(&xdata->data);
-			dst->fields |= DATA_XDATA;
-			dst->xdata.o3_ppb = imet4_subframe_xdata_ozone(synth_pressure, ozone_xdata);
+			dst->fields |= DATA_OZONE;
+			dst->o3_mpa = imet4_subframe_xdata_ozone(ozone_xdata);
 			break;
 		default:
 			log_warn("Unknown XDATA instrument ID %02x", xdata->instr_id);

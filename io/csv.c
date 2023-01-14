@@ -52,8 +52,8 @@ csv_add_point(CSVFile *file, const SondeData *data)
 		fprintf(file->fd, ",,,");
 	}
 
-	if (data->fields & DATA_XDATA) {
-		fprintf(file->fd, "O3=%fppb", data->xdata.o3_ppb);
+	if (data->fields & DATA_OZONE) {
+		fprintf(file->fd, "O3=%fmPa", data->o3_mpa);
 	} else {
 	}
 

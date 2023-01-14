@@ -547,8 +547,8 @@ printf_data(const char *fmt, const SondeData *data)
 				printf("%s", time);
 				break;
 			case 'x':
-				if (data->fields & DATA_XDATA) {
-					printf("O3=%.2f ppb", data->xdata.o3_ppb);
+				if (data->fields & DATA_OZONE) {
+					printf("O3=%.2f mPa", data->o3_mpa);
 				}
 				break;
 			default:

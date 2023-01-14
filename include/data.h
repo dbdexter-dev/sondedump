@@ -16,12 +16,12 @@ typedef enum {
 	DATA_SPEED      = 1 << 3,       /* Speed/climb/heading */
 	DATA_TIME       = 1 << 4,       /* Date/time */
 	DATA_PTU        = 1 << 5,       /* Pressure/temperature/humidity w/ calibration percentage */
-	DATA_XDATA      = 1 << 6,       /* XDATA as string */
+	DATA_OZONE      = 1 << 6,       /* Ozone XDATA */
 	DATA_SHUTDOWN   = 1 << 7,       /* Auto-shutdown time */
 } DataBitmask;
 
 typedef struct {
-	float o3_ppb;   /* Ozone concentration, in ppb */
+	float o3_mpa;   /* Ozone partial pressure, [mPa] */
 } SondeXdata;
 
 typedef struct {
@@ -44,7 +44,7 @@ typedef struct {
 	float rh;               /* Relavite humidity, percentage */
 	float pressure;         /* Air pressure, hPa */
 
-	SondeXdata xdata;
+	float o3_mpa;       /* Ozone partial pressure, [mPa] */
 
 	int shutdown;       /* Shutdown timer */
 } SondeData;

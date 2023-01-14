@@ -253,9 +253,9 @@ redraw(void)
 			"Pressure: %.1fhPa", data->pressure);
 
 	start_row++;
-	if (data->fields & DATA_XDATA) {
+	if (data->fields & DATA_OZONE) {
 		mvwprintw(tui.win, start_row++, start_col - sizeof("Aux. data:"),
-				"Aux. data: O3=%.2f ppb", data->xdata.o3_ppb);
+				"Aux. data: O3=%.2f mPa", data->o3_mpa);
 	}
 	start_row++;
 

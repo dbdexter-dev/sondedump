@@ -30,7 +30,7 @@ struct rs41decoder {
 static void rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metadata);
 static void rs41_update_metadata(RS41Metadata *m, RS41Subframe_Info *s);
 static float rs41_get_calib_percent(RS41Metadata *m);
-static void rs41_xdata_decode(SondeXdata *dst, float curPressure, const char *asciiData, int len);
+static void rs41_xdata_decode(SondeData *dst, const char *asciiData, int len);
 
 #ifndef NDEBUG
 static FILE *debug;
@@ -280,8 +280,7 @@ rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metada
 		 * ppb calculation can still happen */
 		if (!(dst->pressure > 0)) dst->pressure = altitude_to_pressure(dst->alt);
 
-		dst->fields |= DATA_XDATA;
-		rs41_xdata_decode(&dst->xdata, dst->pressure, xdata->ascii_data, xdata->len-1);
+		rs41_xdata_decode(dst, xdata->ascii_data, xdata->len-1);
 		break;
 	default:
 		/* Unknown */
@@ -290,7 +289,7 @@ rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metada
 }
 
 static void
-rs41_xdata_decode(SondeXdata *dst, float curPressure, const char *asciiData, int len)
+rs41_xdata_decode(SondeData *dst, const char *asciiData, int len)
 {
 	unsigned int r_pumpTemp, r_o3Current, r_battVoltage, r_pumpCurrent, r_extVoltage;
 	float pumpTemp, o3Current;
@@ -309,7 +308,8 @@ rs41_xdata_decode(SondeXdata *dst, float curPressure, const char *asciiData, int
 				pumpTemp = (r_pumpTemp & 0x8000 ? -1 : 1) * 0.001 * (r_pumpTemp & 0x7FFF) + 273.15;
 				o3Current = r_o3Current * 1e-5;
 
-				dst->o3_ppb = xdata_ozone_ppb(curPressure, o3Current, DEFAULT_O3_FLOWRATE, pumpTemp);
+				dst->fields |= DATA_OZONE;
+				dst->o3_mpa = xdata_ozone_mpa(o3Current, DEFAULT_O3_FLOWRATE, pumpTemp);
 			} else {
 				/* Diagnostic data */
 				asciiData += 17;

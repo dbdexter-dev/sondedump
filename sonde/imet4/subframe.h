@@ -14,8 +14,9 @@ size_t imet4_subframe_len(IMET4Subframe *sf);
 
 
 /**
- * Parse ozone concentration
+ * Parse ozone XDATA
+ * @return  ozone partial presusure, [mPa]
  */
-float imet4_subframe_xdata_ozone(float pressure, IMET4Subframe_XDATA_Ozone *sf);
+float imet4_subframe_xdata_ozone(IMET4Subframe_XDATA_Ozone *sf);
 
 #endif
