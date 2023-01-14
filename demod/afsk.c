@@ -29,7 +29,7 @@ afsk_init(AFSKDemod *d, int samplerate, int symrate, float f_mark, float f_space
 	if (filter_init_lpf(&d->lpf, AFSK_FILTER_ORDER, 3 * sym_freq, num_phases)) return 1;
 
 	/* Initialize symbol timing recovery */
-	timing_init(&d->timing, sym_freq/num_phases, AFSK_SYM_ZETA, sym_freq/num_phases/250);
+	timing_init(&d->timing, sym_freq/num_phases, AFSK_SYM_ZETA, sym_freq/num_phases/150);
 
 	d->p_mark = 0;
 	d->p_space = 0;

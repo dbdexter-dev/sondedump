@@ -66,7 +66,6 @@ correlate(Correlator *c, int *inverted, const uint8_t *restrict hard_frame, int 
 		}
 	}
 
-	log_debug("Best correlation %d", best_corr);
 	return best_offset - sync_len;
 }
 

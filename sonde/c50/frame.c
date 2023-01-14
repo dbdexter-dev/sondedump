@@ -32,9 +32,6 @@ c50_frame_correct(C50Frame *frame)
 	checksum = fcs16(&frame->type, sizeof(frame->type) + sizeof(frame->data));
 
 	if (checksum != expected) {
-		uint16_t tmp = checksum ^ expected;
-		if (count_ones(&tmp, 2) < 3)
-			log_warn("Expected %04x, got %04x", expected, checksum);
 		return -1;
 	}
 

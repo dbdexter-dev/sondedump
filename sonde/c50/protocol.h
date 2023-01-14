@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "utils.h"
 
-#define C50_BAUDRATE 2400
+#define C50_BAUDRATE 2380
 #define C50_SYNCWORD 0x005FF
 #define C50_SYNC_LEN 20
 #define C50_MARK_FREQ 4700.0
@@ -19,7 +19,7 @@ enum c50_type {
 	C50_TYPE_TEMP_TOP = 0x05,
 	C50_TYPE_TEMP_O3_INTAKE = 0x06,
 
-	C50_TYPE_RH = 0x11,
+	C50_TYPE_RH = 0x10,
 
 	C50_TYPE_DATE = 0x14,
 	C50_TYPE_TIME = 0x15,
