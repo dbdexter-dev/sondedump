@@ -162,9 +162,12 @@ m10_frame_9f_battery(const M10Frame_9f *f)
 void
 m20_frame_20_serial(char *dst, const M20Frame_20 *frame)
 {
-    uint32_t id = frame->sn[0];
-    uint16_t idn = ((frame->sn[2]<<8)|frame->sn[1])/4;
-	sprintf(dst, "ME%01X%01X%01X%01X%01X%01X%01X", (id/16)&0xF, id&0xF, (idn/10000)%10, (idn/1000)%10, (idn/100)%10, (idn/10)%10, idn%10);
+	const uint32_t raw_serial = frame->sn[2] << 16 | frame->sn[1] << 8 | frame->sn[0];
+	const uint8_t serial_0 = raw_serial & 0x3F;
+	const uint8_t serial_1 = (raw_serial >> 6) & 0x0F;
+	const uint16_t serial_2 = raw_serial >> 10;
+
+	sprintf(dst, "M20-%01d%02d-%d-%05d", serial_0 / 12, serial_0 % 12 + 1, serial_1, serial_2);
 }
 
 time_t m20_frame_20_time(const M20Frame_20* f) {

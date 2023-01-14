@@ -82,8 +82,10 @@ types:
       size: 1
     - id: week
       type: u2
+    - id: prns
+      size: 12
     - id: pad0
-      size: 16
+      size: 4
     - id: rh_ref
       size: 3
     - id: rh_val
@@ -96,7 +98,7 @@ types:
       type: u2
     - id: pad2
       size: 4
-    - id: varying2
+    - id: adc_batt
       type: u2
     - id: varying3
       type: u2
@@ -104,9 +106,11 @@ types:
       size: 12
     - id: varying4
       type: u2
-    - id: pad5
-      size: 2
     - id: varying5
-      type: u2
+      size: 2
     - id: varying6
       type: u2
+    - id: varying7
+      type: u2
+    - id: serial
+      size: 5
