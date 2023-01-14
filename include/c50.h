@@ -1,0 +1,37 @@
+#ifndef c50_h
+#define c50_h
+
+#include "data.h"
+
+typedef struct c50decoder C50Decoder;
+
+
+/**
+ * Initialize a Meteolabor SRS-C50 frame decoder
+ *
+ * @param samplerate samplerate of the raw FM-demodulated stream
+ * @return an initialized decoder object
+ */
+C50Decoder* c50_decoder_init(int samplerate);
+
+/**
+ * Deinitialize the given decoder
+ *
+ * @param d deocder to deinit
+ */
+void c50_decoder_deinit(C50Decoder *d);
+
+/**
+ * Decode the next frame in the stream
+ *
+ * @param d decoder to use
+ * @param dst pointer to data struct to fill
+ * @param src pointer to raw samples to decode
+ * @param len number of samples available
+ *
+ * @return PROCEED if the src buffer has been fully processed
+ *         PARSED  if a frame has been decoded into *dst
+ */
+ParserStatus c50_decode(C50Decoder *d, SondeData *dst, const float *src, size_t len);
+
+#endif

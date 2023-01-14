@@ -13,7 +13,7 @@ typedef struct {
  * Initialize the correlator with a synchronization sequence
  *
  * @param syncword synchronization word
- * @param len synchronization word length
+ * @param len synchronization word length, in bits
  */
 void correlator_init(Correlator *c, uint64_t syncword, int sync_len);
 

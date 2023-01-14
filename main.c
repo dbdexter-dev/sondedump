@@ -64,8 +64,8 @@ volatile int _interrupted;
 static FILE *_wav;
 static int _bps;
 
-const char *_decoder_names[] = {"Auto", "DFM", "iMet-4", "iMS-100", "M10/M20", "RS41"};
-const char *_decoder_argvs[] = {"auto", "dfm", "imet4", "ims100", "m10", "rs41"};
+const char *_decoder_names[] = {"Auto", "C50", "DFM", "iMet-4", "iMS-100", "M10/M20", "RS41"};
+const char *_decoder_argvs[] = {"auto", "c50", "dfm", "imet4", "ims100", "m10", "rs41"};
 const int _decoder_count = LEN(_decoder_names);
 
 static struct option longopts[] = {

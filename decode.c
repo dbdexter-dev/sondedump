@@ -1,3 +1,4 @@
+#include <include/c50.h>
 #include <include/dfm09.h>
 #include <include/imet4.h>
 #include <include/ims100.h>
@@ -22,6 +23,7 @@ static DFM09Decoder *dfm09decoder = NULL;
 static IMS100Decoder *ims100decoder = NULL;
 static M10Decoder *m10decoder = NULL;
 static IMET4Decoder *imet4decoder = NULL;
+static C50Decoder *c50decoder = NULL;
 
 static SondeData printable;
 static int has_data, new_data;
@@ -43,6 +45,7 @@ decoder_init(int samplerate)
 	ims100decoder = ims100_decoder_init(samplerate);
 	m10decoder = m10_decoder_init(samplerate);
 	imet4decoder = imet4_decoder_init(samplerate);
+	c50decoder = c50_decoder_init(samplerate);
 
 	/* Initialize pointers to "no decoder" */
 	active_decoder_decode = NULL;
@@ -91,6 +94,10 @@ decoder_deinit(void)
 		imet4_decoder_deinit(imet4decoder);
 		imet4decoder = NULL;
 	}
+	if (c50decoder) {
+		c50_decoder_deinit(c50decoder);
+		c50decoder = NULL;
+	}
 
 	/* Clear history buffers */
 	sample_count = 0;
@@ -134,6 +141,10 @@ decode(const float *srcbuf, size_t len)
 			active_decoder_decode = (decoder_iface_t)&imet4_decode;
 			active_decoder_ctx = imet4decoder;
 			break;
+		case C50:
+			active_decoder_decode = (decoder_iface_t)&c50_decode;
+			active_decoder_ctx = c50decoder;
+			break;
 		default:
 			break;
 		}
@@ -176,6 +187,13 @@ decode(const float *srcbuf, size_t len)
 			if (data.fields) {
 				log_info("Autodetected: iMet-4");
 				set_active_decoder(IMET4);
+				break;
+			}
+		}
+		while (c50_decode(c50decoder, &data, srcbuf, len) != PROCEED) {
+			if (data.fields) {
+				log_info("Autodetected: SRS C50");
+				set_active_decoder(C50);
 				break;
 			}
 		}

@@ -11,7 +11,7 @@
 #define M10_FRAME_LEN 1664
 
 #define M10_SYNCWORD 0x66666666b366
-#define M10_SYNC_LEN 6
+#define M10_SYNC_LEN 48
 #define M10_MAX_DATA_LEN 99
 
 #define M10_FTYPE_DATA 0x9F

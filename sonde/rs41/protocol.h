@@ -10,11 +10,12 @@
 /* Frame parameters */
 #define RS41_SYNCWORD 0x086d53884469481f
 //#define RS41_SYNCWORD 0x10b6ca11229612f8
-#define RS41_SYNC_LEN 8
+#define RS41_SYNC_LEN 64
+
 #define RS41_RS_LEN 48
 #define RS41_DATA_LEN 263
 #define RS41_XDATA_LEN 198
-#define RS41_MAX_FRAME_LEN (RS41_SYNC_LEN + RS41_RS_LEN + 1 + RS41_DATA_LEN + RS41_XDATA_LEN)
+#define RS41_MAX_FRAME_LEN (RS41_SYNC_LEN/8 + RS41_RS_LEN + 1 + RS41_DATA_LEN + RS41_XDATA_LEN)
 #define RS41_FRAME_LEN (8 * RS41_MAX_FRAME_LEN)
 
 #define RS41_PRN_PERIOD 64
@@ -53,7 +54,7 @@
 #define RS41_FLIGHT_STATUS_VBAT_LOW (1 << 12)   /* 0 = battery ok, 1 = battery low */
 
 PACK(typedef struct {
-	uint8_t syncword[RS41_SYNC_LEN];
+	uint8_t syncword[RS41_SYNC_LEN/8];
 	uint8_t rs_checksum[RS41_RS_LEN];
 	uint8_t extended_flag;
 	uint8_t data[RS41_DATA_LEN + RS41_XDATA_LEN];

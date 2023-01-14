@@ -7,7 +7,7 @@
 #define DFM09_BAUDRATE 2500
 
 #define DFM09_SYNCWORD 0x9a995a55
-#define DFM09_SYNC_LEN 4
+#define DFM09_SYNC_LEN 32
 #define DFM09_FRAME_LEN 560
 
 /* Interleaving parameters */

@@ -1,8 +1,9 @@
 #include "crc.h"
 
 uint16_t
-crc16_ccitt_false(uint8_t *data, size_t len)
+crc16_ccitt_false(const void *v_data, size_t len)
 {
+	const uint8_t *data = v_data;
 	int i;
 	uint16_t crc;
 
@@ -19,8 +20,9 @@ crc16_ccitt_false(uint8_t *data, size_t len)
 }
 
 uint16_t
-crc16_aug_ccitt(uint8_t *data, size_t len)
+crc16_aug_ccitt(const void *v_data, size_t len)
 {
+	const uint8_t *data = v_data;
 	int i;
 	uint16_t crc;
 
@@ -34,4 +36,18 @@ crc16_aug_ccitt(uint8_t *data, size_t len)
 	}
 
 	return crc;
+}
+
+uint16_t
+fcs16(const void *v_data, size_t len)
+{
+	const uint8_t *data = v_data;
+	uint8_t sum[2] = {0, 0};
+
+	for (; len>0; len--) {
+		sum[0] += *data++;
+		sum[1] += sum[0];
+	}
+
+	return sum[0] << 8 | sum[1];
 }

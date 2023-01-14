@@ -4,7 +4,7 @@
 #include "timing.h"
 #include "utils.h"
 
-#define FREQ_DEV_EXP 12
+#define FREQ_DEV_EXP 8
 
 static void update_alpha_beta(Timing *t, float damp, float bw);
 static float gardner_err(float prev, float interm, float cur);
