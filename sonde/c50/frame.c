@@ -14,7 +14,7 @@ c50_frame_descramble(C50Frame *dst, const C50RawFrame *src)
 	int i, j;
 
 	for (i=0; i<C50_FRAME_LEN/10; i++) {
-		bitcpy(&byte, raw_src, 4 + 10*i + 1, 8);
+		bitcpy(&byte, raw_src, 10*i + 1, 8);
 
 		for (j=0; j<8; j++) {
 			raw_dst[i] = (raw_dst[i]) << 1 | (byte & 0x1);
@@ -32,6 +32,9 @@ c50_frame_correct(C50Frame *frame)
 	checksum = fcs16(&frame->type, sizeof(frame->type) + sizeof(frame->data));
 
 	if (checksum != expected) {
+		uint16_t tmp = checksum ^ expected;
+		if (count_ones(&tmp, 2) < 3)
+			log_warn("Expected %04x, got %04x", expected, checksum);
 		return -1;
 	}
 

@@ -20,7 +20,8 @@ typedef struct {
 	Correlator corr;
 
 	int state;
-	size_t offset, sync_offset;
+	int sync_offset;
+	size_t offset;
 	size_t framelen;
 	int inverted;
 } Framer;

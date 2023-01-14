@@ -58,6 +58,11 @@ c50_decode(C50Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 
 	c50_frame_descramble(&self->frame, self->raw_frame);
+#ifndef NDEBUG
+	if (!memcmp(&self->frame, "\x00\xff", 2))
+	fwrite(&self->frame, sizeof(self->frame), 1, debug);
+#endif
+
 
 	dst->fields = 0;
 
@@ -66,9 +71,6 @@ c50_decode(C50Decoder *self, SondeData *dst, const float *src, size_t len)
 		return PARSED;
 	}
 
-#ifndef NDEBUG
-	fwrite(&self->frame, sizeof(self->frame), 1, debug);
-#endif
 	log_debug_hexdump(&self->frame, sizeof(self->frame));
 	data = bitmerge(self->frame.data, 32);
 

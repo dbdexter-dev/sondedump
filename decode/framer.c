@@ -58,11 +58,17 @@ framer_read(Framer *f, void *v_dst, const float *src, size_t len)
 		/* Copy bits from the previous frame */
 		assert(f->offset >= f->framelen);
 		f->offset -= f->framelen;
-		memcpy(dst, dst + f->framelen/8, f->offset/8+1);
+
+		if (f->framelen % 8) {
+			bitcpy(dst, dst, f->framelen, f->offset);
+		} else {
+			memcpy(dst, dst + f->framelen/8, f->offset/8+1);
+		}
+
 		f->state = READ;
 		/* FALLTHROUGH */
 	case READ:
-		switch (framer_demod_internal(f, dst, &f->offset, f->framelen + 8*f->corr.sync_len, src, len)) {
+		switch (framer_demod_internal(f, dst, &f->offset, f->framelen + f->corr.sync_len, src, len)) {
 		case PROCEED:
 			return PROCEED;
 		case PARSED:
@@ -71,6 +77,7 @@ framer_read(Framer *f, void *v_dst, const float *src, size_t len)
 
 		/* Find offset of the sync marker */
 		f->sync_offset = correlate(&f->corr, &f->inverted, dst, f->framelen/8);
+		assert(f->sync_offset >= 0);
 		log_debug("Offset %d", f->sync_offset);
 
 		f->state = REALIGN;
@@ -89,9 +96,12 @@ framer_read(Framer *f, void *v_dst, const float *src, size_t len)
 
 		/* Undo inversion */
 		if (f->inverted) {
-			for (i=0; i < ((int)f->framelen - 7)/8 + 1; i++) {
+			for (i=0; i < (int)f->framelen/8; i++) {
 				dst[i] ^= 0xFF;
 			}
+			/* Handle last few bits separately */
+			if (f->framelen % 8)
+				dst[i] ^= ~((1 << (8 - (f->framelen % 8))) - 1);
 		}
 
 		f->state = READ_PRE;

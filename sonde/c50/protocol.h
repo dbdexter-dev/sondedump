@@ -5,12 +5,12 @@
 #include "utils.h"
 
 #define C50_BAUDRATE 2400
-#define C50_SYNCWORD 0xF005FF
-#define C50_SYNC_LEN 3
+#define C50_SYNCWORD 0x005FF
+#define C50_SYNC_LEN 20
 #define C50_MARK_FREQ 4700.0
 #define C50_SPACE_FREQ 2900.0
 
-#define C50_FRAME_LEN 100
+#define C50_FRAME_LEN 90
 
 enum c50_type {
 	C50_TYPE_TEMP_REF = 0x02,
