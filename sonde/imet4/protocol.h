@@ -18,7 +18,7 @@ enum imet4_sftype {
 	IMET4_SFTYPE_GPS = 0x02,
 	IMET4_SFTYPE_XDATA = 0x03,
 	IMET4_SFTYPE_PTUX = 0x04,
-	IMET4_SFTYPE_GPSX=  0x05,
+	IMET4_SFTYPE_GPSX = 0x05,
 };
 
 enum imet4_xdata_instr {
@@ -99,7 +99,6 @@ PACK(typedef struct {
 /* }}} */
 /* XDATA sub-subframe types {{{ */
 PACK(typedef struct {
-	uint8_t dc_idx;
 	uint8_t cell_current[2];
 	uint8_t pump_temp[2];
 	uint8_t pump_current;

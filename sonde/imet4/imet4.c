@@ -13,6 +13,7 @@
 #include "gps/ecef.h"
 #include "log/log.h"
 #include "protocol.h"
+#include "physics.h"
 #include "subframe.h"
 
 static uint16_t imet4_serial(int seq, time_t time);
@@ -62,11 +63,12 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	float x, y, z, dt;
 	size_t i;
+	int subframe_len;
 
 	IMET4Subframe *subframe;
 
 	/* Read a new frame */
-	switch(framer_read(&self->f, self->raw_frame, src, len)) {
+	switch (framer_read(&self->f, self->raw_frame, src, len)) {
 	case PROCEED:
 		return PROCEED;
 	case PARSED:
@@ -77,23 +79,25 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 	imet4_frame_descramble(&self->frame, self->raw_frame);
 
 #ifndef NDEBUG
-	if (debug) fwrite(self->raw_frame, IMET4_FRAME_LEN/8, 1, debug);
+	if (debug) fwrite(self->raw_frame, 2*sizeof(self->frame), 1, debug);
 #endif
 
 	/* Prepare to parse subframes */
 	dst->fields = 0;
 
-	for (i = 0; i < sizeof(self->frame.data); i += imet4_subframe_len(subframe)) {
+	for (i = 0; i < sizeof(self->frame.data); i += subframe_len) {
 		/* Extract subframe */
 		subframe = (IMET4Subframe*)&self->frame.data[i];
+		subframe_len = imet4_subframe_len(subframe);
 
 		/* If zero-length, stop parsing the entire frame */
-		if (!imet4_subframe_len(subframe)) break;
+		if (!subframe_len) break;
 
 		/* Verify CRC, and invalidate frame if it doesn't match */
-		if (!crc16_aug_ccitt((uint8_t*)subframe, imet4_subframe_len(subframe))) {
+		if (!crc16_aug_ccitt((uint8_t*)subframe, subframe_len)) {
 			/* Parse subframe */
 			imet4_parse_subframe(dst, subframe);
+			log_debug_hexdump(subframe, subframe_len);
 		}
 	}
 
@@ -149,6 +153,7 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 	int hour, min, sec;
 	time_t now;
 	struct tm datetime;
+	float synth_pressure;
 
 	switch (subframe->type) {
 	case IMET4_SFTYPE_PTU:
@@ -177,6 +182,9 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 		dst->lat = gps->lat;
 		dst->lon = gps->lon;
 		dst->alt = gps->alt - 5000.0;
+
+		/* If no pressure was provided, derive it from altitude so that the O3
+		 * concentration can still be calculated */
 
 		/* Get time from the correct field, based on frame type */
 		switch (subframe->type) {
@@ -223,9 +231,15 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 	case IMET4_SFTYPE_XDATA:
 		switch (xdata->instr_id) {
 		case IMET4_XDATA_INSTR_OZONE:
+			/* If no pressure data was provided, derive it from the GPS altitude */
+			if (dst->pressure) {
+				synth_pressure = dst->pressure;
+			} else {
+				synth_pressure = altitude_to_pressure(dst->alt);
+			}
 			ozone_xdata = (IMET4Subframe_XDATA_Ozone*)(&xdata->data);
 			dst->fields |= DATA_XDATA;
-			dst->xdata.o3_ppb = imet4_subframe_xdata_ozone(dst->pressure, ozone_xdata);
+			dst->xdata.o3_ppb = imet4_subframe_xdata_ozone(synth_pressure, ozone_xdata);
 			break;
 		default:
 			log_warn("Unknown XDATA instrument ID %02x", xdata->instr_id);
