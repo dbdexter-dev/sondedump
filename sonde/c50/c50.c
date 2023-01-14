@@ -1,14 +1,14 @@
 #include <include/c50.h>
 #include <string.h>
+#include "frame.h"
 #include "protocol.h"
 #include "decode/framer.h"
 
 
 struct c50decoder {
 	Framer f;
-	C50Frame raw_frame[2];
+	C50RawFrame raw_frame[2];
 	C50Frame frame;
-	size_t offset;
 };
 
 #ifndef NDEBUG
@@ -22,8 +22,6 @@ c50_decoder_init(int samplerate)
 	framer_init_afsk(&d->f, samplerate, C50_BAUDRATE, C50_FRAME_LEN,
 			C50_MARK_FREQ, C50_SPACE_FREQ,
 			C50_SYNCWORD, C50_SYNC_LEN);
-
-	d->offset = 0;
 
 #ifndef NDEBUG
 	debug = fopen("/tmp/c50frames.data", "wb");
@@ -45,22 +43,27 @@ c50_decoder_deinit(C50Decoder *d) {
 ParserStatus
 c50_decode(C50Decoder *self, SondeData *dst, const float *src, size_t len)
 {
-	uint8_t *const raw_frame = (uint8_t*)self->raw_frame;
-
 	/* Read a new frame */
-	switch(framer_read(&self->f, raw_frame, src, len)) {
+	switch(framer_read(&self->f, self->raw_frame, src, len)) {
 	case PROCEED:
 		return PROCEED;
 	case PARSED:
 		break;
 	}
 
+	c50_frame_descramble(&self->frame, self->raw_frame);
+
+	dst->fields = 0;
+
+	/* If frame contains errors, do not parse */
+	if (c50_frame_correct(&self->frame) < 0) {
+		return PARSED;
+	}
+
 #ifndef NDEBUG
-	if (debug && !memcmp(raw_frame, "\x00\xff", 2))
-		fwrite(raw_frame, C50_FRAME_LEN/8, 1, debug);
+		fwrite(&self->frame, sizeof(self->frame), 1, debug);
 #endif
 
-	self->raw_frame[0] = self->raw_frame[1];
-	dst->fields = 0;
+
 	return PARSED;
 }

@@ -85,6 +85,7 @@ set(LIBRARY_SOURCES
 	sonde/imet4/protocol.h
 
 	sonde/c50/c50.c
+	sonde/c50/frame.c sonde/c50/frame.h
 	sonde/c50/protocol.h
 
 	include/dfm09.h
