@@ -1,5 +1,6 @@
 #include <include/imet4.h>
 #include <math.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -63,6 +64,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	float x, y, z, dt;
 	size_t i;
+	size_t bytes_consumed;
 	int subframe_len;
 
 	IMET4Subframe *subframe;
@@ -79,7 +81,7 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 	imet4_frame_descramble(&self->frame, self->raw_frame);
 
 #ifndef NDEBUG
-	if (debug) fwrite(self->raw_frame, 2*sizeof(self->frame), 1, debug);
+	if (debug) fwrite(&self->frame, sizeof(self->frame), 1, debug);
 #endif
 
 	/* Prepare to parse subframes */
@@ -97,8 +99,19 @@ imet4_decode(IMET4Decoder *self, SondeData *dst, const float *src, size_t len)
 		if (!crc16_aug_ccitt((uint8_t*)subframe, subframe_len)) {
 			/* Parse subframe */
 			imet4_parse_subframe(dst, subframe);
-			log_debug_hexdump(subframe, subframe_len);
+			log_debug("Type %d", subframe->type);
+		} else if (subframe->type == IMET4_SFTYPE_XDATA) {
+			/* Variable length packet corrupted: stop parsing */
+			break;
 		}
+	}
+
+	/* If anything was parsed, adjust the framer position by the actual number
+	 * of bits used */
+	if (i > 0) {
+		bytes_consumed = offsetof(IMET4Frame, data) + i;
+		framer_adjust(&self->f, self->raw_frame, 10 * bytes_consumed);  /* start + byte + stop */
+		log_debug("Adjusting by %u bytes", bytes_consumed);
 	}
 
 	/* If speed data is missing, but both position and time data is available,

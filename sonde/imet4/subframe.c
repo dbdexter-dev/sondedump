@@ -25,7 +25,8 @@ imet4_subframe_len(IMET4Subframe *sf)
 		break;
 	}
 
-	return 1;
+	/* Unknown frame type */
+	return 0;
 }
 
 float
@@ -33,8 +34,6 @@ imet4_subframe_xdata_ozone(float pressure, IMET4Subframe_XDATA_Ozone *sf)
 {
 	const float cell_current = (sf->cell_current[0] << 8 | sf->cell_current[1]) / 1000.0f;
 	const float pump_temp = (sf->pump_temp[0] << 8 | sf->pump_temp[1]) / 100.0f;
-
-	log_debug("%f", pressure);
 
 	return xdata_ozone_ppb(pressure, cell_current, DEFAULT_O3_FLOWRATE, pump_temp);
 }
