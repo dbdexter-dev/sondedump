@@ -81,6 +81,10 @@ afsk_demod(AFSKDemod *const d, void *v_dst, size_t *bit_offset, size_t count, co
 	_Fcomplex out;
 #endif
 
+	if (count < *bit_offset) {
+		return PARSED;
+	}
+
 	/* Normalize bit offset */
 	dst += *bit_offset/8;
 	count -= *bit_offset;
@@ -150,7 +154,7 @@ afsk_demod(AFSKDemod *const d, void *v_dst, size_t *bit_offset, size_t count, co
 		filter_fwd_sample(&d->lpf, symbol);
 
 #ifdef AFSK_DEBUG
-		fprintf(debug, "%f,%f\n", src[d->src_offset-1], symbol);
+		//fprintf(debug, "%f,%f\n", src[d->src_offset-1], symbol);
 #endif
 
 		/* Recover symbol timing */
@@ -201,10 +205,8 @@ afsk_demod(AFSKDemod *const d, void *v_dst, size_t *bit_offset, size_t count, co
 	d->mark_sum = mark_sum;
 	d->space_sum = space_sum;
 
-
 	/* Handle last write */
 	if (*bit_offset%8) *dst = (tmp << (8 - (*bit_offset % 8)));
-	*bit_offset = 0;
 
 	return PARSED;
 }

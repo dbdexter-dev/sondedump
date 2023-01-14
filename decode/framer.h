@@ -21,7 +21,7 @@ typedef struct {
 
 	int state;
 	size_t offset, sync_offset;
-	size_t bit_offset, framelen;
+	size_t framelen;
 	int inverted;
 } Framer;
 
@@ -74,5 +74,7 @@ void framer_deinit(Framer *f);
  *         PARSED  if a frame has been decoded into *dst
  */
 ParserStatus framer_read(Framer *framer, void *dst, const float *src, size_t len);
+
+void framer_adjust(Framer *framer, void *v_dst, size_t bits_delta);
 
 #endif

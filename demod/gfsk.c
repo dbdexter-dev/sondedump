@@ -60,6 +60,10 @@ gfsk_demod(GFSKDemod *g, void *v_dst, size_t *bit_offset, size_t count, const fl
 	uint8_t tmp;
 	int phase;
 
+	if (count < *bit_offset) {
+		return PARSED;
+	}
+
 	/* Normalize bit offset */
 	dst += *bit_offset/8;
 	count -= *bit_offset;
@@ -122,6 +126,6 @@ gfsk_demod(GFSKDemod *g, void *v_dst, size_t *bit_offset, size_t count, const fl
 
 	/* Last write */
 	if (*bit_offset%8) *dst = (tmp << (8 - (*bit_offset % 8)));
-	*bit_offset = 0;
+
 	return PARSED;
 }
