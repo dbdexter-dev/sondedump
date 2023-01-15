@@ -22,6 +22,11 @@
 #define IMS100_REEDSOLOMON_T 4
 #define IMS100_REEDSOLOMON_POLY 0x61
 
+#define IMS100_MASK_SEQ     0x800000
+#define IMS100_MASK_CALIB   0x300000
+#define IMS100_MASK_SUBTYPE 0x010000
+#define IMS100_MASK_PTU     0x460000
+
 #define IMS100_GPS_MASK_SPEED   0x000002
 #define IMS100_GPS_MASK_HEADING 0x000004
 #define IMS100_GPS_MASK_ALT     0x000060
@@ -40,10 +45,6 @@
 
 #define RS11G_GPSRAW_MASK_TIME  0x003000
 
-#define IMS100_MASK_SEQ     0x800000
-#define IMS100_MASK_CALIB   0x180000
-#define IMS100_MASK_SUBTYPE 0x020000
-#define IMS100_MASK_PTU     0x00FC00
 
 #define SUBTYPE_IMS100      0xc1
 #define SUBTYPE_RS11G       0xa2
@@ -63,7 +64,7 @@ static const uint8_t ims100_bch_roots[] = {0x02, 0x04, 0x08, 0x10};
 
 /* IMS-100 subframe types {{{ */
 PACK(typedef struct {
-	uint8_t _pad0[4];
+	uint8_t _pad0[2];
 	uint8_t ms[2];
 	uint8_t hour;
 	uint8_t min;
@@ -80,7 +81,7 @@ PACK(typedef struct {
 }) IMS100FrameGPS;
 
 PACK(typedef struct {
-	uint8_t _pad3[10];
+	uint8_t _pad3[8];
 
 	/* Offset 26 */
 	uint8_t flags;
@@ -91,7 +92,7 @@ PACK(typedef struct {
 /* }}} */
 /* RS-11G subframe types {{{ */
 PACK(typedef struct {
-	uint8_t _pad0[4];
+	uint8_t _pad0[2];
 	uint8_t ms;
 	uint8_t _pad1[5];
 
@@ -110,7 +111,7 @@ PACK(typedef struct {
 }) RS11GFrameGPS;
 
 PACK(typedef struct {
-	uint8_t _pad0[4];
+	uint8_t _pad0[2];
 	uint8_t ms[2];
 	uint8_t hour;
 	uint8_t min;
@@ -133,6 +134,7 @@ PACK(typedef struct {
 	                        /* Seq = 0b..11:         ADC reference */
 	uint8_t subseq;
 	uint8_t subtype;
+	uint8_t adc_val3[2];
 
 	/* Offset 16 */
 	union {
@@ -151,20 +153,24 @@ PACK(typedef struct {
 	uint8_t data[72];
 }) IMS100ECCFrame;
 
-PACK(typedef struct {
-	uint8_t serial[4];                  /* Sonde serial number. IEEE754, big endian */
-	uint8_t _unk0[64];
-	uint8_t temps[12][4];               /* Calibration temperatures, +60..-85'C. IEEE754, big endian */
-	uint8_t _unk2[12];
-	uint8_t serial2[4];                 /* Serial number again? */
-	uint8_t temp_resists[12][4];        /* Thermistor kOhm @ temp. IEEE754, big endian */
-	uint8_t _unk3[12];
-	uint8_t serial3[4];                 /* Serial number again? */
-	uint8_t rh_calib_coeffs[4][4];      /* RH 3rd degree polynomial coefficients. IEEE754, big endian */
-	uint8_t temp_calib_coeffs[4][4];    /* Temp 3rd degree polynomial coefficients. IEEE754, big endian*/
-	uint8_t rh_temp_calib_coeffs[4][4];
-	uint8_t _unk_end[10];
-}) IMS100Calibration;
+typedef struct {
+	float serial;               /* Sonde serial number */
+	float _unk0[15];            /* Most likely more serial numbers */
+
+	float serial2;
+	float temps[12];            /* Calibration temperatures, +60..-85'C */
+	float _zero0[3];
+
+	float serial3;
+	float temp_resists[12];     /* Thermistor kOhm @ calibration temps */
+	float _zero1[3];
+
+	float serial4;
+	float rh_poly[4];           /* RH 3rd degree polynomial coefficients */
+	float temp_poly[4];         /* Temp 3rd degree polynomial coefficients */
+	float rh_temp_poly[3];      /* RH temp 3rd degree polynomial coefficients */
+	float _unk_end[4];
+} IMS100Calibration;
 
 typedef struct {
 	float serial;           /* Sonde serial number */
@@ -172,16 +178,16 @@ typedef struct {
 	float _zero0[9];
 	float _unk0[2];         /* More serial numbers? */
 
-	float serial2;          /* Sonde serial number */
+	float serial2;
 	float temps[11];        /* Calibration temperatures, +40..-85'C */
 	float _zero1[4];
 
-	float serial3;          /* Sonde serial number */
-	float _unk1[4];
+	float serial3;
+	float temp_poly[4];     /* Temp 3rd degree polynomial coefficients */
 	float temp_resists[11]; /* Thermistor kOhm @ temp */
 
-	float serial4;          /* Sonde serial number */
-	float _unk2[4];
+	float serial4;
+	float rh_poly[4];       /* RH 3rd degree polynomial coefficients */
 	float _zero[8];
 	float _unk3[3];
 } RS11GCalibration;

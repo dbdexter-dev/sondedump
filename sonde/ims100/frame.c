@@ -5,6 +5,7 @@
 #include "frame.h"
 #include "physics.h"
 #include "utils.h"
+#include "log/log.h"
 
 static float freq_to_temp(float temp_freq, float ref_freq, const float poly_coeffs[4], const float *spline_resists, const float *spline_temps, size_t spline_len);
 static float freq_to_rh_temp(float temp_rh_freq, float ref_freq, const float poly_coeffs[4], const float r_to_t_coeffs[3]);
@@ -125,45 +126,19 @@ ims100_frame_seq(const IMS100Frame *frame) {
 float
 ims100_frame_temp(const IMS100FrameADC *adc, const IMS100Calibration *calib)
 {
-	float calib_coeffs[4];
-	float calib_temps[12];
-	float calib_temp_resists[12];
-	int i;
-
-	/* Parse coefficients as BE floats */
-	for (i=0; i<4; i++) {
-		calib_coeffs[i] = ieee754_be(calib->temp_calib_coeffs[i]);
-	}
-	for (i=0; i<12; i++) {
-		calib_temps[i] = ieee754_be(calib->temps[i]);
-		calib_temp_resists[i] = ieee754_be(calib->temp_resists[i]);
-	}
-
-	return freq_to_temp(adc->temp, adc->ref, calib_coeffs, calib_temp_resists, calib_temps, LEN(calib_temps));
+	return freq_to_temp(adc->temp, adc->ref,
+	                    calib->temp_poly, calib->temp_resists, calib->temps, LEN(calib->temps));
 }
 
 float
 ims100_frame_rh(const IMS100FrameADC *adc, const IMS100Calibration *calib)
 {
-	float calib_coeffs[4];
-	float rh_temp_calib_coeffs[4];
-	float rh_temp_r2t_coeffs[4];
 	float air_temp, rh_temp, rh;
-	int i;
-
-	/* Parse coefficients as BE floats */
-	for (i=0; i<4; i++) {
-		calib_coeffs[i] = ieee754_be(calib->rh_calib_coeffs[i]);
-		/* TODO technically they should be different for the air temp sensor and
-		 * the RH temp sensor, but there are no other coefficients that match in
-		 * the config block, so these will have to do for now */
-		rh_temp_calib_coeffs[i] = ieee754_be(calib->temp_calib_coeffs[i]);
-		rh_temp_r2t_coeffs[i] = ieee754_be(calib->rh_temp_calib_coeffs[i]);
-	}
 
 	air_temp = ims100_frame_temp(adc, calib);
-	rh_temp = freq_to_rh_temp(adc->rh_temp, adc->ref, rh_temp_calib_coeffs, rh_temp_r2t_coeffs);
-	rh = freq_to_rh(adc->rh, adc->ref, rh_temp, air_temp, calib_coeffs);
+	rh_temp = freq_to_rh_temp(adc->rh_temp, adc->ref, calib->temp_poly, calib->rh_temp_poly);
+	rh = freq_to_rh(adc->rh, adc->ref, rh_temp, air_temp, calib->rh_poly);
+
 	return MAX(0, MIN(100, rh));
 }
 
@@ -171,8 +146,7 @@ float
 rs11g_frame_temp(const IMS100FrameADC *adc, const RS11GCalibration *calib)
 {
 	return freq_to_temp(adc->temp, adc->ref,
-			calib->_unk1,
-			calib->temp_resists, calib->temps, sizeof(calib->temps));
+	                    calib->temp_poly, calib->temp_resists, calib->temps, LEN(calib->temps));
 }
 
 float
@@ -181,10 +155,7 @@ rs11g_frame_rh(const IMS100FrameADC *adc, const RS11GCalibration *calib)
 	float air_temp, rh;
 	air_temp = rs11g_frame_temp(adc, calib);
 
-	rh = freq_to_rh(adc->rh, adc->ref,
-			air_temp, air_temp,
-			calib->_unk2
-			);
+	rh = freq_to_rh(adc->rh, adc->ref, air_temp, air_temp, calib->rh_poly);
 
 	return MAX(0, MIN(100, rh));
 }

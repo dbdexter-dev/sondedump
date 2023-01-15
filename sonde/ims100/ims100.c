@@ -104,6 +104,13 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 	ims100_frame_unpack(&self->frame, &self->ecc_frame);
 
+#ifndef NDEBUG
+	fwrite(&self->calib_rs11g, sizeof(self->calib_rs11g), 1, debug);
+	fflush(debug);
+#endif
+
+
+
 	/* Copy calibration data */
 	if (BITMASK_CHECK(self->frame.valid, IMS100_MASK_SEQ | IMS100_MASK_CALIB)) {
 		seq = ims100_frame_seq(&self->frame);
@@ -137,6 +144,9 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 				self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
 				break;
 			case 0x01:
+				self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
+				self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
+				break;
 			case 0x02:
 				self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
 				self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
@@ -156,7 +166,6 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 			case 0x01:
 				break;
 			case 0x02:
-				self->adc.rh_temp = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
 				break;
 			case 0x03:
 				break;
@@ -164,12 +173,6 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 
 			self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
 			self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
-			fprintf(debug_odd, "%d,%d,%d,%d\n",
-					self->adc.temp,
-					self->adc.rh,
-					self->adc.rh_temp,
-					self->adc.ref
-					);
 			break;
 		}
 
@@ -186,6 +189,9 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 			dst->temp = rs11g_frame_temp(&self->adc, &self->calib_rs11g);
 			dst->rh = rs11g_frame_rh(&self->adc, &self->calib_rs11g);
 			dst->pressure = 0;
+			break;
+		default:
+			dst->fields &= ~DATA_PTU;
 			break;
 		}
 
@@ -215,7 +221,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	if (dst->fields && BITMASK_CHECK(self->calib_bitmask, IMS100_CALIB_SERIAL_MASK)) {
 		switch (self->frame.subtype) {
 		case SUBTYPE_IMS100:
-			sprintf(dst->serial, "IMS%d", (int)ieee754_be(self->calib.serial));
+			sprintf(dst->serial, "IMS%d", (int)self->calib.serial);
 			break;
 
 		case SUBTYPE_RS11G:
@@ -316,9 +322,10 @@ static void
 ims100_update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment)
 {
 	const int calib_offset = seq % IMS100_CALIB_FRAGCOUNT;
+	const uint8_t raw[] = {fragment[2], fragment[3], fragment[0], fragment[1]};
+	const float coeff = ieee754_be(raw);
 
-	memcpy(((uint8_t*)&self->calib) + IMS100_CALIB_FRAGSIZE * calib_offset, fragment + 2, 2);
-	memcpy(((uint8_t*)&self->calib) + IMS100_CALIB_FRAGSIZE * calib_offset + 2, fragment, 2);
+	memcpy(((uint8_t*)&self->calib) + IMS100_CALIB_FRAGSIZE * calib_offset, &coeff, sizeof(coeff));
 
 	self->calib_bitmask |= (1ULL << (63 - calib_offset));
 }
@@ -329,13 +336,7 @@ rs11g_update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment)
 	const int calib_offset = seq % IMS100_CALIB_FRAGCOUNT;
 	const float coeff = mbf_le(fragment);
 
-	memcpy(((uint8_t*)&self->calib_rs11g) + IMS100_CALIB_FRAGSIZE * calib_offset, &coeff, 4);
-
-#ifndef NDEBUG
-	fwrite(&self->calib_rs11g, sizeof(self->calib_rs11g), 1, debug);
-	fflush(debug);
-#endif
-
+	memcpy(((uint8_t*)&self->calib_rs11g) + IMS100_CALIB_FRAGSIZE * calib_offset, &coeff, sizeof(coeff));
 
 	self->calib_bitmask |= (1ULL << (63 - calib_offset));
 }
