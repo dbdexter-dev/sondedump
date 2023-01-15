@@ -431,7 +431,7 @@ usage(const char *pname)
 			"                                c50: Meteolabor SRS-C50\n"
 			"                                dfm: GRAW DFM06/09\n"
 			"                                imet4: InterMet iMet-4\n"
-			"                                ims100: Meisei iMS-100\n"
+			"                                ims100: Meisei iMS-100/RS-11G\n"
 			"                                m10: MeteoModem M10/M20\n"
 			"                                rs41: Vaisala RS41-SG(P,M)\n"
 #ifdef ENABLE_TUI

@@ -15,15 +15,16 @@ Features:
 
 Compatibility matrix:
 
-| Manufacturer | Model       | GPS                | Temperature        | Humidity           |
-|--------------|-------------|--------------------|--------------------|--------------------|
-| Vaisala      | RS41-SG     | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Meteomodem   | M10         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Meteomodem   | M20         | :heavy_check_mark: | :heavy_check_mark: |                    |
-| GRAW         | DFM06/09/17 | :heavy_check_mark: | :heavy_check_mark: |                    |
-| Meisei       | iMS-100     | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| InterMet     | iMet-1/4    | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Meteolabor   | SRS-C50     | :heavy_check_mark: | :heavy_check_mark: |                    |
+| Manufacturer | Model       | GPS                | Temperature        | Humidity           | XDATA              |
+|--------------|-------------|--------------------|--------------------|--------------------|--------------------|
+| Vaisala      | RS41-SG     | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Meteomodem   | M10         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |                    |
+| Meteomodem   | M20         | :heavy_check_mark: | :heavy_check_mark: |                    |                    |
+| GRAW         | DFM06/09/17 | :heavy_check_mark: | :heavy_check_mark: |                    |                    |
+| Meisei       | iMS-100     | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |                    |
+| Meisei       | RS-11G      | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |                    |
+| InterMet     | iMet-1/4    | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Meteolabor   | SRS-C50     | :heavy_check_mark: | :heavy_check_mark: |                    |                    |
 
 
 Build/install instructions
@@ -49,50 +50,12 @@ sudo make install
 
 Usage
 -----
-```
-sondedump [options] file_in
-   -a, --audio-device <id> Use PortAudio device <id> as input (default: choose interactively)
-   -c, --csv <file>             Output data to <file> in CSV format
-   -f, --fmt <format>           Format output lines as <format>
-   -g, --gpx <file>             Output GPX track to <file>
-   -k, --kml <file>             Output KML track to <file>
-   -l, --live-kml <file>        Output live KML track to <file>
-   -r, --location <lat,lon,alt> Set receiver location to <lat, lon, alt> (default: none)
-   -t, --type <type>            Enable decoder for the given sonde type. Supported values:
-                                auto: Autodetect
-                                rs41: Vaisala RS41-SG(P,M)
-                                dfm: GRAW DFM06/09/17
-                                m10: MeteoModem M10
-                                ims100: Meisei iMS-100
-   -T, --tui                    Enable TUI display
-
-   -h, --help                   Print this help screen
-   -v, --version                Print version info
-
-Available format specifiers:
-   %a      Altitude (m)
-   %b      Burstkill/shutdown timer
-   %c      Climb rate (m/s)
-   %d      Dew point (degrees Celsius)
-   %f      Frame counter
-   %h      Heading (degrees)
-   %l      Latitude (decimal degrees + N/S)
-   %o      Longitude (decimal degrees + E/W)
-   %p      Pressure (hPa)
-   %r      Relative humidity (%)
-   %s      Speed (m/s)
-   %S      Sonde serial number
-   %t      Temperature (degrees Celsius)
-   %T      Timestamp (yyyy-mm-dd hh:mm::ss, local)
-   %x      Decoded XDATA
-
-TUI keybinds:
-   Arrow keys: change active decoder
-   Tab: toggle between absolute (lat, lon, alt) and relative (az, el, range) coordinates (requires -r, --location)
-```
+`sondedump -h` to see all the available options.
 
 Examples:
 - Use Portaudio device 1 and output to CSV: `sondedump --audio-device 1 --csv
   data.csv`
 - Read from file and generate GPX track: `sondedump --gpx track.gpx
   <recording.wav>`
+- Initialize TUI using Portaudio device 0, and start decoding a RS41 sonde:
+  `sondedump -a 0 -t rs41 -T`
