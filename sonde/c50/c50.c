@@ -79,8 +79,7 @@ c50_decode(C50Decoder *self, SondeData *dst, const float *src, size_t len)
 	c50_frame_descramble(&self->frame, self->raw_frame);
 
 #ifndef NDEBUG
-	if (!memcmp(&self->frame, "\x00\xff", 2))
-	fwrite(&self->frame, sizeof(self->frame), 1, debug);
+	fwrite(&self->raw_frame[0], 2*sizeof(self->frame), 1, debug);
 #endif
 
 
@@ -97,6 +96,7 @@ c50_decode(C50Decoder *self, SondeData *dst, const float *src, size_t len)
 	switch (self->frame.type) {
 	case C50_TYPE_TEMP_AIR:
 		self->partial_dst.fields |= DATA_PTU;
+		self->partial_dst.calib_percent = 100.0f;
 		self->partial_dst.temp = ieee754_be(self->frame.data);
 		break;
 

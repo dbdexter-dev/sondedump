@@ -22,7 +22,7 @@ with open(sys.argv[1], "r") as f:
 
 for sequence in data:
     if normalize:
-        (vmin, vmax) = (min(sequence), max(sequence))
+        (vmin, vmax) = (min(sequence[20000:]), max(sequence[20000:]))
         sequence = [(x-vmin)/(vmax-vmin) for x in sequence]
     plt.plot(sequence)
 plt.show()

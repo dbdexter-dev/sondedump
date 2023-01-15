@@ -29,7 +29,7 @@ afsk_init(AFSKDemod *d, int samplerate, int symrate, float f_mark, float f_space
 	if (filter_init_lpf(&d->lpf, AFSK_FILTER_ORDER, 3 * sym_freq, num_phases)) return 1;
 
 	/* Initialize symbol timing recovery */
-	timing_init(&d->timing, sym_freq/num_phases, AFSK_SYM_ZETA, sym_freq/num_phases/150);
+	timing_init(&d->timing, sym_freq/num_phases, AFSK_SYM_ZETA, sym_freq/num_phases/100);
 
 	d->p_mark = 0;
 	d->p_space = 0;
@@ -109,7 +109,7 @@ afsk_demod(AFSKDemod *const d, void *v_dst, size_t *bit_offset, size_t count, co
 			return PROCEED;
 		}
 		symbol = src[d->src_offset++];
-		symbol = agc_apply(&d->agc, symbol) / d->len;
+		symbol = agc_apply(&d->agc, symbol) / d->len * 2;
 
 #ifndef _MSC_VER
 		/* Calculate mark mix output, update boxcar average over symbol period,
