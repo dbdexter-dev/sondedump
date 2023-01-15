@@ -79,6 +79,21 @@ ims100_subframe_heading(const IMS100FrameGPS *frame)
 }
 
 
+time_t
+rs11g_subframe_date(const RS11GFrameGPS *frame)
+{
+	struct tm tm;
+
+	tm.tm_year = frame->year + 0x700 - 1900;
+	tm.tm_mon = frame->month - 1;
+	tm.tm_mday = frame->day;
+
+	tm.tm_hour = 0;
+	tm.tm_min = 0;
+	tm.tm_sec = 0;
+
+	return my_timegm(&tm);
+}
 
 
 float
@@ -141,5 +156,18 @@ rs11g_subframe_climb(const RS11GFrameGPS *frame)
 	const int16_t raw_climb = (int16_t)frame->climb[0] << 8 | (int16_t)frame->climb[1];
 
 	return abs(raw_climb) / 1e2;
+}
+
+time_t
+rs11g_subframe_time(const RS11GFrameGPSRaw *frame)
+{
+	const uint16_t ms = (uint16_t)frame->ms[0] | frame->ms[1] << 8;
+	struct tm tm;
+
+	tm.tm_hour = frame->hour;
+	tm.tm_min = frame->min;
+	tm.tm_sec = ms / 1000;
+
+	return tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec;
 }
 

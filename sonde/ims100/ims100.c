@@ -15,6 +15,8 @@
 static FILE *debug, *debug_odd;
 #endif
 
+static void ims100_parse_subframe(SondeData *dst, time_t *date, const IMS100Frame *frame);
+
 struct ims100decoder {
 	Framer f;
 	RSDecoder rs;
@@ -25,6 +27,7 @@ struct ims100decoder {
 
 	uint64_t calib_bitmask;
 	char serial[16];
+	time_t date;
 
 	struct {
 		float alt;
@@ -46,8 +49,9 @@ ims100_decoder_init(int samplerate)
 
 	d->calib_bitmask = 0;
 	d->prev_alt.alt = 0;
-	d->prev_alt.time = 0;
+	d->prev_alt.time = -1UL;
 	d->serial[0] = 0;
+	d->date = 0;
 #ifndef NDEBUG
 	debug = fopen("/tmp/ims100frames.data", "wb");
 	debug_odd = fopen("/tmp/ims100frames_odd.data", "wb");
@@ -72,7 +76,6 @@ __global ParserStatus
 ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	unsigned int seq;
-	uint32_t validmask;
 	int errcount;
 
 	/* Read a new frame */
@@ -101,7 +104,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	ims100_frame_unpack(&self->frame, &self->ecc_frame);
 
 #ifndef NDEBUG
-	fwrite(&self->frame, sizeof(self->frame), 1, debug);
+	fwrite(&self->ecc_frame, sizeof(self->ecc_frame), 1, debug);
 	fflush(debug);
 #endif
 
@@ -117,7 +120,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 		dst->seq = ims100_frame_seq(&self->frame);
 	}
 
-	/* Parse PTU data {{{ */
+	/* Parse common PTU data {{{ */
 	if (BITMASK_CHECK(self->frame.valid, IMS100_MASK_PTU)) {
 		/* Fetch the ADC data carried by this frame based on its seq nr */
 		switch (ims100_frame_seq(&self->frame) & 0x3) {
@@ -147,78 +150,24 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 						   / IMS100_CALIB_FRAGCOUNT;
 	}
 	/* }}} */
-	/* Parse subtype-specific data {{{ */
-	switch (ims100_frame_subtype(&self->frame)) {
-	case IMS100_SUBTYPE_GPS:
-		/* Parse GPS time */
-		validmask = IMS100_GPS_MASK_TIME | IMS100_GPS_MASK_DATE;
-		if (BITMASK_CHECK(self->frame.valid, validmask)) {
-			dst->fields |= DATA_TIME;
-			dst->time = ims100_subframe_time(&self->frame.data.gps);
-			self->cur_alt.time = dst->time;
+
+	/* Parse subframe-specific data */
+	ims100_parse_subframe(dst, &self->date, &self->frame);
+
+	/* If speed data is missing, derive it from altitude data */
+	if (BITMASK_CHECK(dst->fields, DATA_POS | DATA_TIME)) {
+		self->cur_alt.alt = dst->alt;
+		self->cur_alt.time = dst->time;
+
+		if (self->cur_alt.time > self->prev_alt.time && isnan(dst->climb)) {
+			dst->climb = (self->cur_alt.alt - self->prev_alt.alt)
+			           / (self->cur_alt.time - self->prev_alt.time);
 		}
 
-		/* Parse GPS position */
-		validmask = IMS100_GPS_MASK_LAT | IMS100_GPS_MASK_LON | IMS100_GPS_MASK_ALT;
-		if (BITMASK_CHECK(self->frame.valid, validmask)) {
-			dst->fields |= DATA_POS;
-			dst->lat = ims100_subframe_lat(&self->frame.data.gps);
-			dst->lon = ims100_subframe_lon(&self->frame.data.gps);
-			dst->alt = ims100_subframe_alt(&self->frame.data.gps);
-		}
-
-		/* Parse GPS speed */
-		validmask = IMS100_GPS_MASK_SPEED | IMS100_GPS_MASK_HEADING;
-		if (BITMASK_CHECK(self->frame.valid, validmask)) {
-			dst->fields |= DATA_SPEED;
-			dst->speed = ims100_subframe_speed(&self->frame.data.gps);
-			dst->heading = ims100_subframe_heading(&self->frame.data.gps);
-			self->cur_alt.alt = dst->alt;
-
-			/* Derive climb rate from altitude */
-			if (self->cur_alt.time > self->prev_alt.time
-			    && BITMASK_CHECK(self->frame.valid, IMS100_GPS_MASK_TIME)) {
-				dst->climb = (self->cur_alt.alt - self->prev_alt.alt)
-						   / (self->cur_alt.time - self->prev_alt.time);
-
-				self->prev_alt = self->cur_alt;
-			}
-		}
-		break;
-
-	case IMS100_SUBTYPE_META:
-		/* TODO any interesting data here? */
-		break;
-
-	case RS11G_SUBTYPE_GPS:
-		/* Parse GPS position */
-		validmask = RS11G_GPS_MASK_LAT | RS11G_GPS_MASK_LON | RS11G_GPS_MASK_ALT;
-		if (BITMASK_CHECK(self->frame.valid, validmask)) {
-			dst->fields |= DATA_POS;
-			dst->lat = rs11g_subframe_lat(&self->frame.data.gps_11g);
-			dst->lon = rs11g_subframe_lon(&self->frame.data.gps_11g);
-			dst->alt = rs11g_subframe_alt(&self->frame.data.gps_11g);
-		}
-
-		/* Parse GPS speed */
-		validmask = RS11G_GPS_MASK_SPEED | RS11G_GPS_MASK_HEADING | RS11G_GPS_MASK_CLIMB;
-		if (BITMASK_CHECK(self->frame.valid, validmask)) {
-			dst->fields |= DATA_SPEED;
-			dst->speed = rs11g_subframe_speed(&self->frame.data.gps_11g);
-			dst->heading = rs11g_subframe_heading(&self->frame.data.gps_11g);
-			dst->climb = rs11g_subframe_climb(&self->frame.data.gps_11g);
-		}
-
-		/* TODO remove */
-		dst->fields |= DATA_SERIAL;
-		strcpy(dst->serial, "RS11G");
-		break;
-	default:
-		break;
+		self->prev_alt = self->cur_alt;
 	}
-	/* }}} */
 
-	/* Parse serial number, only if at least one field has been parsed */
+	/* Return serial number only if at least one field has been parsed */
 	if (dst->fields && BITMASK_CHECK(self->calib_bitmask, IMS100_CALIB_SERIAL_MASK)) {
 		sprintf(self->serial, "IMS%d", (int)ieee754_be(self->calib.serial));
 		dst->fields |= DATA_SERIAL;
@@ -229,6 +178,89 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 }
 
 /* Static functions {{{ */
+static void
+ims100_parse_subframe(SondeData *dst, time_t *date, const IMS100Frame *frame)
+{
+	uint32_t validmask;
+
+	/* Parse subtype-specific data {{{ */
+	switch (ims100_frame_subtype(frame)) {
+	case IMS100_SUBTYPE_GPS:
+		/* Parse GPS time */
+		validmask = IMS100_GPS_MASK_TIME | IMS100_GPS_MASK_DATE;
+		if (BITMASK_CHECK(frame->valid, validmask)) {
+			dst->fields |= DATA_TIME;
+			dst->time = ims100_subframe_time(&frame->data.gps);
+		}
+
+		/* Parse GPS position */
+		validmask = IMS100_GPS_MASK_LAT | IMS100_GPS_MASK_LON | IMS100_GPS_MASK_ALT;
+		if (BITMASK_CHECK(frame->valid, validmask)) {
+			dst->fields |= DATA_POS;
+			dst->lat = ims100_subframe_lat(&frame->data.gps);
+			dst->lon = ims100_subframe_lon(&frame->data.gps);
+			dst->alt = ims100_subframe_alt(&frame->data.gps);
+		}
+
+		/* Parse GPS speed */
+		validmask = IMS100_GPS_MASK_SPEED | IMS100_GPS_MASK_HEADING;
+		if (BITMASK_CHECK(frame->valid, validmask)) {
+			dst->fields |= DATA_SPEED;
+			dst->speed = ims100_subframe_speed(&frame->data.gps);
+			dst->heading = ims100_subframe_heading(&frame->data.gps);
+			dst->climb = NAN;
+		}
+		break;
+
+	case IMS100_SUBTYPE_META:
+		/* TODO any interesting data here? */
+		break;
+
+	case RS11G_SUBTYPE_GPS:
+		/* Parse GPS position */
+		validmask = RS11G_GPS_MASK_LAT | RS11G_GPS_MASK_LON | RS11G_GPS_MASK_ALT;
+		if (BITMASK_CHECK(frame->valid, validmask)) {
+			dst->fields |= DATA_POS;
+			dst->lat = rs11g_subframe_lat(&frame->data.gps_11g);
+			dst->lon = rs11g_subframe_lon(&frame->data.gps_11g);
+			dst->alt = rs11g_subframe_alt(&frame->data.gps_11g);
+		}
+
+		/* Parse GPS speed */
+		validmask = RS11G_GPS_MASK_SPEED | RS11G_GPS_MASK_HEADING | RS11G_GPS_MASK_CLIMB;
+		if (BITMASK_CHECK(frame->valid, validmask)) {
+			dst->fields |= DATA_SPEED;
+			dst->speed = rs11g_subframe_speed(&frame->data.gps_11g);
+			dst->heading = rs11g_subframe_heading(&frame->data.gps_11g);
+			dst->climb = rs11g_subframe_climb(&frame->data.gps_11g);
+		}
+
+		/* Parse GPS time (1/2) */
+		validmask = RS11G_GPS_MASK_DATE;
+		if (BITMASK_CHECK(frame->valid, validmask)) {
+			*date = rs11g_subframe_date(&frame->data.gps_11g);
+			log_debug("%u", *date);
+		}
+
+		/* TODO remove */
+		dst->fields |= DATA_SERIAL;
+		strcpy(dst->serial, "RS11G");
+		break;
+
+	case RS11G_SUBTYPE_GPSRAW:
+		/* Parse GPS time (2/2) */
+		validmask = RS11G_GPSRAW_MASK_TIME;
+		if (BITMASK_CHECK(frame->valid, validmask)) {
+			dst->fields |= DATA_TIME;
+			dst->time = *date + rs11g_subframe_time(&frame->data.gpsraw_11g);
+		}
+		break;
+	default:
+		break;
+	}
+	/* }}} */
+}
+
 static void
 update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment)
 {

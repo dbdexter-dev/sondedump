@@ -53,6 +53,8 @@ do_log_info(const char *tag, int line, const char *fmt, ...)
 {
 	va_list args;
 
+	if (!_log_enabled) return;
+
 	printf("[" COLOR_INFO "%s:%d" COLOR_DEFAULT "] ", tag + SOURCE_BASE_PATH_SIZE, line);
 
 	va_start(args, fmt);

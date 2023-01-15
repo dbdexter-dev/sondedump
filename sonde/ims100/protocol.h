@@ -36,16 +36,19 @@
 #define RS11G_GPS_MASK_SPEED    0x000010
 #define RS11G_GPS_MASK_HEADING  0x000008
 #define RS11G_GPS_MASK_CLIMB    0x000004
+#define RS11G_GPS_MASK_DATE     0x000003
+
+#define RS11G_GPSRAW_MASK_TIME  0x003000
 
 #define IMS100_MASK_SEQ     0x800000
 #define IMS100_MASK_CALIB   0x180000
 #define IMS100_MASK_SUBTYPE 0x020000
 #define IMS100_MASK_PTU     0x00FC00
 
-#define IMS100_SUBTYPE_GPS  0x30c1
-#define IMS100_SUBTYPE_META 0x31c1
-#define RS11G_SUBTYPE_GPS   0x30a2
-#define RS11G_SUBTYPE_META  0x31a2
+#define IMS100_SUBTYPE_GPS   0x30c1
+#define IMS100_SUBTYPE_META  0x31c1
+#define RS11G_SUBTYPE_GPS    0x30a2
+#define RS11G_SUBTYPE_GPSRAW 0x31a2
 
 #define IMS100_CALIB_PTU_MASK      0x0000FFFFFFFFFFFF
 #define IMS100_CALIB_SERIAL_MASK   0x8000000000000000
@@ -55,7 +58,7 @@
 
 static const uint8_t ims100_bch_roots[] = {0x02, 0x04, 0x08, 0x10};
 
-/* Even & odd seq subframe types {{{ */
+/* IMS-100 subframe types {{{ */
 PACK(typedef struct {
 	uint8_t _pad0[4];
 	uint8_t ms[2];
@@ -74,6 +77,18 @@ PACK(typedef struct {
 }) IMS100FrameGPS;
 
 PACK(typedef struct {
+	uint8_t _pad3[10];
+
+	/* Offset 26 */
+	uint8_t flags;
+	uint8_t fragment_seq;
+	uint8_t fragment_data[16];
+	uint8_t _pad4[2];
+}) IMS100FrameMeta;
+/* }}} */
+
+/* RS-11G subframe types {{{ */
+PACK(typedef struct {
 	uint8_t _pad0[4];
 	uint8_t ms;
 	uint8_t _pad1[5];
@@ -84,18 +99,20 @@ PACK(typedef struct {
 	uint8_t speed[2];
 	uint8_t heading[2];
 	uint8_t climb[2];
-	uint8_t _pad2[4];
+
+	uint8_t _pad2;
+
+	uint8_t year;
+	uint8_t month;
+	uint8_t day;
 }) RS11GFrameGPS;
 
 PACK(typedef struct {
-	uint8_t _pad3[10];
-
-	/* Offset 26 */
-	uint8_t flags;
-	uint8_t fragment_seq;
-	uint8_t fragment_data[16];
-	uint8_t _pad4[2];
-}) IMS100FrameMeta;
+	uint8_t _pad0[4];
+	uint8_t ms[2];
+	uint8_t hour;
+	uint8_t min;
+}) RS11GFrameGPSRaw;
 /* }}} */
 
 PACK(typedef struct {
@@ -119,6 +136,7 @@ PACK(typedef struct {
 		IMS100FrameGPS gps;
 		IMS100FrameMeta meta;
 		RS11GFrameGPS gps_11g;
+		RS11GFrameGPSRaw gpsraw_11g;
 	} data;
 
 	uint32_t valid;

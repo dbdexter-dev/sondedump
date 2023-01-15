@@ -19,6 +19,9 @@ typedef struct {
 	struct tm time;
 } DFM09Data;
 
+static void dfm09_parse_ptu(SondeData *dst, DFM09Data *data, const DFM09Subframe_PTU *subframe);
+static void dfm09_parse_gps(SondeData *dst, DFM09Data *data, const DFM09Subframe_GPS *subframe);
+
 struct dfm09decoder {
 	Framer f;
 	DFM09ECCFrame raw_frame[4];
@@ -29,9 +32,6 @@ struct dfm09decoder {
 
 	DFM09Data data;
 };
-
-static void dfm09_parse_ptu(SondeData *dst, DFM09Data *data, const DFM09Subframe_PTU *subframe);
-static void dfm09_parse_gps(SondeData *dst, DFM09Data *data, const DFM09Subframe_GPS *subframe);
 
 #ifndef NDEBUG
 static FILE *debug;
