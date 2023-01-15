@@ -355,8 +355,9 @@ main(int argc, char *argv[])
 				kml_start_track(&live_kml, data->serial);
 				kml_add_trackpoint(&live_kml, data);
 			}
-			if (gpx_fname && (data->fields & DATA_SERIAL)) {
-				gpx_start_track(&gpx, data->serial);
+			if (gpx_fname) {
+				if (data->fields & DATA_SERIAL)
+					gpx_start_track(&gpx, data->serial);
 				gpx_add_trackpoint(&gpx, data);
 			}
 		}
@@ -426,12 +427,13 @@ usage(const char *pname)
 			"   -l, --live-kml <file>        Output live KML track to <file>\n"
 			"   -r, --location <lat,lon,alt> Set receiver location to <lat, lon, alt> (default: none)\n"
 			"   -t, --type <type>            Enable decoder for the given sonde type. Supported values:\n"
-			"                                auto: Autodetect\n"
-			"                                rs41: Vaisala RS41-SG(P,M)\n"
+			"                                auto: Autodetect (default)\n"
+			"                                c50: Meteolabor SRS-C50\n"
 			"                                dfm: GRAW DFM06/09\n"
-			"                                m10: MeteoModem M10/M20\n"
-			"                                ims100: Meisei iMS-100\n"
 			"                                imet4: InterMet iMet-4\n"
+			"                                ims100: Meisei iMS-100\n"
+			"                                m10: MeteoModem M10/M20\n"
+			"                                rs41: Vaisala RS41-SG(P,M)\n"
 #ifdef ENABLE_TUI
 			"   -T, --tui                    Enable TUI display\n"
 #endif

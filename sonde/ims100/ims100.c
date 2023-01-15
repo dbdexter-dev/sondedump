@@ -73,6 +73,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 {
 	unsigned int seq;
 	uint32_t validmask;
+	int errcount;
 
 	/* Read a new frame */
 	switch (framer_read(&self->f, self->raw_frame, src, len)) {
@@ -91,11 +92,18 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	dst->fields = 0;
 
 	/* Error correct and remove all ECC bits */
-	if (ims100_frame_error_correct(&self->ecc_frame, &self->rs) < 0) {
+	errcount = ims100_frame_error_correct(&self->ecc_frame, &self->rs);
+	log_debug("Error count: %d", errcount);
+	if (errcount < 0) {
 		/* ECC failed: go to next frame */
 		return PARSED;
 	}
 	ims100_frame_unpack(&self->frame, &self->ecc_frame);
+
+#ifndef NDEBUG
+	fwrite(&self->frame, sizeof(self->frame), 1, debug);
+	fflush(debug);
+#endif
 
 	/* Copy calibration data */
 	if (BITMASK_CHECK(self->frame.valid, IMS100_MASK_SEQ | IMS100_MASK_CALIB)) {
@@ -177,13 +185,33 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 			}
 		}
 		break;
+
 	case IMS100_SUBTYPE_META:
-#ifndef NDEBUG
-	fwrite(&self->frame, sizeof(self->frame), 1, debug);
-#endif
-
-
 		/* TODO any interesting data here? */
+		break;
+
+	case RS11G_SUBTYPE_GPS:
+		/* Parse GPS position */
+		validmask = RS11G_GPS_MASK_LAT | RS11G_GPS_MASK_LON | RS11G_GPS_MASK_ALT;
+		if (BITMASK_CHECK(self->frame.valid, validmask)) {
+			dst->fields |= DATA_POS;
+			dst->lat = rs11g_subframe_lat(&self->frame.data.gps_11g);
+			dst->lon = rs11g_subframe_lon(&self->frame.data.gps_11g);
+			dst->alt = rs11g_subframe_alt(&self->frame.data.gps_11g);
+		}
+
+		/* Parse GPS speed */
+		validmask = RS11G_GPS_MASK_SPEED | RS11G_GPS_MASK_HEADING | RS11G_GPS_MASK_CLIMB;
+		if (BITMASK_CHECK(self->frame.valid, validmask)) {
+			dst->fields |= DATA_SPEED;
+			dst->speed = rs11g_subframe_speed(&self->frame.data.gps_11g);
+			dst->heading = rs11g_subframe_heading(&self->frame.data.gps_11g);
+			dst->climb = rs11g_subframe_climb(&self->frame.data.gps_11g);
+		}
+
+		/* TODO remove */
+		dst->fields |= DATA_SERIAL;
+		strcpy(dst->serial, "RS11G");
 		break;
 	default:
 		break;

@@ -79,3 +79,67 @@ ims100_subframe_heading(const IMS100FrameGPS *frame)
 }
 
 
+
+
+float
+rs11g_subframe_lat(const RS11GFrameGPS *frame)
+{
+	const int32_t raw_lat = ((int32_t)frame->lat[0] << 24
+	                      | (int32_t)frame->lat[1] << 16
+	                      | (int32_t)frame->lat[2] << 8
+	                      | (int32_t)frame->lat[3]);
+	/* Convert NMEA to decimal degrees */
+	float lat = raw_lat / 1e7;
+
+	return lat;
+
+}
+
+float
+rs11g_subframe_lon(const RS11GFrameGPS *frame)
+{
+	const int32_t raw_lon = ((int32_t)frame->lon[0] << 24
+	                      | (int32_t)frame->lon[1] << 16
+	                      | (int32_t)frame->lon[2] << 8
+	                      | (int32_t)frame->lon[3]);
+	/* Convert NMEA to decimal degrees */
+	float lon = raw_lon / 1e7;
+
+	return lon;
+}
+
+float
+rs11g_subframe_alt(const RS11GFrameGPS *frame)
+{
+	const int32_t raw_alt = (int32_t)frame->alt[0] << 24
+	                      | (int32_t)frame->alt[1] << 16
+	                      | (int32_t)frame->alt[2] << 8
+	                      | (int32_t)frame->alt[3];
+
+	return raw_alt / 1e2;
+}
+
+float
+rs11g_subframe_speed(const RS11GFrameGPS *frame)
+{
+	const uint16_t raw_speed = (uint16_t)frame->speed[0] << 8 | (uint16_t)frame->speed[1];
+
+	return raw_speed / 1.943844e2;  // knots*100 -> m/s
+}
+
+float
+rs11g_subframe_heading(const RS11GFrameGPS *frame)
+{
+	const int16_t raw_heading = (int16_t)frame->heading[0] << 8 | (int16_t)frame->heading[1];
+
+	return abs(raw_heading) / 1e2;
+}
+
+float
+rs11g_subframe_climb(const RS11GFrameGPS *frame)
+{
+	const int16_t raw_climb = (int16_t)frame->climb[0] << 8 | (int16_t)frame->climb[1];
+
+	return abs(raw_climb) / 1e2;
+}
+
