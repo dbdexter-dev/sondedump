@@ -135,16 +135,19 @@ mbf_le(const void *v_raw)
 	const uint8_t *raw = v_raw;
 	uint8_t sign, exp;
 	uint32_t mantissa;
-	uint32_t ieee;
+	union {
+		uint32_t raw;
+		float value;
+	} ieee;
 
 	exp = raw[3];
 	sign = raw[2] >> 7;
 	mantissa = (raw[2] & 0x7F) << 16 | raw[1] << 8 | raw[0];
 
-	ieee = sign << 31
-		 | (exp - 2) << 23
-		 | mantissa;
+	ieee.raw = sign << 31
+		    | (exp - 2) << 23
+		    | mantissa;
 
-	return *(float*)&ieee;
+	return ieee.value;
 }
 
