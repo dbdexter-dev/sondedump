@@ -45,18 +45,18 @@ cspline(const float *xs, const float *ys, float count, float x)
 	float m_i, m_next_i, t, y;
 
 	for (i=1; i<count-1; i++) {
-		if (x < xs[i+1]) {
+		if ((x - xs[i+1]) * (x - xs[i]) <= 0) {
 			/* Compute tangents at xs[i] and xs[i+1] */
-			m_i = spline_tangent(xs, ys, i) / (xs[i+1] - xs[i]);
-			m_next_i = spline_tangent(xs, ys, i+1) / (xs[i+1] - xs[i]);
+			m_i = spline_tangent(xs, ys, i);
+			m_next_i = spline_tangent(xs, ys, i+1);
 
 			/* Compute spline transform between xs[i] and xs[i+1] */
 			t = (x - xs[i]) / (xs[i+1] - xs[i]);
 
 			y = hermite_00(t) * ys[i]
-			  + hermite_10(t) * (xs[i+1] - x) * m_i
+			  + hermite_10(t) * (xs[i+1] - xs[i]) * m_i
 			  + hermite_01(t) * ys[i+1]
-			  + hermite_11(t) * (xs[i+1] - x) * m_next_i;
+			  + hermite_11(t) * (xs[i+1] - xs[i]) * m_next_i;
 
 			return y;
 		}
