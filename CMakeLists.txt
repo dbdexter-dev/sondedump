@@ -6,7 +6,7 @@ option(FULL_OPTIMIZE "Enable platform-specific optimizations" OFF)
 option(UNINSTALL_TARGET "Generate uninstall target" ON)
 
 project(sondedump
-	VERSION 0.7
+	VERSION 1.0
 	DESCRIPTION "Radiosonde decoder"
 	LANGUAGES C)
 add_definitions(-DVERSION="${CMAKE_PROJECT_VERSION}")
