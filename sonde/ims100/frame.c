@@ -126,17 +126,32 @@ ims100_frame_seq(const IMS100Frame *frame) {
 float
 ims100_frame_temp(const IMS100FrameADC *adc, const IMS100Calibration *calib)
 {
+	float temp_poly[4];
+
+	/* FIXME this does not make sense, but for some reason it works? */
+	temp_poly[0] = calib->temp_poly[0] - calib->temp_poly[3];
+	temp_poly[1] = calib->temp_poly[1];
+	temp_poly[2] = calib->temp_poly[2];
+	temp_poly[3] = 0;
+
 	return freq_to_temp(adc->temp, adc->ref,
-	                    calib->temp_poly, calib->temp_resists, calib->temps, LEN(calib->temps));
+	                    temp_poly, calib->temp_resists, calib->temps, LEN(calib->temps));
 }
 
 float
 ims100_frame_rh(const IMS100FrameADC *adc, const IMS100Calibration *calib)
 {
 	float air_temp, rh_temp, rh;
+	float temp_poly[4];
+
+	/* FIXME this does not make sense, but for some reason it works? */
+	temp_poly[0] = calib->temp_poly[0] - calib->temp_poly[3];
+	temp_poly[1] = calib->temp_poly[1];
+	temp_poly[2] = calib->temp_poly[2];
+	temp_poly[3] = 0;
 
 	air_temp = ims100_frame_temp(adc, calib);
-	rh_temp = freq_to_rh_temp(adc->rh_temp, adc->ref, calib->temp_poly, calib->rh_temp_poly);
+	rh_temp = freq_to_rh_temp(adc->rh_temp, adc->ref, temp_poly, calib->rh_temp_poly);
 	rh = freq_to_rh(adc->rh, adc->ref, rh_temp, air_temp, calib->rh_poly);
 
 	return MAX(0, MIN(100, rh));

@@ -107,7 +107,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	ims100_frame_unpack(&self->frame, &self->ecc_frame);
 
 #ifndef NDEBUG
-	fwrite(&self->calib.rs11g, sizeof(self->calib.rs11g), 1, debug);
+	fwrite(&self->calib.ims100, sizeof(self->calib.ims100), 1, debug);
 	fflush(debug);
 #endif
 
