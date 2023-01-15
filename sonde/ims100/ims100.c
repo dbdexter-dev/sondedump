@@ -16,6 +16,8 @@ static FILE *debug, *debug_odd;
 #endif
 
 static void ims100_parse_subframe(SondeData *dst, time_t *date, const IMS100Frame *frame);
+static void ims100_update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment);
+static void rs11g_update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment);
 
 struct ims100decoder {
 	Framer f;
@@ -23,10 +25,11 @@ struct ims100decoder {
 	IMS100ECCFrame raw_frame[4];
 	IMS100ECCFrame ecc_frame;
 	IMS100Frame frame;
+
 	IMS100Calibration calib;
+	RS11GCalibration calib_rs11g;
 
 	uint64_t calib_bitmask;
-	char serial[16];
 	time_t date;
 
 	struct {
@@ -36,7 +39,6 @@ struct ims100decoder {
 	IMS100FrameADC adc;
 };
 
-static void update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment);
 
 __global IMS100Decoder*
 ims100_decoder_init(int samplerate)
@@ -50,7 +52,6 @@ ims100_decoder_init(int samplerate)
 	d->calib_bitmask = 0;
 	d->prev_alt.alt = 0;
 	d->prev_alt.time = -1UL;
-	d->serial[0] = 0;
 	d->date = 0;
 #ifndef NDEBUG
 	debug = fopen("/tmp/ims100frames.data", "wb");
@@ -103,15 +104,19 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 	ims100_frame_unpack(&self->frame, &self->ecc_frame);
 
-#ifndef NDEBUG
-	fwrite(&self->ecc_frame, sizeof(self->ecc_frame), 1, debug);
-	fflush(debug);
-#endif
-
 	/* Copy calibration data */
 	if (BITMASK_CHECK(self->frame.valid, IMS100_MASK_SEQ | IMS100_MASK_CALIB)) {
 		seq = ims100_frame_seq(&self->frame);
-		update_calibration(self, seq, self->frame.calib);
+
+		switch (self->frame.subtype) {
+		case SUBTYPE_IMS100:
+			ims100_update_calibration(self, seq, self->frame.calib);
+			break;
+		case SUBTYPE_RS11G:
+			rs11g_update_calibration(self, seq, self->frame.calib);
+			break;
+
+		}
 	}
 
 	/* Parse seq and serial number */
@@ -123,28 +128,67 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	/* Parse common PTU data {{{ */
 	if (BITMASK_CHECK(self->frame.valid, IMS100_MASK_PTU)) {
 		/* Fetch the ADC data carried by this frame based on its seq nr */
-		switch (ims100_frame_seq(&self->frame) & 0x3) {
-		case 0x00:
-			self->adc.ref = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
+		switch (self->frame.subtype) {
+		case SUBTYPE_IMS100:
+			switch (ims100_frame_seq(&self->frame) & 0x3) {
+			case 0x00:
+				self->adc.ref = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
+				self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
+				self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
+				break;
+			case 0x01:
+			case 0x02:
+				self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
+				self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
+				break;
+			case 0x03:
+				self->adc.rh_temp = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
+				self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
+				self->adc.ref = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
+				break;
+			}
+			break;
+		case SUBTYPE_RS11G:
+			switch (ims100_frame_seq(&self->frame) & 0x3) {
+			case 0x00:
+				self->adc.ref = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
+				break;
+			case 0x01:
+				break;
+			case 0x02:
+				self->adc.rh_temp = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
+				break;
+			case 0x03:
+				break;
+			}
+
 			self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
 			self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
-			break;
-		case 0x01:
-		case 0x02:
-			self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
-			self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
-			break;
-		case 0x03:
-			self->adc.rh_temp = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
-			self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
-			self->adc.ref = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
+			fprintf(debug_odd, "%d,%d,%d,%d\n",
+					self->adc.temp,
+					self->adc.rh,
+					self->adc.rh_temp,
+					self->adc.ref
+					);
 			break;
 		}
 
+
 		dst->fields |= DATA_PTU;
-		dst->temp = ims100_frame_temp(&self->adc, &self->calib);
-		dst->rh = ims100_frame_rh(&self->adc, &self->calib);
-		dst->pressure = 0;
+
+		switch (self->frame.subtype) {
+		case SUBTYPE_IMS100:
+			dst->temp = ims100_frame_temp(&self->adc, &self->calib);
+			dst->rh = ims100_frame_rh(&self->adc, &self->calib);
+			dst->pressure = 0;
+			break;
+		case SUBTYPE_RS11G:
+			dst->temp = rs11g_frame_temp(&self->adc, &self->calib_rs11g);
+			dst->rh = rs11g_frame_rh(&self->adc, &self->calib_rs11g);
+			dst->pressure = 0;
+			break;
+		}
+
 		dst->calib_percent = 100.0 * count_ones((uint8_t*)&self->calib_bitmask,
 												sizeof(self->calib_bitmask))
 						   / IMS100_CALIB_FRAGCOUNT;
@@ -169,9 +213,20 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 
 	/* Return serial number only if at least one field has been parsed */
 	if (dst->fields && BITMASK_CHECK(self->calib_bitmask, IMS100_CALIB_SERIAL_MASK)) {
-		sprintf(self->serial, "IMS%d", (int)ieee754_be(self->calib.serial));
+		switch (self->frame.subtype) {
+		case SUBTYPE_IMS100:
+			sprintf(dst->serial, "IMS%d", (int)ieee754_be(self->calib.serial));
+			break;
+
+		case SUBTYPE_RS11G:
+			sprintf(dst->serial, "RS11G-%d", (int)self->calib_rs11g.serial);
+			break;
+
+		default:
+			break;
+		}
+
 		dst->fields |= DATA_SERIAL;
-		strncpy(dst->serial, self->serial, sizeof(dst->serial) - 1);
 	}
 
 	return PARSED;
@@ -184,7 +239,7 @@ ims100_parse_subframe(SondeData *dst, time_t *date, const IMS100Frame *frame)
 	uint32_t validmask;
 
 	/* Parse subtype-specific data {{{ */
-	switch (ims100_frame_subtype(frame)) {
+	switch (frame->subseq << 8 | frame->subtype) {
 	case IMS100_SUBTYPE_GPS:
 		/* Parse GPS time */
 		validmask = IMS100_GPS_MASK_TIME | IMS100_GPS_MASK_DATE;
@@ -241,10 +296,6 @@ ims100_parse_subframe(SondeData *dst, time_t *date, const IMS100Frame *frame)
 			*date = rs11g_subframe_date(&frame->data.gps_11g);
 			log_debug("%u", *date);
 		}
-
-		/* TODO remove */
-		dst->fields |= DATA_SERIAL;
-		strcpy(dst->serial, "RS11G");
 		break;
 
 	case RS11G_SUBTYPE_GPSRAW:
@@ -262,11 +313,29 @@ ims100_parse_subframe(SondeData *dst, time_t *date, const IMS100Frame *frame)
 }
 
 static void
-update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment)
+ims100_update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment)
 {
 	const int calib_offset = seq % IMS100_CALIB_FRAGCOUNT;
+
 	memcpy(((uint8_t*)&self->calib) + IMS100_CALIB_FRAGSIZE * calib_offset, fragment + 2, 2);
 	memcpy(((uint8_t*)&self->calib) + IMS100_CALIB_FRAGSIZE * calib_offset + 2, fragment, 2);
+
+	self->calib_bitmask |= (1ULL << (63 - calib_offset));
+}
+
+static void
+rs11g_update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment)
+{
+	const int calib_offset = seq % IMS100_CALIB_FRAGCOUNT;
+	const float coeff = mbf_le(fragment);
+
+	memcpy(((uint8_t*)&self->calib_rs11g) + IMS100_CALIB_FRAGSIZE * calib_offset, &coeff, 4);
+
+#ifndef NDEBUG
+	fwrite(&self->calib_rs11g, sizeof(self->calib_rs11g), 1, debug);
+	fflush(debug);
+#endif
+
 
 	self->calib_bitmask |= (1ULL << (63 - calib_offset));
 }

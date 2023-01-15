@@ -58,5 +58,6 @@ int count_ones(const void *data, size_t len);
  * Convert 4 bytes into a IEEE754 float
  */
 float ieee754_be(const void *raw);
+float mbf_le(const void *raw);
 
 #endif

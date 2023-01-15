@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "utils.h"
 #include "bitops.h"
 
 void
@@ -126,5 +127,24 @@ ieee754_be(const void *v_raw)
 
 	data.raw = raw[0] << 24 | raw[1] << 16 | raw[2] << 8 | raw[3];
 	return data.value;
+}
+
+float
+mbf_le(const void *v_raw)
+{
+	const uint8_t *raw = v_raw;
+	uint8_t sign, exp;
+	uint32_t mantissa;
+	uint32_t ieee;
+
+	exp = raw[3];
+	sign = raw[2] >> 7;
+	mantissa = (raw[2] & 0x7F) << 16 | raw[1] << 8 | raw[0];
+
+	ieee = sign << 31
+		 | (exp - 2) << 23
+		 | mantissa;
+
+	return *(float*)&ieee;
 }
 

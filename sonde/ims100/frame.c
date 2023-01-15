@@ -6,7 +6,7 @@
 #include "physics.h"
 #include "utils.h"
 
-static float freq_to_temp(float temp_freq, float ref_freq, const float poly_coeffs[4], const float spline_resists[12], const float spline_temps[12]);
+static float freq_to_temp(float temp_freq, float ref_freq, const float poly_coeffs[4], const float *spline_resists, const float *spline_temps, size_t spline_len);
 static float freq_to_rh_temp(float temp_rh_freq, float ref_freq, const float poly_coeffs[4], const float r_to_t_coeffs[3]);
 static float freq_to_rh(float rh_freq, float ref_freq, float rh_temp, float air_temp, const float poly_coeffs[4]);
 
@@ -122,12 +122,6 @@ ims100_frame_seq(const IMS100Frame *frame) {
 	return (uint16_t)frame->seq[0] << 8 | frame->seq[1];
 }
 
-uint16_t
-ims100_frame_subtype(const IMS100Frame *frame)
-{
-	return (uint16_t)frame->subtype[0] << 8 | frame->subtype[1];
-}
-
 float
 ims100_frame_temp(const IMS100FrameADC *adc, const IMS100Calibration *calib)
 {
@@ -145,7 +139,7 @@ ims100_frame_temp(const IMS100FrameADC *adc, const IMS100Calibration *calib)
 		calib_temp_resists[i] = ieee754_be(calib->temp_resists[i]);
 	}
 
-	return freq_to_temp(adc->temp, adc->ref, calib_coeffs, calib_temp_resists, calib_temps);
+	return freq_to_temp(adc->temp, adc->ref, calib_coeffs, calib_temp_resists, calib_temps, LEN(calib_temps));
 }
 
 float
@@ -173,9 +167,31 @@ ims100_frame_rh(const IMS100FrameADC *adc, const IMS100Calibration *calib)
 	return MAX(0, MIN(100, rh));
 }
 
+float
+rs11g_frame_temp(const IMS100FrameADC *adc, const RS11GCalibration *calib)
+{
+	return freq_to_temp(adc->temp, adc->ref,
+			calib->_unk1,
+			calib->temp_resists, calib->temps, sizeof(calib->temps));
+}
+
+float
+rs11g_frame_rh(const IMS100FrameADC *adc, const RS11GCalibration *calib)
+{
+	float air_temp, rh;
+	air_temp = rs11g_frame_temp(adc, calib);
+
+	rh = freq_to_rh(adc->rh, adc->ref,
+			air_temp, air_temp,
+			calib->_unk2
+			);
+
+	return MAX(0, MIN(100, rh));
+}
+
 /* Static functions {{{ */
 static float
-freq_to_temp(float temp_freq, float ref_freq, const float poly_coeffs[4], const float spline_resists[12], const float spline_temps[12])
+freq_to_temp(float temp_freq, float ref_freq, const float poly_coeffs[4], const float *spline_resists, const float *spline_temps, size_t spline_len)
 {
 	float f_corrected, r_value, x, t_value;
 
@@ -187,7 +203,7 @@ freq_to_temp(float temp_freq, float ref_freq, const float poly_coeffs[4], const 
 	        + poly_coeffs[2] * x * x
 	        + poly_coeffs[3] * x * x * x;
 
-	t_value = cspline(spline_resists, spline_temps, 12, r_value);
+	t_value = cspline(spline_resists, spline_temps, spline_len, r_value);
 	return MAX(-100, MIN(100, t_value));
 }
 
@@ -234,7 +250,7 @@ freq_to_rh(float rh_freq, float ref_freq, float rh_temp, float air_temp, const f
 	temp_correction *= temp_rh_coeffs[4]
 		             + temp_rh_coeffs[5] * rh_uncal/100
 		             + temp_rh_coeffs[6] * rh_uncal/100 * rh_uncal/100;
-	rh_cal = rh_uncal - temp_correction * 100;
+	rh_cal = rh_uncal + temp_correction * 100;
 
 	/* If air temp makes sense, use it to correct for different wv sat pressures */
 	if (air_temp < 100 && air_temp > -100)  {

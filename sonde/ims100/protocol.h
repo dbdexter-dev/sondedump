@@ -45,6 +45,9 @@
 #define IMS100_MASK_SUBTYPE 0x020000
 #define IMS100_MASK_PTU     0x00FC00
 
+#define SUBTYPE_IMS100      0xc1
+#define SUBTYPE_RS11G       0xa2
+
 #define IMS100_SUBTYPE_GPS   0x30c1
 #define IMS100_SUBTYPE_META  0x31c1
 #define RS11G_SUBTYPE_GPS    0x30a2
@@ -86,7 +89,6 @@ PACK(typedef struct {
 	uint8_t _pad4[2];
 }) IMS100FrameMeta;
 /* }}} */
-
 /* RS-11G subframe types {{{ */
 PACK(typedef struct {
 	uint8_t _pad0[4];
@@ -129,7 +131,8 @@ PACK(typedef struct {
 	uint8_t adc_val2[2];    /* Actual content depends on seq, has period = 4 frames */
 	                        /* Seq = 0b..00, 01, 10: RH sensor ADC value */
 	                        /* Seq = 0b..11:         ADC reference */
-	uint8_t subtype[2];
+	uint8_t subseq;
+	uint8_t subtype;
 
 	/* Offset 16 */
 	union {
@@ -162,5 +165,25 @@ PACK(typedef struct {
 	uint8_t rh_temp_calib_coeffs[4][4];
 	uint8_t _unk_end[10];
 }) IMS100Calibration;
+
+typedef struct {
+	float serial;           /* Sonde serial number */
+	float _serials[4];      /* Most likely serial numbers for subsystems */
+	float _zero0[9];
+	float _unk0[2];         /* More serial numbers? */
+
+	float serial2;          /* Sonde serial number */
+	float temps[11];        /* Calibration temperatures, +40..-85'C */
+	float _zero1[4];
+
+	float serial3;          /* Sonde serial number */
+	float _unk1[4];
+	float temp_resists[11]; /* Thermistor kOhm @ temp */
+
+	float serial4;          /* Sonde serial number */
+	float _unk2[4];
+	float _zero[8];
+	float _unk3[3];
+} RS11GCalibration;
 
 #endif
