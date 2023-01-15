@@ -15,7 +15,9 @@
 static FILE *debug, *debug_odd;
 #endif
 
-static void ims100_parse_subframe(SondeData *dst, time_t *date, const IMS100Frame *frame);
+static void ims100_parse_frame(IMS100Decoder *self, SondeData *dst);
+static void rs11g_parse_frame(IMS100Decoder *self, SondeData *dst);
+
 static void ims100_update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment);
 static void rs11g_update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment);
 
@@ -26,8 +28,10 @@ struct ims100decoder {
 	IMS100ECCFrame ecc_frame;
 	IMS100Frame frame;
 
-	IMS100Calibration calib;
-	RS11GCalibration calib_rs11g;
+	union {
+		IMS100Calibration ims100;
+		RS11GCalibration rs11g;
+	} calib;
 
 	uint64_t calib_bitmask;
 	time_t date;
@@ -76,7 +80,6 @@ ims100_decoder_deinit(IMS100Decoder *d)
 __global ParserStatus
 ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 {
-	unsigned int seq;
 	int errcount;
 
 	/* Read a new frame */
@@ -86,7 +89,6 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	case PARSED:
 		break;
 	}
-
 
 	/* Decode bits and move them in the right place */
 	manchester_decode(&self->ecc_frame, self->raw_frame, IMS100_FRAME_LEN);
@@ -105,134 +107,17 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	ims100_frame_unpack(&self->frame, &self->ecc_frame);
 
 #ifndef NDEBUG
-	fwrite(&self->calib_rs11g, sizeof(self->calib_rs11g), 1, debug);
+	fwrite(&self->calib.rs11g, sizeof(self->calib.rs11g), 1, debug);
 	fflush(debug);
 #endif
 
-
-
-	/* Copy calibration data */
-	if (BITMASK_CHECK(self->frame.valid, IMS100_MASK_SEQ | IMS100_MASK_CALIB)) {
-		seq = ims100_frame_seq(&self->frame);
-
-		switch (self->frame.subtype) {
-		case SUBTYPE_IMS100:
-			ims100_update_calibration(self, seq, self->frame.calib);
-			break;
-		case SUBTYPE_RS11G:
-			rs11g_update_calibration(self, seq, self->frame.calib);
-			break;
-
-		}
-	}
-
-	/* Parse seq and serial number */
-	if (BITMASK_CHECK(self->frame.valid, IMS100_MASK_SEQ)) {
-		dst->fields |= DATA_SEQ;
-		dst->seq = ims100_frame_seq(&self->frame);
-	}
-
-	/* Parse common PTU data {{{ */
-	if (BITMASK_CHECK(self->frame.valid, IMS100_MASK_PTU)) {
-		/* Fetch the ADC data carried by this frame based on its seq nr */
-		switch (self->frame.subtype) {
-		case SUBTYPE_IMS100:
-			switch (ims100_frame_seq(&self->frame) & 0x3) {
-			case 0x00:
-				self->adc.ref = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
-				self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
-				self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
-				break;
-			case 0x01:
-				self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
-				self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
-				break;
-			case 0x02:
-				self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
-				self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
-				break;
-			case 0x03:
-				self->adc.rh_temp = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
-				self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
-				self->adc.ref = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
-				break;
-			}
-			break;
-		case SUBTYPE_RS11G:
-			switch (ims100_frame_seq(&self->frame) & 0x3) {
-			case 0x00:
-				self->adc.ref = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
-				break;
-			case 0x01:
-				break;
-			case 0x02:
-				break;
-			case 0x03:
-				break;
-			}
-
-			self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
-			self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
-			break;
-		}
-
-
-		dst->fields |= DATA_PTU;
-
-		switch (self->frame.subtype) {
-		case SUBTYPE_IMS100:
-			dst->temp = ims100_frame_temp(&self->adc, &self->calib);
-			dst->rh = ims100_frame_rh(&self->adc, &self->calib);
-			dst->pressure = 0;
-			break;
-		case SUBTYPE_RS11G:
-			dst->temp = rs11g_frame_temp(&self->adc, &self->calib_rs11g);
-			dst->rh = rs11g_frame_rh(&self->adc, &self->calib_rs11g);
-			dst->pressure = 0;
-			break;
-		default:
-			dst->fields &= ~DATA_PTU;
-			break;
-		}
-
-		dst->calib_percent = 100.0 * count_ones((uint8_t*)&self->calib_bitmask,
-												sizeof(self->calib_bitmask))
-						   / IMS100_CALIB_FRAGCOUNT;
-	}
-	/* }}} */
-
-	/* Parse subframe-specific data */
-	ims100_parse_subframe(dst, &self->date, &self->frame);
-
-	/* If speed data is missing, derive it from altitude data */
-	if (BITMASK_CHECK(dst->fields, DATA_POS | DATA_TIME)) {
-		self->cur_alt.alt = dst->alt;
-		self->cur_alt.time = dst->time;
-
-		if (self->cur_alt.time > self->prev_alt.time && isnan(dst->climb)) {
-			dst->climb = (self->cur_alt.alt - self->prev_alt.alt)
-			           / (self->cur_alt.time - self->prev_alt.time);
-		}
-
-		self->prev_alt = self->cur_alt;
-	}
-
-	/* Return serial number only if at least one field has been parsed */
-	if (dst->fields && BITMASK_CHECK(self->calib_bitmask, IMS100_CALIB_SERIAL_MASK)) {
-		switch (self->frame.subtype) {
-		case SUBTYPE_IMS100:
-			sprintf(dst->serial, "IMS%d", (int)self->calib.serial);
-			break;
-
-		case SUBTYPE_RS11G:
-			sprintf(dst->serial, "RS11G-%d", (int)self->calib_rs11g.serial);
-			break;
-
-		default:
-			break;
-		}
-
-		dst->fields |= DATA_SERIAL;
+	switch (self->frame.subtype) {
+	case SUBTYPE_RS11G:
+		rs11g_parse_frame(self, dst);
+		break;
+	case SUBTYPE_IMS100:
+		ims100_parse_frame(self, dst);
+		break;
 	}
 
 	return PARSED;
@@ -240,35 +125,81 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 
 /* Static functions {{{ */
 static void
-ims100_parse_subframe(SondeData *dst, time_t *date, const IMS100Frame *frame)
+ims100_parse_frame(IMS100Decoder *self, SondeData *dst)
 {
 	uint32_t validmask;
 
-	/* Parse subtype-specific data {{{ */
-	switch (frame->subseq << 8 | frame->subtype) {
+	/* Parse seq */
+	validmask = IMS100_MASK_SEQ;
+	if (BITMASK_CHECK(self->frame.valid, validmask)) {
+		dst->fields |= DATA_SEQ;
+		dst->seq = ims100_frame_seq(&self->frame);
+	}
+
+	/* Update calibration data */
+	validmask = IMS100_MASK_SEQ | IMS100_MASK_CALIB;
+	if (BITMASK_CHECK(self->frame.valid, validmask)) {
+		ims100_update_calibration(self, dst->seq, self->frame.calib);
+	}
+
+	/* Parse ADC data */
+	validmask = IMS100_MASK_PTU;
+	if (BITMASK_CHECK(self->frame.valid, validmask)) {
+		self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
+
+		/* Some ADC values depend on the sequence number */
+		switch (ims100_frame_seq(&self->frame) & 0x3) {
+		case 0x00:
+			self->adc.ref = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
+			self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
+			break;
+		case 0x01:
+			self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
+			break;
+		case 0x02:
+			self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
+			break;
+		case 0x03:
+			self->adc.rh_temp = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
+			self->adc.ref = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
+			break;
+		}
+
+		dst->fields |= DATA_PTU;
+		dst->temp = ims100_frame_temp(&self->adc, &self->calib.ims100);
+		dst->rh = ims100_frame_rh(&self->adc, &self->calib.ims100);
+		dst->pressure = 0;
+		dst->calib_percent = 100.0 * count_ones((uint8_t*)&self->calib_bitmask,
+		                                        sizeof(self->calib_bitmask))
+		                  / IMS100_CALIB_FRAGCOUNT;
+	}
+
+
+	/* Parse the rest of the frame */
+	switch (self->frame.subseq << 8 | self->frame.subtype) {
 	case IMS100_SUBTYPE_GPS:
 		/* Parse GPS time */
 		validmask = IMS100_GPS_MASK_TIME | IMS100_GPS_MASK_DATE;
-		if (BITMASK_CHECK(frame->valid, validmask)) {
+		if (BITMASK_CHECK(self->frame.valid, validmask)) {
 			dst->fields |= DATA_TIME;
-			dst->time = ims100_subframe_time(&frame->data.gps);
+			dst->time = ims100_subframe_time(&self->frame.data.gps);
 		}
 
 		/* Parse GPS position */
 		validmask = IMS100_GPS_MASK_LAT | IMS100_GPS_MASK_LON | IMS100_GPS_MASK_ALT;
-		if (BITMASK_CHECK(frame->valid, validmask)) {
+		if (BITMASK_CHECK(self->frame.valid, validmask)) {
 			dst->fields |= DATA_POS;
-			dst->lat = ims100_subframe_lat(&frame->data.gps);
-			dst->lon = ims100_subframe_lon(&frame->data.gps);
-			dst->alt = ims100_subframe_alt(&frame->data.gps);
+			dst->lat = ims100_subframe_lat(&self->frame.data.gps);
+			dst->lon = ims100_subframe_lon(&self->frame.data.gps);
+			dst->alt = ims100_subframe_alt(&self->frame.data.gps);
 		}
 
 		/* Parse GPS speed */
 		validmask = IMS100_GPS_MASK_SPEED | IMS100_GPS_MASK_HEADING;
-		if (BITMASK_CHECK(frame->valid, validmask)) {
+		if (BITMASK_CHECK(self->frame.valid, validmask)) {
 			dst->fields |= DATA_SPEED;
-			dst->speed = ims100_subframe_speed(&frame->data.gps);
-			dst->heading = ims100_subframe_heading(&frame->data.gps);
+			dst->speed = ims100_subframe_speed(&self->frame.data.gps);
+			dst->heading = ims100_subframe_heading(&self->frame.data.gps);
 			dst->climb = NAN;
 		}
 		break;
@@ -276,46 +207,118 @@ ims100_parse_subframe(SondeData *dst, time_t *date, const IMS100Frame *frame)
 	case IMS100_SUBTYPE_META:
 		/* TODO any interesting data here? */
 		break;
+	}
 
+	/* Derive climb rate from altitude data */
+	if (BITMASK_CHECK(dst->fields, DATA_POS | DATA_TIME)) {
+		self->cur_alt.alt = dst->alt;
+		self->cur_alt.time = dst->time;
+
+		if (self->cur_alt.time > self->prev_alt.time) {
+			dst->climb = (self->cur_alt.alt - self->prev_alt.alt)
+			           / (self->cur_alt.time - self->prev_alt.time);
+		}
+
+		self->prev_alt = self->cur_alt;
+	}
+
+	/* Append serial number */
+	if (dst->fields && BITMASK_CHECK(self->calib_bitmask, IMS100_CALIB_SERIAL_MASK)) {
+		dst->fields |= DATA_SERIAL;
+		sprintf(dst->serial, "IMS%d", (int)self->calib.ims100.serial);
+	}
+}
+
+static void
+rs11g_parse_frame(IMS100Decoder *self, SondeData *dst)
+{
+	uint32_t validmask;
+
+	/* Parse seq */
+	validmask = IMS100_MASK_SEQ;
+	if (BITMASK_CHECK(self->frame.valid, validmask)) {
+		dst->fields |= DATA_SEQ;
+		dst->seq = ims100_frame_seq(&self->frame);
+	}
+
+	/* Update calibration data */
+	validmask = IMS100_MASK_SEQ | IMS100_MASK_CALIB;
+	if (BITMASK_CHECK(self->frame.valid, validmask)) {
+		rs11g_update_calibration(self, dst->seq, self->frame.calib);
+	}
+
+	/* Parse ADC data */
+	validmask = IMS100_MASK_PTU;
+	if (BITMASK_CHECK(self->frame.valid, validmask)) {
+		switch (ims100_frame_seq(&self->frame) & 0x3) {
+		case 0x00:
+			self->adc.ref = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
+			break;
+		case 0x01:
+			break;
+		case 0x02:
+			break;
+		case 0x03:
+			break;
+		}
+
+		self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
+		self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
+
+		dst->fields |= DATA_PTU;
+		dst->temp = rs11g_frame_temp(&self->adc, &self->calib.rs11g);
+		dst->rh = rs11g_frame_rh(&self->adc, &self->calib.rs11g);
+		dst->pressure = 0;
+		dst->calib_percent = 100.0 * count_ones((uint8_t*)&self->calib_bitmask,
+		                                        sizeof(self->calib_bitmask))
+		                  / IMS100_CALIB_FRAGCOUNT;
+	}
+
+	/* Parse the rest of the frame */
+	switch (self->frame.subseq << 8 | self->frame.subtype) {
 	case RS11G_SUBTYPE_GPS:
 		/* Parse GPS position */
 		validmask = RS11G_GPS_MASK_LAT | RS11G_GPS_MASK_LON | RS11G_GPS_MASK_ALT;
-		if (BITMASK_CHECK(frame->valid, validmask)) {
+		if (BITMASK_CHECK(self->frame.valid, validmask)) {
 			dst->fields |= DATA_POS;
-			dst->lat = rs11g_subframe_lat(&frame->data.gps_11g);
-			dst->lon = rs11g_subframe_lon(&frame->data.gps_11g);
-			dst->alt = rs11g_subframe_alt(&frame->data.gps_11g);
+			dst->lat = rs11g_subframe_lat(&self->frame.data.gps_11g);
+			dst->lon = rs11g_subframe_lon(&self->frame.data.gps_11g);
+			dst->alt = rs11g_subframe_alt(&self->frame.data.gps_11g);
 		}
 
 		/* Parse GPS speed */
 		validmask = RS11G_GPS_MASK_SPEED | RS11G_GPS_MASK_HEADING | RS11G_GPS_MASK_CLIMB;
-		if (BITMASK_CHECK(frame->valid, validmask)) {
+		if (BITMASK_CHECK(self->frame.valid, validmask)) {
 			dst->fields |= DATA_SPEED;
-			dst->speed = rs11g_subframe_speed(&frame->data.gps_11g);
-			dst->heading = rs11g_subframe_heading(&frame->data.gps_11g);
-			dst->climb = rs11g_subframe_climb(&frame->data.gps_11g);
+			dst->speed = rs11g_subframe_speed(&self->frame.data.gps_11g);
+			dst->heading = rs11g_subframe_heading(&self->frame.data.gps_11g);
+			dst->climb = rs11g_subframe_climb(&self->frame.data.gps_11g);
 		}
 
 		/* Parse GPS time (1/2) */
 		validmask = RS11G_GPS_MASK_DATE;
-		if (BITMASK_CHECK(frame->valid, validmask)) {
-			*date = rs11g_subframe_date(&frame->data.gps_11g);
-			log_debug("%u", *date);
+		if (BITMASK_CHECK(self->frame.valid, validmask)) {
+			self->date = rs11g_subframe_date(&self->frame.data.gps_11g);
 		}
 		break;
 
 	case RS11G_SUBTYPE_GPSRAW:
 		/* Parse GPS time (2/2) */
 		validmask = RS11G_GPSRAW_MASK_TIME;
-		if (BITMASK_CHECK(frame->valid, validmask)) {
+		if (BITMASK_CHECK(self->frame.valid, validmask)) {
 			dst->fields |= DATA_TIME;
-			dst->time = *date + rs11g_subframe_time(&frame->data.gpsraw_11g);
+			dst->time = self->date + rs11g_subframe_time(&self->frame.data.gpsraw_11g);
 		}
 		break;
 	default:
 		break;
 	}
-	/* }}} */
+
+	/* Append serial number */
+	if (dst->fields && BITMASK_CHECK(self->calib_bitmask, IMS100_CALIB_SERIAL_MASK)) {
+		dst->fields |= DATA_SERIAL;
+		sprintf(dst->serial, "RS11G-%d", (int)self->calib.rs11g.serial);
+	}
 }
 
 static void
@@ -325,7 +328,7 @@ ims100_update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment)
 	const uint8_t raw[] = {fragment[2], fragment[3], fragment[0], fragment[1]};
 	const float coeff = ieee754_be(raw);
 
-	memcpy(((uint8_t*)&self->calib) + IMS100_CALIB_FRAGSIZE * calib_offset, &coeff, sizeof(coeff));
+	memcpy(((uint8_t*)&self->calib.ims100) + IMS100_CALIB_FRAGSIZE * calib_offset, &coeff, sizeof(coeff));
 
 	self->calib_bitmask |= (1ULL << (63 - calib_offset));
 }
@@ -336,7 +339,7 @@ rs11g_update_calibration(IMS100Decoder *self, int seq, const uint8_t *fragment)
 	const int calib_offset = seq % IMS100_CALIB_FRAGCOUNT;
 	const float coeff = mbf_le(fragment);
 
-	memcpy(((uint8_t*)&self->calib_rs11g) + IMS100_CALIB_FRAGSIZE * calib_offset, &coeff, sizeof(coeff));
+	memcpy(((uint8_t*)&self->calib.rs11g) + IMS100_CALIB_FRAGSIZE * calib_offset, &coeff, sizeof(coeff));
 
 	self->calib_bitmask |= (1ULL << (63 - calib_offset));
 }

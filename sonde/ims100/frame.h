@@ -37,8 +37,9 @@ void ims100_frame_unpack(IMS100Frame *dst, const IMS100ECCFrame *src);
 
 /* Accessors for various subfields */
 uint16_t ims100_frame_seq(const IMS100Frame *frame);
-float    ims100_frame_temp(const IMS100FrameADC *adc, const IMS100Calibration *calib);
-float    ims100_frame_rh(const IMS100FrameADC *adc, const IMS100Calibration *calib);
+
+float ims100_frame_temp(const IMS100FrameADC *adc, const IMS100Calibration *calib);
+float ims100_frame_rh(const IMS100FrameADC *adc, const IMS100Calibration *calib);
 
 float rs11g_frame_temp(const IMS100FrameADC *adc, const RS11GCalibration *calib);
 float rs11g_frame_rh(const IMS100FrameADC *adc, const RS11GCalibration *calib);
