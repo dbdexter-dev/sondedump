@@ -9,13 +9,7 @@
 
 static float freq_to_temp(float temp_freq, float ref_freq, const float poly_coeffs[4], const float *spline_resists, const float *spline_temps, size_t spline_len);
 static float freq_to_rh_temp(float temp_rh_freq, float ref_freq, const float poly_coeffs[4], const float r_to_t_coeffs[3]);
-static float freq_to_rh(float rh_freq, float ref_freq, float rh_temp, float air_temp, const float poly_coeffs[4]);
-
-/* K0..K6 in the GRUAN docs, found by fitting polynomials to the graphs shown.
- * TODO find the official values somewhere? */
-static const float temp_rh_coeffs[] = {5.79231318e-02, -2.64030081e-03, -1.32089353e-05, 7.15251769e-07,
-                                       -4.81000481e-04, 1.86628187e+00f, -7.69600770e-01};
-
+static float freq_to_rh(float rh_freq, float ref_freq, const float poly_coeffs[4]);
 
 void
 ims100_frame_descramble(IMS100ECCFrame *frame)
@@ -152,7 +146,12 @@ ims100_frame_rh(const IMS100FrameADC *adc, const IMS100Calibration *calib)
 
 	air_temp = ims100_frame_temp(adc, calib);
 	rh_temp = freq_to_rh_temp(adc->rh_temp, adc->ref, temp_poly, calib->rh_temp_poly);
-	rh = freq_to_rh(adc->rh, adc->ref, rh_temp, air_temp, calib->rh_poly);
+	rh = freq_to_rh(adc->rh, adc->ref, calib->rh_poly);
+
+	/* If air temp makes sense, use it to correct for different wv sat pressures */
+	if (air_temp < 100 && air_temp > -100)  {
+		rh *= wv_sat_pressure(rh_temp) / wv_sat_pressure(air_temp);
+	}
 
 	return MAX(0, MIN(100, rh));
 }
@@ -167,12 +166,27 @@ rs11g_frame_temp(const IMS100FrameADC *adc, const RS11GCalibration *calib)
 float
 rs11g_frame_rh(const IMS100FrameADC *adc, const RS11GCalibration *calib)
 {
-	float air_temp, rh;
+	/* K0..K6 in the GRUAN docs, found by fitting polynomials to the graphs shown.*/
+	const float temp_rh_coeffs[] = {5.79231318e-02, -2.64030081e-03, -1.32089353e-05, 7.15251769e-07,
+	                                -4.81000481e-04, 1.86628187e+00, -7.69600770e-01};
+
+	float air_temp, rh, rh_cal, temp_correction;
+
 	air_temp = rs11g_frame_temp(adc, calib);
+	rh = freq_to_rh(adc->rh, adc->ref, calib->rh_poly);
 
-	rh = freq_to_rh(adc->rh, adc->ref, air_temp, air_temp, calib->rh_poly);
+	/* RS-11G specific temp correction, assuming that air temp and sensor temp
+	 * are the same */
+	temp_correction = temp_rh_coeffs[0]
+		            + temp_rh_coeffs[1] * air_temp
+		            + temp_rh_coeffs[2] * air_temp * air_temp
+		            + temp_rh_coeffs[3] * air_temp * air_temp * air_temp;
+	temp_correction *= temp_rh_coeffs[4]
+		             + temp_rh_coeffs[5] * rh/100
+		             + temp_rh_coeffs[6] * rh/100 * rh/100;
+	rh_cal = rh + temp_correction * 100;
 
-	return MAX(0, MIN(100, rh));
+	return MAX(0, MIN(100, rh_cal));
 }
 
 /* Static functions {{{ */
@@ -216,34 +230,17 @@ freq_to_rh_temp(float temp_rh_freq, float ref_freq, const float poly_coeffs[4], 
 }
 
 static float
-freq_to_rh(float rh_freq, float ref_freq, float rh_temp, float air_temp, const float poly_coeffs[4])
+freq_to_rh(float rh_freq, float ref_freq, const float poly_coeffs[4])
 {
-	float f_corrected, x, rh_uncal, temp_correction, rh_cal;
+	float freq, rh;
 
-	f_corrected = 4.0 * rh_freq / ref_freq;
+	freq = 4.0 * rh_freq / ref_freq;
 
-	x = f_corrected;
-	rh_uncal = poly_coeffs[0]
-	         + poly_coeffs[1] * x
-	         + poly_coeffs[2] * x * x
-	         + poly_coeffs[3] * x * x * x;
+	rh = poly_coeffs[0]
+	   + poly_coeffs[1] * freq
+	   + poly_coeffs[2] * freq * freq
+	   + poly_coeffs[3] * freq * freq * freq;
 
-	/* Temp correction */
-	temp_correction = temp_rh_coeffs[0]
-		            + temp_rh_coeffs[1] * rh_temp
-		            + temp_rh_coeffs[2] * rh_temp * rh_temp
-		            + temp_rh_coeffs[3] * rh_temp * rh_temp * rh_temp;
-	temp_correction *= temp_rh_coeffs[4]
-		             + temp_rh_coeffs[5] * rh_uncal/100
-		             + temp_rh_coeffs[6] * rh_uncal/100 * rh_uncal/100;
-	rh_cal = rh_uncal + temp_correction * 100;
-
-	/* If air temp makes sense, use it to correct for different wv sat pressures */
-	if (air_temp < 100 && air_temp > -100)  {
-		return rh_cal * wv_sat_pressure(rh_temp) / wv_sat_pressure(air_temp);
-	}
-
-	/* Otherwise, return as-is */
-	return rh_cal;
+	return rh;
 }
 /* }}} */

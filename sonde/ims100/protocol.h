@@ -155,7 +155,9 @@ PACK(typedef struct {
 
 typedef struct {
 	float serial;               /* Sonde serial number */
-	float _unk0[15];            /* Most likely more serial numbers */
+	float _unk0[3];             /* Most likely more serial numbers */
+	float sensor_serial;        /* Sensor boom serial number */
+	float _unk1[11];            /* Most likely serial numbers, xmit freq, and more config params */
 
 	float serial2;
 	float temps[12];            /* Calibration temperatures, +60..-85'C */
