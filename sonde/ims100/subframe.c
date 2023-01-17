@@ -139,7 +139,7 @@ rs11g_subframe_speed(const RS11GFrameGPS *frame)
 {
 	const uint16_t raw_speed = (uint16_t)frame->speed[0] << 8 | (uint16_t)frame->speed[1];
 
-	return raw_speed / 1.943844e2;  // knots*100 -> m/s
+	return raw_speed / 1e2;
 }
 
 float

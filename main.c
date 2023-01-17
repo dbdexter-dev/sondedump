@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include "bitops.h"
 #include "decode.h"
 #include "gps/ecef.h"
 #include "gps/time.h"
@@ -358,7 +359,8 @@ main(int argc, char *argv[])
 			if (gpx_fname) {
 				if (data->fields & DATA_SERIAL)
 					gpx_start_track(&gpx, data->serial);
-				gpx_add_trackpoint(&gpx, data);
+				if (BITMASK_CHECK(data->fields, DATA_POS | DATA_SPEED))
+					gpx_add_trackpoint(&gpx, data);
 			}
 		}
 	}

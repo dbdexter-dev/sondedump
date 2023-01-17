@@ -96,6 +96,8 @@ count_days(unsigned int year, unsigned int month, unsigned int day)
 static float
 spline_tangent(const float *xs, const float *ys, int k)
 {
+	/* If first element, do one-sided difference */
+	if (k == 0) return (ys[k+1] - ys[k]) / (xs[k+1] - xs[k]);
 	return 0.5 * ((ys[k+1] - ys[k]) / (xs[k+1] - xs[k])
 	            + (ys[k] - ys[k-1]) / (xs[k] - xs[k-1]));
 }

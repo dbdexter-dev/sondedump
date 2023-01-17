@@ -78,7 +78,6 @@ framer_read(Framer *f, void *v_dst, const float *src, size_t len)
 		/* Find offset of the sync marker */
 		f->sync_offset = correlate(&f->corr, &f->inverted, dst, f->framelen/8);
 		assert(f->sync_offset >= 0);
-		log_debug("Offset %d", f->sync_offset);
 
 		f->state = REALIGN;
 		/* FALLTHROUGH */

@@ -22,19 +22,19 @@
 #define IMS100_REEDSOLOMON_T 4
 #define IMS100_REEDSOLOMON_POLY 0x61
 
-#define IMS100_MASK_SEQ     0x800000
-#define IMS100_MASK_CALIB   0x300000
-#define IMS100_MASK_SUBTYPE 0x010000
-#define IMS100_MASK_PTU     0x460000
-
-#define IMS100_GPS_MASK_SPEED   0x000002
+#define IMS100_MASK_SEQ         0x800000
+#define IMS100_MASK_CALIB       0x300000
+#define IMS100_MASK_PTU         0x460000
+#define IMS100_MASK_SUBTYPE     0x010000
+#define IMS100_GPS_MASK_TIME    0x006000
+#define IMS100_GPS_MASK_DATE    0x001000
+#define IMS100_GPS_MASK_LAT     0x000C00
+#define IMS100_GPS_MASK_LON     0x000300
+#define IMS100_GPS_MASK_ALT     0x0000C0
 #define IMS100_GPS_MASK_HEADING 0x000004
-#define IMS100_GPS_MASK_ALT     0x000060
-#define IMS100_GPS_MASK_LON     0x000180
-#define IMS100_GPS_MASK_LAT     0x000600
-#define IMS100_GPS_MASK_DATE    0x000800
-#define IMS100_GPS_MASK_TIME    0x003000
+#define IMS100_GPS_MASK_SPEED   0x000002
 
+#define RS11G_GPSRAW_MASK_TIME  0x006000
 #define RS11G_GPS_MASK_LAT      0x000600
 #define RS11G_GPS_MASK_LON      0x000180
 #define RS11G_GPS_MASK_ALT      0x000060
@@ -43,7 +43,6 @@
 #define RS11G_GPS_MASK_CLIMB    0x000004
 #define RS11G_GPS_MASK_DATE     0x000003
 
-#define RS11G_GPSRAW_MASK_TIME  0x003000
 
 
 #define SUBTYPE_IMS100      0xc1
@@ -157,7 +156,8 @@ typedef struct {
 	float serial;               /* Sonde serial number */
 	float _unk0[3];             /* Most likely more serial numbers */
 	float sensor_serial;        /* Sensor boom serial number */
-	float _unk1[11];            /* Most likely serial numbers, xmit freq, and more config params */
+	float _unk1[10];            /* Most likely serial numbers, xmit freq, and more config params */
+	float freq;                 /* Frequency, 400MHz + 100kHz * freq */
 
 	float serial2;
 	float temps[12];            /* Calibration temperatures, +60..-85'C */

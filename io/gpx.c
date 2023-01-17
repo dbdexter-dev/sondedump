@@ -46,7 +46,7 @@ gpx_start_track(GPXFile *file, const char *name)
 
 	if (name[0] == 0) return;
 	for (i=0; name[i] != 0; i++) {
-		if (!isalnum(name[i])) return;
+		if (name[i] == '"') return;
 	}
 
 	/* If track already open, return immediately */

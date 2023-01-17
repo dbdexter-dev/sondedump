@@ -99,7 +99,6 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 
 	/* Error correct and remove all ECC bits */
 	errcount = ims100_frame_error_correct(&self->ecc_frame, &self->rs);
-	log_debug("Error count: %d", errcount);
 	if (errcount < 0) {
 		/* ECC failed: go to next frame */
 		return PARSED;
@@ -107,7 +106,7 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	ims100_frame_unpack(&self->frame, &self->ecc_frame);
 
 #ifndef NDEBUG
-	fwrite(&self->calib.ims100, sizeof(self->calib.ims100), 1, debug);
+	fwrite(&self->frame, sizeof(self->frame), 1, debug);
 	fflush(debug);
 #endif
 
@@ -143,7 +142,7 @@ ims100_parse_frame(IMS100Decoder *self, SondeData *dst)
 	}
 
 	/* Parse ADC data */
-	validmask = IMS100_MASK_PTU;
+	validmask = IMS100_MASK_SEQ | IMS100_MASK_PTU;
 	if (BITMASK_CHECK(self->frame.valid, validmask)) {
 		self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
 
@@ -248,7 +247,7 @@ rs11g_parse_frame(IMS100Decoder *self, SondeData *dst)
 	}
 
 	/* Parse ADC data */
-	validmask = IMS100_MASK_PTU;
+	validmask = IMS100_MASK_SEQ | IMS100_MASK_PTU;
 	if (BITMASK_CHECK(self->frame.valid, validmask)) {
 		switch (ims100_frame_seq(&self->frame) & 0x3) {
 		case 0x00:
