@@ -80,6 +80,7 @@ kml_close(KMLFile *kml)
 {
 	if (!kml->fd) return;
 	if (kml->track_active) kml_stop_track(kml);
+	if (!kml->live_update) kml_temp_close(kml);
 	if (kml->sonde_serial) free(kml->sonde_serial);
 	fclose(kml->fd);
 }
@@ -124,11 +125,11 @@ kml_stop_track(KMLFile *kml)
 {
 	if (kml->live_update) fseek(kml->fd, kml->next_update_fseek, SEEK_SET);
 	fprintf(kml->fd,
-			"</coordinates>"
+			"</coordinates>\n"
 			"</LineString>\n"
 		  );
 	kml->track_active = 0;
-	kml_temp_close(kml);
+	if (kml->live_update) kml_temp_close(kml);
 
 	kml->sonde_serial = NULL;
 	free(kml->sonde_serial);

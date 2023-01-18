@@ -110,6 +110,10 @@ ims100_frame_unpack(IMS100Frame *frame, const IMS100ECCFrame *ecc_frame)
 	}
 
 	frame->valid = validmask;
+	if (validmask != 0xFFFFFF) {
+		log_debug("Validity mask: %06x", validmask);
+		log_debug_hexdump(frame, sizeof(*frame));
+	}
 }
 
 uint16_t
@@ -128,8 +132,8 @@ ims100_frame_temp(const IMS100FrameADC *adc, const IMS100Calibration *calib)
 	temp_poly[2] = calib->temp_poly[2];
 	temp_poly[3] = 0;
 
-	return freq_to_temp(adc->temp, adc->ref,
-	                    temp_poly, calib->temp_resists, calib->temps, LEN(calib->temps));
+	return 1 + freq_to_temp(adc->temp, adc->ref,
+	                        temp_poly, calib->temp_resists, calib->temps, LEN(calib->temps));
 }
 
 float
@@ -145,7 +149,7 @@ ims100_frame_rh(const IMS100FrameADC *adc, const IMS100Calibration *calib)
 	temp_poly[3] = 0;
 
 	air_temp = ims100_frame_temp(adc, calib);
-	rh_temp = freq_to_rh_temp(adc->rh_temp, adc->ref, temp_poly, calib->rh_temp_poly);
+	rh_temp = 1 + freq_to_rh_temp(adc->rh_temp, adc->ref, temp_poly, calib->rh_temp_poly);
 	rh = freq_to_rh(adc->rh, adc->ref, calib->rh_poly);
 
 	/* If air temp makes sense, use it to correct for different wv sat pressures */
@@ -175,8 +179,8 @@ rs11g_frame_rh(const IMS100FrameADC *adc, const RS11GCalibration *calib)
 	air_temp = rs11g_frame_temp(adc, calib);
 	rh = freq_to_rh(adc->rh, adc->ref, calib->rh_poly);
 
-	/* RS-11G specific temp correction, assuming that air temp and sensor temp
-	 * are the same */
+	/* RS-11G specific temp correction, assuming that air and sensor temp are
+	 * the same. Taken from GRUAN TD-5 by curve fitting the graphs shown */
 	temp_correction = temp_rh_coeffs[0]
 		            + temp_rh_coeffs[1] * air_temp
 		            + temp_rh_coeffs[2] * air_temp * air_temp
@@ -194,6 +198,8 @@ static float
 freq_to_temp(float temp_freq, float ref_freq, const float poly_coeffs[4], const float *spline_resists, const float *spline_temps, size_t spline_len)
 {
 	float f_corrected, r_value, x, t_value;
+	float log_resists[12];
+	size_t i;
 
 	f_corrected = 4.0 * temp_freq / ref_freq;
 	x = 1.0 / (f_corrected - 1.0);
@@ -203,7 +209,12 @@ freq_to_temp(float temp_freq, float ref_freq, const float poly_coeffs[4], const 
 	        + poly_coeffs[2] * x * x
 	        + poly_coeffs[3] * x * x * x;
 
-	t_value = cspline(spline_resists, spline_temps, spline_len, r_value);
+	/* Convert resistance values to their natural log, then interpolate the temp */
+	for (i=0; i<spline_len; i++) {
+		log_resists[i] = logf(spline_resists[i]);
+	}
+
+	t_value = cspline(log_resists, spline_temps, spline_len, logf(r_value));
 	return MAX(-100, MIN(100, t_value));
 }
 
