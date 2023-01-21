@@ -13,9 +13,11 @@
 #include "frame.h"
 #include "gps/ecef.h"
 #include "log/log.h"
+#include "subframe.h"
 #include "protocol.h"
 #include "physics.h"
-#include "subframe.h"
+#include "parser.h"
+
 
 static uint16_t imet4_serial(int seq, time_t time);
 static void imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe);
@@ -162,10 +164,6 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 
 	IMET4Subframe_XDATA_Ozone *ozone_xdata;
 
-	int32_t pressure;
-	int hour, min, sec;
-	time_t now;
-	struct tm datetime;
 
 	switch (subframe->type) {
 	case IMET4_SFTYPE_PTU:
@@ -173,73 +171,41 @@ imet4_parse_subframe(SondeData *dst, IMET4Subframe *subframe)
 		/* PTUX has the same fields as PTU, plus some extra that we are not
 		 * parsing at the moment. To avoid code duplication, "downgrade"
 		 * PTUX packets to PTU */
-		pressure = ptu->pressure[0] | ptu->pressure[1] << 8 | ptu->pressure[2] << 16;
-		pressure = (pressure << 8) >> 8;
-
-		dst->fields |= DATA_PTU;
 		dst->calib_percent = 100.0;
-		dst->temp = ptu->temp / 100.0;
-		dst->rh = ptu->rh / 100.0;
-		dst->pressure = pressure / 100.0;
+		dst->temp = imet4_ptu_temp(ptu);
+		dst->rh = imet4_ptu_rh(ptu);
+		dst->pressure = imet4_ptu_pressure(ptu);
+		dst->fields |= DATA_PTU;
 
-		dst->fields |= DATA_SEQ;
 		dst->seq = ptu->seq;
+		dst->fields |= DATA_SEQ;
 		break;
 
 	case IMET4_SFTYPE_GPS:
-	case IMET4_SFTYPE_GPSX:
-		/* Same reasoning as for PTU and PTUX: lat/lon/alt fields are
-		 * shared, so avoid code duplication by combining them */
+		dst->lat = imet4_gps_lat(gps);
+		dst->lon = imet4_gps_lon(gps);
+		dst->alt = imet4_gps_alt(gps);
 		dst->fields |= DATA_POS;
-		dst->lat = gps->lat;
-		dst->lon = gps->lon;
-		dst->alt = gps->alt - 5000.0;
 
-		/* If no pressure was provided, derive it from altitude so that the O3
-		 * concentration can still be calculated */
-
-		/* Get time from the correct field, based on frame type */
-		switch (subframe->type) {
-		case IMET4_SFTYPE_GPS:
-			hour = gps->hour;
-			min = gps->min;
-			sec = gps->sec;
-			break;
-
-			break;
-		case IMET4_SFTYPE_GPSX:
-			hour = gpsx->hour;
-			min = gpsx->min;
-			sec = gpsx->sec;
-
-			dst->fields |= DATA_SPEED;
-			dst->speed = sqrtf(gpsx->dlon*gpsx->dlon + gpsx->dlat*gpsx->dlat);
-			dst->climb = gpsx->climb;
-			dst->heading = atan2f(gpsx->dlat, gpsx->dlon) * 180.0 / M_PI;
-			if (dst->heading < 0) dst->heading += 360.0;
-			break;
-		default:
-			/* unreached */
-			hour = min = sec = 0;
-			break;
-		}
-
-		/* Date is not transmitted: use current date */
-		now = time(NULL);
-		datetime = *gmtime(&now);
-		/* Handle 0Z crossing */
-		if (abs(hour - datetime.tm_hour) >= 12) {
-			now += (hour < datetime.tm_hour) ? 86400 : -86400;
-			datetime = *gmtime(&now);
-		}
-
-		datetime.tm_hour = hour;
-		datetime.tm_min = min;
-		datetime.tm_sec = sec;
-
+		dst->time = imet4_gps_time(gps);
 		dst->fields |= DATA_TIME;
-		dst->time = my_timegm(&datetime);
 		break;
+
+	case IMET4_SFTYPE_GPSX:
+		dst->lat = imet4_gps_lat(gps);
+		dst->lon = imet4_gps_lon(gps);
+		dst->alt = imet4_gps_alt(gps);
+		dst->fields |= DATA_POS;
+
+		dst->time = imet4_gpsx_time(gpsx);
+		dst->fields |= DATA_TIME;
+
+		dst->speed = imet4_gpsx_speed(gpsx);
+		dst->heading = imet4_gpsx_heading(gpsx);
+		dst->climb = imet4_gpsx_climb(gpsx);
+		dst->fields |= DATA_SPEED;
+		break;
+
 	case IMET4_SFTYPE_XDATA:
 		switch (xdata->instr_id) {
 		case IMET4_XDATA_INSTR_OZONE:

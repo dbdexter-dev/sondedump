@@ -2,17 +2,17 @@
 #include <math.h>
 #include <stdio.h>
 #include "log/log.h"
-#include "subframe.h"
+#include "parser.h"
 #include "gps/time.h"
 
-time_t m10_frame_9f_time(const M10Frame_9f* f) {
+time_t m10_9f_time(const M10Frame_9f* f) {
 	const uint32_t ms = f->time[0] << 24 | f->time[1] << 16 | f->time[2] << 8 | f->time[3];
 	const uint16_t week = f->week[0] << 8 | f->week[1];
 
 	return gps_time_to_utc(week, ms);
 }
 void
-m10_frame_9f_serial(char *dst, const M10Frame_9f *frame)
+m10_9f_serial(char *dst, const M10Frame_9f *frame)
 {
 	const uint32_t serial_0 = (frame->serial[2] >> 4) * 100 + (frame->serial[2] & 0xF);
 	const uint32_t serial_1 = frame->serial[0];
@@ -22,49 +22,49 @@ m10_frame_9f_serial(char *dst, const M10Frame_9f *frame)
 }
 
 float
-m10_frame_9f_lat(const M10Frame_9f* f)
+m10_9f_lat(const M10Frame_9f* f)
 {
 	int32_t lat =  f->lat[0] << 24 | f->lat[1] << 16 | f->lat[2] << 8 | f->lat[3];
 	return lat * 360.0 / ((uint64_t)1UL << 32);
 }
 
 float
-m10_frame_9f_lon(const M10Frame_9f* f)
+m10_9f_lon(const M10Frame_9f* f)
 {
 	int32_t lon = f->lon[0] << 24 | f->lon[1] << 16 | f->lon[2] << 8 | f->lon[3];
 	return lon * 360.0 / ((uint64_t)1UL << 32);
 }
 
 float
-m10_frame_9f_alt(const M10Frame_9f* f)
+m10_9f_alt(const M10Frame_9f* f)
 {
 	int32_t alt =  f->alt[0] << 24 | f->alt[1] << 16 | f->alt[2] << 8 | f->alt[3];
 	return alt / 1e3;
 }
 
 float
-m10_frame_9f_dlat(const M10Frame_9f* f)
+m10_9f_dlat(const M10Frame_9f* f)
 {
 	int16_t dlat =  f->dlat[0] << 8 | f->dlat[1];
 	return dlat / 200.0;
 }
 
 float
-m10_frame_9f_dlon(const M10Frame_9f* f)
+m10_9f_dlon(const M10Frame_9f* f)
 {
 	int16_t dlon =  f->dlon[0] << 8 | f->dlon[1];
 	return dlon / 200.0;
 }
 
 float
-m10_frame_9f_dalt(const M10Frame_9f* f)
+m10_9f_dalt(const M10Frame_9f* f)
 {
 	int16_t dalt = f->dalt[0] << 8 | f->dalt[1];
 	return dalt / 200.0;
 }
 
 float
-m10_frame_9f_temp(const M10Frame_9f* f)
+m10_9f_temp(const M10Frame_9f* f)
 {
 	/**
 	 * https://www.gruan.org/gruan/editor/documents/meetings/icm-6/pres/pres_306_Haeffelin.pdf
@@ -119,7 +119,7 @@ m10_frame_9f_temp(const M10Frame_9f* f)
 }
 
 float
-m10_frame_9f_rh(const M10Frame_9f *f)
+m10_9f_rh(const M10Frame_9f *f)
 {
 	const float temp_rh_ppm = 400.0e-6f;
 	float rh_counts, rh_ref;
@@ -141,7 +141,7 @@ m10_frame_9f_rh(const M10Frame_9f *f)
 	rh_ref = f->rh_ref[2] << 16 | f->rh_ref[1] << 8 | f->rh_ref[0];
 
 	/* Apply correction factor as per datasheet */
-	temp_corr_factor = 1.0f - temp_rh_ppm * m10_frame_9f_temp(f);
+	temp_corr_factor = 1.0f - temp_rh_ppm * m10_9f_temp(f);
 
 	/* Compute RH% given capacitance (sensor is a GTUS13 or similar) */
 	rh = (rh_counts * temp_corr_factor / rh_ref - 0.8955) / 0.002;
@@ -150,7 +150,7 @@ m10_frame_9f_rh(const M10Frame_9f *f)
 }
 
 float
-m10_frame_9f_battery(const M10Frame_9f *f)
+m10_9f_battery(const M10Frame_9f *f)
 {
 	const float empirical_coeff = 28.2f;    /* TODO figure out actual Vdd and voltage divider ratio */
 
@@ -160,7 +160,7 @@ m10_frame_9f_battery(const M10Frame_9f *f)
 }
 
 void
-m20_frame_20_serial(char *dst, const M20Frame_20 *frame)
+m20_20_serial(char *dst, const M20Frame_20 *frame)
 {
 	const uint32_t raw_serial = frame->sn[2] << 16 | frame->sn[1] << 8 | frame->sn[0];
 	const uint8_t serial_0 = raw_serial & 0x3F;
@@ -170,7 +170,7 @@ m20_frame_20_serial(char *dst, const M20Frame_20 *frame)
 	sprintf(dst, "M20-%01d%02d-%d-%05d", serial_0 / 12, serial_0 % 12 + 1, serial_1, serial_2);
 }
 
-time_t m20_frame_20_time(const M20Frame_20* f) {
+time_t m20_20_time(const M20Frame_20* f) {
 	const uint32_t ms = f->time[0] << 16 | f->time[1] << 8 | f->time[2];
 	uint32_t mso = ms;
 	mso *= 1000;
@@ -179,34 +179,34 @@ time_t m20_frame_20_time(const M20Frame_20* f) {
 	return gps_time_to_utc(week, mso);
 }
 
-float m20_frame_20_lat(const M20Frame_20* f) {
+float m20_20_lat(const M20Frame_20* f) {
 	int32_t lat =  f->lat[0] << 24 | f->lat[1] << 16 | f->lat[2] << 8 | f->lat[3];
 	return lat / 1e6;
 }
-float m20_frame_20_lon(const M20Frame_20* f) {
+float m20_20_lon(const M20Frame_20* f) {
 	int32_t lon = f->lon[0] << 24 | f->lon[1] << 16 | f->lon[2] << 8 | f->lon[3];
 	return lon / 1e6;
 }
-float m20_frame_20_alt(const M20Frame_20* f) {
+float m20_20_alt(const M20Frame_20* f) {
 	int32_t alt =  f->alt[0] << 16 | f->alt[1] << 8 | f->alt[2];
 	return alt / 1e2;
 }
-float m20_frame_20_dlat(const M20Frame_20* f) {
+float m20_20_dlat(const M20Frame_20* f) {
 	int16_t dlat =  f->dlat[0] << 8 | f->dlat[1];
 	return dlat / 100.0;
 }
-float m20_frame_20_dlon(const M20Frame_20* f) {
+float m20_20_dlon(const M20Frame_20* f) {
 	int16_t dlon =  f->dlon[0] << 8 | f->dlon[1];
 	return dlon / 100.0;
 }
-float m20_frame_20_dalt(const M20Frame_20* f) {
+float m20_20_dalt(const M20Frame_20* f) {
 	int16_t dalt = f->dalt[0] << 8 | f->dalt[1];
 	return dalt / 100.0;
 }
 
 
 float
-m20_frame_20_temp(const M20Frame_20 *f)
+m20_20_temp(const M20Frame_20 *f)
 {
 	/**
 	 * https://www.gruan.org/gruan/editor/documents/meetings/icm-6/pres/pres_306_Haeffelin.pdf

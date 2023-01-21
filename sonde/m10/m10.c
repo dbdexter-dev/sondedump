@@ -6,7 +6,7 @@
 #include "decode/framer.h"
 #include "decode/manchester.h"
 #include "frame.h"
-#include "subframe.h"
+#include "parser.h"
 #include "gps/time.h"
 #include "physics.h"
 
@@ -108,22 +108,22 @@ m10_parse_frame(SondeData *dst, const M10Frame *frame)
 
 	/* Parse serial number */
 	dst->fields |= DATA_SERIAL;
-	m10_frame_9f_serial(dst->serial, data_frame_9f);
+	m10_9f_serial(dst->serial, data_frame_9f);
 
 	/* Parse GPS time */
 	dst->fields |= DATA_TIME;
-	dst->time = m10_frame_9f_time(data_frame_9f);
+	dst->time = m10_9f_time(data_frame_9f);
 
 	/* Parse GPS position */
 	dst->fields |= DATA_POS;
-	dst->lat = m10_frame_9f_lat(data_frame_9f);
-	dst->lon = m10_frame_9f_lon(data_frame_9f);
-	dst->alt = m10_frame_9f_alt(data_frame_9f);
+	dst->lat = m10_9f_lat(data_frame_9f);
+	dst->lon = m10_9f_lon(data_frame_9f);
+	dst->alt = m10_9f_alt(data_frame_9f);
 
 	/* Parse GPS speed */
-	dx = m10_frame_9f_dlon(data_frame_9f);
-	dy = m10_frame_9f_dlat(data_frame_9f);
-	dz = m10_frame_9f_dalt(data_frame_9f);
+	dx = m10_9f_dlon(data_frame_9f);
+	dy = m10_9f_dlat(data_frame_9f);
+	dz = m10_9f_dalt(data_frame_9f);
 
 	dst->fields |= DATA_SPEED;
 	dst->speed = sqrtf(dx*dx + dy*dy);
@@ -135,8 +135,8 @@ m10_parse_frame(SondeData *dst, const M10Frame *frame)
 	dst->fields |= DATA_PTU;
 	dst->calib_percent = 100.0f;
 	dst->pressure = altitude_to_pressure(dst->alt);
-	dst->temp = m10_frame_9f_temp(data_frame_9f);
-	dst->rh = m10_frame_9f_rh(data_frame_9f);
+	dst->temp = m10_9f_temp(data_frame_9f);
+	dst->rh = m10_9f_rh(data_frame_9f);
 }
 
 static void
@@ -147,7 +147,7 @@ m20_parse_frame(SondeData *dst, const M10Frame *frame)
 
 	/* Parse serial number */
 	dst->fields |= DATA_SERIAL;
-	m20_frame_20_serial(dst->serial, data_frame_20);
+	m20_20_serial(dst->serial, data_frame_20);
 
 	/* Parse sequence number */
 	dst->fields |= DATA_SEQ;
@@ -155,18 +155,18 @@ m20_parse_frame(SondeData *dst, const M10Frame *frame)
 
 	/* Parse GPS time */
 	dst->fields |= DATA_TIME;
-	dst->time = m20_frame_20_time(data_frame_20);
+	dst->time = m20_20_time(data_frame_20);
 
 	/* Parse GPS position */
 	dst->fields |= DATA_POS;
-	dst->lat = m20_frame_20_lat(data_frame_20);
-	dst->lon = m20_frame_20_lon(data_frame_20);
-	dst->alt = m20_frame_20_alt(data_frame_20);
+	dst->lat = m20_20_lat(data_frame_20);
+	dst->lon = m20_20_lon(data_frame_20);
+	dst->alt = m20_20_alt(data_frame_20);
 
 	/* Parse GPS speed */
-	dx = m20_frame_20_dlon(data_frame_20);
-	dy = m20_frame_20_dlat(data_frame_20);
-	dz = m20_frame_20_dalt(data_frame_20);
+	dx = m20_20_dlon(data_frame_20);
+	dy = m20_20_dlat(data_frame_20);
+	dz = m20_20_dalt(data_frame_20);
 
 	dst->fields |= DATA_SPEED;
 	dst->climb = dz;
@@ -177,7 +177,7 @@ m20_parse_frame(SondeData *dst, const M10Frame *frame)
 	/* Parse PTU data */
 	dst->fields |= DATA_PTU;
 	dst->calib_percent = 100.0f;
-	dst->temp = m20_frame_20_temp(data_frame_20);
+	dst->temp = m20_20_temp(data_frame_20);
 	dst->rh = 0;
 	dst->pressure = altitude_to_pressure(dst->alt);
 }

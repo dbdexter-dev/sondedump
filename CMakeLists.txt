@@ -64,31 +64,33 @@ set(LIBRARY_SOURCES
 
 	sonde/rs41/rs41.c
 	sonde/rs41/frame.c sonde/rs41/frame.h
-	sonde/rs41/subframe.c sonde/rs41/subframe.h
+	sonde/rs41/parser.c sonde/rs41/parser.h
 	sonde/rs41/protocol.h
 
 	sonde/dfm09/dfm09.c
 	sonde/dfm09/frame.c sonde/dfm09/frame.h
-	sonde/dfm09/subframe.c sonde/dfm09/subframe.h
+	sonde/dfm09/parser.c sonde/dfm09/parser.h
 	sonde/dfm09/protocol.h
 
 	sonde/ims100/ims100.c
 	sonde/ims100/frame.c sonde/ims100/frame.h
-	sonde/ims100/subframe.c sonde/ims100/subframe.h
+	sonde/ims100/parser.c sonde/ims100/parser.h
 	sonde/ims100/protocol.h
 
 	sonde/m10/m10.c
 	sonde/m10/frame.c sonde/m10/frame.h
-	sonde/m10/subframe.c sonde/m10/subframe.h
+	sonde/m10/parser.c sonde/m10/parser.h
 	sonde/m10/protocol.h
 
 	sonde/imet4/imet4.c
 	sonde/imet4/frame.c sonde/imet4/frame.h
 	sonde/imet4/subframe.c sonde/imet4/subframe.h
+	sonde/imet4/parser.c sonde/imet4/parser.h
 	sonde/imet4/protocol.h
 
 	sonde/c50/c50.c
 	sonde/c50/frame.c sonde/c50/frame.h
+	sonde/c50/parser.c sonde/c50/parser.h
 	sonde/c50/protocol.h
 
 	include/dfm09.h

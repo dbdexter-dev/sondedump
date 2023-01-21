@@ -7,7 +7,7 @@
 #include "decode/manchester.h"
 #include "frame.h"
 #include "protocol.h"
-#include "subframe.h"
+#include "parser.h"
 #include "utils.h"
 #include "log/log.h"
 
@@ -132,7 +132,7 @@ ims100_parse_frame(IMS100Decoder *self, SondeData *dst)
 	validmask = IMS100_MASK_SEQ;
 	if (BITMASK_CHECK(self->frame.valid, validmask)) {
 		dst->fields |= DATA_SEQ;
-		dst->seq = ims100_frame_seq(&self->frame);
+		dst->seq = ims100_seq(&self->frame);
 	}
 
 	/* Update calibration data */
@@ -147,7 +147,7 @@ ims100_parse_frame(IMS100Decoder *self, SondeData *dst)
 		self->adc.temp = (uint16_t)self->frame.adc_val1[0] << 8 | self->frame.adc_val1[1];
 
 		/* Some ADC values depend on the sequence number */
-		switch (ims100_frame_seq(&self->frame) & 0x3) {
+		switch (ims100_seq(&self->frame) & 0x3) {
 		case 0x00:
 			self->adc.ref = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
 			self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
@@ -165,8 +165,8 @@ ims100_parse_frame(IMS100Decoder *self, SondeData *dst)
 		}
 
 		dst->fields |= DATA_PTU;
-		dst->temp = ims100_frame_temp(&self->adc, &self->calib.ims100);
-		dst->rh = ims100_frame_rh(&self->adc, &self->calib.ims100);
+		dst->temp = ims100_temp(&self->adc, &self->calib.ims100);
+		dst->rh = ims100_rh(&self->adc, &self->calib.ims100);
 		dst->pressure = 0;
 		dst->calib_percent = 100.0 * count_ones((uint8_t*)&self->calib_bitmask,
 		                                        sizeof(self->calib_bitmask))
@@ -181,24 +181,24 @@ ims100_parse_frame(IMS100Decoder *self, SondeData *dst)
 		validmask = IMS100_GPS_MASK_TIME | IMS100_GPS_MASK_DATE;
 		if (BITMASK_CHECK(self->frame.valid, validmask)) {
 			dst->fields |= DATA_TIME;
-			dst->time = ims100_subframe_time(&self->frame.data.gps);
+			dst->time = ims100_time(&self->frame.data.gps);
 		}
 
 		/* Parse GPS position */
 		validmask = IMS100_GPS_MASK_LAT | IMS100_GPS_MASK_LON | IMS100_GPS_MASK_ALT;
 		if (BITMASK_CHECK(self->frame.valid, validmask)) {
 			dst->fields |= DATA_POS;
-			dst->lat = ims100_subframe_lat(&self->frame.data.gps);
-			dst->lon = ims100_subframe_lon(&self->frame.data.gps);
-			dst->alt = ims100_subframe_alt(&self->frame.data.gps);
+			dst->lat = ims100_lat(&self->frame.data.gps);
+			dst->lon = ims100_lon(&self->frame.data.gps);
+			dst->alt = ims100_alt(&self->frame.data.gps);
 		}
 
 		/* Parse GPS speed */
 		validmask = IMS100_GPS_MASK_SPEED | IMS100_GPS_MASK_HEADING;
 		if (BITMASK_CHECK(self->frame.valid, validmask)) {
 			dst->fields |= DATA_SPEED;
-			dst->speed = ims100_subframe_speed(&self->frame.data.gps);
-			dst->heading = ims100_subframe_heading(&self->frame.data.gps);
+			dst->speed = ims100_speed(&self->frame.data.gps);
+			dst->heading = ims100_heading(&self->frame.data.gps);
 			dst->climb = NAN;
 		}
 		break;
@@ -237,7 +237,7 @@ rs11g_parse_frame(IMS100Decoder *self, SondeData *dst)
 	validmask = IMS100_MASK_SEQ;
 	if (BITMASK_CHECK(self->frame.valid, validmask)) {
 		dst->fields |= DATA_SEQ;
-		dst->seq = ims100_frame_seq(&self->frame);
+		dst->seq = ims100_seq(&self->frame);
 	}
 
 	/* Update calibration data */
@@ -249,7 +249,7 @@ rs11g_parse_frame(IMS100Decoder *self, SondeData *dst)
 	/* Parse ADC data */
 	validmask = IMS100_MASK_SEQ | IMS100_MASK_PTU;
 	if (BITMASK_CHECK(self->frame.valid, validmask)) {
-		switch (ims100_frame_seq(&self->frame) & 0x3) {
+		switch (ims100_seq(&self->frame) & 0x3) {
 		case 0x00:
 			self->adc.ref = (uint16_t)self->frame.adc_val0[0] << 8 | self->frame.adc_val0[1];
 			break;
@@ -265,8 +265,8 @@ rs11g_parse_frame(IMS100Decoder *self, SondeData *dst)
 		self->adc.rh = (uint16_t)self->frame.adc_val2[0] << 8 | self->frame.adc_val2[1];
 
 		dst->fields |= DATA_PTU;
-		dst->temp = rs11g_frame_temp(&self->adc, &self->calib.rs11g);
-		dst->rh = rs11g_frame_rh(&self->adc, &self->calib.rs11g);
+		dst->temp = rs11g_temp(&self->adc, &self->calib.rs11g);
+		dst->rh = rs11g_rh(&self->adc, &self->calib.rs11g);
 		dst->pressure = 0;
 		dst->calib_percent = 100.0 * count_ones((uint8_t*)&self->calib_bitmask,
 		                                        sizeof(self->calib_bitmask))
@@ -280,24 +280,24 @@ rs11g_parse_frame(IMS100Decoder *self, SondeData *dst)
 		validmask = RS11G_GPS_MASK_LAT | RS11G_GPS_MASK_LON | RS11G_GPS_MASK_ALT;
 		if (BITMASK_CHECK(self->frame.valid, validmask)) {
 			dst->fields |= DATA_POS;
-			dst->lat = rs11g_subframe_lat(&self->frame.data.gps_11g);
-			dst->lon = rs11g_subframe_lon(&self->frame.data.gps_11g);
-			dst->alt = rs11g_subframe_alt(&self->frame.data.gps_11g);
+			dst->lat = rs11g_lat(&self->frame.data.gps_11g);
+			dst->lon = rs11g_lon(&self->frame.data.gps_11g);
+			dst->alt = rs11g_alt(&self->frame.data.gps_11g);
 		}
 
 		/* Parse GPS speed */
 		validmask = RS11G_GPS_MASK_SPEED | RS11G_GPS_MASK_HEADING | RS11G_GPS_MASK_CLIMB;
 		if (BITMASK_CHECK(self->frame.valid, validmask)) {
 			dst->fields |= DATA_SPEED;
-			dst->speed = rs11g_subframe_speed(&self->frame.data.gps_11g);
-			dst->heading = rs11g_subframe_heading(&self->frame.data.gps_11g);
-			dst->climb = rs11g_subframe_climb(&self->frame.data.gps_11g);
+			dst->speed = rs11g_speed(&self->frame.data.gps_11g);
+			dst->heading = rs11g_heading(&self->frame.data.gps_11g);
+			dst->climb = rs11g_climb(&self->frame.data.gps_11g);
 		}
 
 		/* Parse GPS time (1/2) */
 		validmask = RS11G_GPS_MASK_DATE;
 		if (BITMASK_CHECK(self->frame.valid, validmask)) {
-			self->date = rs11g_subframe_date(&self->frame.data.gps_11g);
+			self->date = rs11g_date(&self->frame.data.gps_11g);
 		}
 		break;
 
@@ -306,7 +306,7 @@ rs11g_parse_frame(IMS100Decoder *self, SondeData *dst)
 		validmask = RS11G_GPSRAW_MASK_TIME;
 		if (BITMASK_CHECK(self->frame.valid, validmask)) {
 			dst->fields |= DATA_TIME;
-			dst->time = self->date + rs11g_subframe_time(&self->frame.data.gpsraw_11g);
+			dst->time = self->date + rs11g_time(&self->frame.data.gpsraw_11g);
 		}
 		break;
 	default:

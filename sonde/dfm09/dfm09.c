@@ -10,7 +10,7 @@
 #include "log/log.h"
 #include "physics.h"
 #include "protocol.h"
-#include "subframe.h"
+#include "parser.h"
 
 typedef struct {
 	DFM09Calib calib;
@@ -68,8 +68,8 @@ dfm09_decoder_deinit(DFM09Decoder *d)
 __global ParserStatus
 dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 {
-	DFM09Subframe_PTU *ptu_subframe = &self->parsed_frame.ptu;
-	DFM09Subframe_GPS *gps_subframe;
+	DFM09Subframe_PTU *ptu = &self->parsed_frame.ptu;
+	DFM09Subframe_GPS *gps;
 	int i;
 	int valid;
 	int errcount;
@@ -112,12 +112,12 @@ dfm09_decode(DFM09Decoder *self, SondeData *dst, const float *src, size_t len)
 #endif
 
 	/* PTU subframe parsing */
-	dfm09_parse_ptu(&self->partial_dst, &self->data, ptu_subframe);
+	dfm09_parse_ptu(&self->partial_dst, &self->data, ptu);
 
 	/* GPS/info subframe parsing */
 	for (i=0; i<2; i++) {
-		gps_subframe = &self->parsed_frame.gps[i];
-		dfm09_parse_gps(&self->partial_dst, &self->data, gps_subframe);
+		gps = &self->parsed_frame.gps[i];
+		dfm09_parse_gps(&self->partial_dst, &self->data, gps);
 	}
 
 	self->partial_dst.pressure = altitude_to_pressure(self->partial_dst.alt);
@@ -148,7 +148,7 @@ dfm09_parse_ptu(SondeData *dst, DFM09Data *data, const DFM09Subframe_PTU *subfra
 	switch (subframe->type) {
 	case DFM_SFTYPE_TEMP:
 		/* Temperature */
-		dst->temp = dfm09_subframe_temp(subframe, &data->calib);
+		dst->temp = dfm09_temp(subframe, &data->calib);
 		dst->fields |= DATA_PTU;
 		dst->calib_percent = 100.0;
 		break;
@@ -195,36 +195,36 @@ dfm09_parse_gps(SondeData *dst, DFM09Data *data, const DFM09Subframe_GPS *subfra
 	case DFM_SFTYPE_SEQ:
 		/* Frame number */
 		dst->fields |= DATA_SEQ;
-		dst->seq = dfm09_subframe_seq(subframe);
+		dst->seq = dfm09_seq(subframe);
 		break;
 
 	case DFM_SFTYPE_TIME:
 		/* GPS time */
-		data->time.tm_sec = dfm09_subframe_time(subframe);
+		data->time.tm_sec = dfm09_time(subframe);
 		break;
 
 	case DFM_SFTYPE_LAT:
 		/* Latitude and speed */
-		dst->lat = dfm09_subframe_lat(subframe);
-		dst->speed = dfm09_subframe_spd(subframe);
+		dst->lat = dfm09_lat(subframe);
+		dst->speed = dfm09_speed(subframe);
 		break;
 
 	case DFM_SFTYPE_LON:
 		/* Longitude and heading */
-		dst->lon = dfm09_subframe_lon(subframe);
-		dst->heading = dfm09_subframe_hdg(subframe);
+		dst->lon = dfm09_lon(subframe);
+		dst->heading = dfm09_heading(subframe);
 		break;
 
 	case DFM_SFTYPE_ALT:
 		/* Altitude and climb rate */
-		dst->alt = dfm09_subframe_alt(subframe);
-		dst->climb = dfm09_subframe_climb(subframe);
+		dst->alt = dfm09_alt(subframe);
+		dst->climb = dfm09_climb(subframe);
 		dst->fields |= DATA_POS | DATA_SPEED;
 		break;
 
 	case DFM_SFTYPE_DATE:
 		/* GPS date */
-		dfm09_subframe_date(&data->time, subframe);
+		dfm09_date(&data->time, subframe);
 
 		dst->fields |= DATA_TIME;
 		dst->time = my_timegm(&data->time);

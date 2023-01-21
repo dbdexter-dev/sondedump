@@ -4,11 +4,11 @@
 #include <string.h>
 #include "decode/ecc/crc.h"
 #include "physics.h"
-#include "subframe.h"
+#include "parser.h"
 #include "utils.h"
 
 float
-rs41_subframe_temp(RS41Subframe_PTU *ptu, RS41Calibration *calib)
+rs41_temp(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 {
 	const float adc_main = (uint32_t)ptu->temp_main[0]
 	                      | (uint32_t)ptu->temp_main[1] << 8
@@ -49,7 +49,7 @@ rs41_subframe_temp(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 }
 
 float
-rs41_subframe_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
+rs41_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 {
 	float adc_main = (uint32_t)ptu->humidity_main[0]
 	                       | (uint32_t)ptu->humidity_main[1] << 8
@@ -68,8 +68,8 @@ rs41_subframe_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 	if (adc_ref2 - adc_ref1 == 0) return NAN;
 
 	/* Get RH sensor temperature and actual temperature */
-	rh_temp_uncal = rs41_subframe_temp_humidity(ptu, calib);
-	t_temp = rs41_subframe_temp(ptu, calib);
+	rh_temp_uncal = rs41_temp_humidity(ptu, calib);
+	t_temp = rs41_temp(ptu, calib);
 
 	/* Compute RH calibrated temperature */
 	rh_temp = 0;
@@ -103,7 +103,7 @@ rs41_subframe_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 }
 
 float
-rs41_subframe_temp_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
+rs41_temp_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 {
 	const float adc_main = (uint32_t)ptu->temp_humidity_main[0]
 	                      | (uint32_t)ptu->temp_humidity_main[1] << 8
@@ -137,7 +137,7 @@ rs41_subframe_temp_humidity(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 }
 
 float
-rs41_subframe_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
+rs41_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 {
 	const float adc_main = (uint32_t)ptu->pressure_main[0]
 	                      | (uint32_t)ptu->pressure_main[1] << 8
@@ -191,35 +191,35 @@ rs41_subframe_pressure(RS41Subframe_PTU *ptu, RS41Calibration *calib)
 }
 
 float
-rs41_subframe_x(RS41Subframe_GPSPos *gps)
+rs41_x(RS41Subframe_GPSPos *gps)
 {
 	return gps->x / 100.0;
 }
 
 float
-rs41_subframe_y(RS41Subframe_GPSPos *gps)
+rs41_y(RS41Subframe_GPSPos *gps)
 {
 	return gps->y / 100.0;
 }
 
 float
-rs41_subframe_z(RS41Subframe_GPSPos *gps)
+rs41_z(RS41Subframe_GPSPos *gps)
 {
 	return gps->z / 100.0;
 }
 
 float
-rs41_subframe_dx(RS41Subframe_GPSPos *gps)
+rs41_dx(RS41Subframe_GPSPos *gps)
 {
 	return gps->dx / 100.0;
 }
 float
-rs41_subframe_dy(RS41Subframe_GPSPos *gps)
+rs41_dy(RS41Subframe_GPSPos *gps)
 {
 	return gps->dy / 100.0;
 }
 float
-rs41_subframe_dz(RS41Subframe_GPSPos *gps)
+rs41_dz(RS41Subframe_GPSPos *gps)
 {
 	return gps->dz / 100.0;
 }

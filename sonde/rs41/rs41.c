@@ -9,8 +9,8 @@
 #include "gps/ecef.h"
 #include "gps/time.h"
 #include "log/log.h"
+#include "parser.h"
 #include "physics.h"
-#include "subframe.h"
 #include "xdata/xdata.h"
 
 typedef struct {
@@ -241,9 +241,9 @@ rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metada
 		ptu = (RS41Subframe_PTU*)subframe;
 
 		dst->fields |= DATA_PTU;
-		dst->temp = rs41_subframe_temp(ptu, &metadata->data);
-		dst->rh = rs41_subframe_humidity(ptu, &metadata->data);
-		dst->pressure = rs41_subframe_pressure(ptu, &metadata->data);
+		dst->temp = rs41_temp(ptu, &metadata->data);
+		dst->rh = rs41_humidity(ptu, &metadata->data);
+		dst->pressure = rs41_pressure(ptu, &metadata->data);
 		dst->calib_percent = rs41_get_calib_percent(metadata);
 		break;
 
@@ -251,12 +251,12 @@ rs41_parse_subframe(SondeData *dst, RS41Subframe *subframe, RS41Metadata *metada
 		/* GPS position */
 		gpspos = (RS41Subframe_GPSPos*)subframe;
 
-		x = rs41_subframe_x(gpspos);
-		y = rs41_subframe_y(gpspos);
-		z = rs41_subframe_z(gpspos);
-		dx = rs41_subframe_dx(gpspos);
-		dy = rs41_subframe_dy(gpspos);
-		dz = rs41_subframe_dz(gpspos);
+		x = rs41_x(gpspos);
+		y = rs41_y(gpspos);
+		z = rs41_z(gpspos);
+		dx = rs41_dx(gpspos);
+		dy = rs41_dy(gpspos);
+		dz = rs41_dz(gpspos);
 
 
 		dst->fields |= DATA_POS | DATA_SPEED;

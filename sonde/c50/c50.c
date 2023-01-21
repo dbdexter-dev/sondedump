@@ -7,17 +7,7 @@
 #include "decode/framer.h"
 #include "log/log.h"
 #include "physics.h"
-
-enum data_bits {
-	BIT_TEMP = 1 << 0,
-	BIT_RH = 1 << 1,
-	BIT_DATE = 1 << 2,
-	BIT_TIME = 1 << 3,
-	BIT_LAT = 1 << 4,
-	BIT_LON = 1 << 5,
-	BIT_ALT = 1 << 6,
-	BIT_SN = 1 << 7,
-};
+#include "parser.h"
 
 struct c50decoder {
 	Framer f;
@@ -66,8 +56,6 @@ c50_decoder_deinit(C50Decoder *d) {
 ParserStatus
 c50_decode(C50Decoder *self, SondeData *dst, const float *src, size_t len)
 {
-	uint32_t data;
-
 	/* Read a new frame */
 	switch(framer_read(&self->f, self->raw_frame, src, len)) {
 	case PROCEED:
@@ -91,13 +79,12 @@ c50_decode(C50Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 
 	//log_debug_hexdump(&self->frame, sizeof(self->frame));
-	data = bitmerge(self->frame.data, 32);
 
 	switch (self->frame.type) {
 	case C50_TYPE_TEMP_AIR:
-		self->partial_dst.fields |= DATA_PTU;
 		self->partial_dst.calib_percent = 100.0f;
-		self->partial_dst.temp = ieee754_be(self->frame.data);
+		self->partial_dst.temp = c50_temp(&self->frame);
+		self->partial_dst.fields |= DATA_PTU;
 		break;
 
 	case C50_TYPE_RH:
@@ -105,37 +92,33 @@ c50_decode(C50Decoder *self, SondeData *dst, const float *src, size_t len)
 		break;
 
 	case C50_TYPE_DATE:
-		self->time.tm_mday = data / 10000 % 100;
-		self->time.tm_mon = (data / 100) % 100 - 1;
-		self->time.tm_year = 2000 + data % 100 - 1900;
+		c50_date(&self->time, &self->frame);
 		break;
 
 	case C50_TYPE_TIME:
-		self->time.tm_hour = data / 10000;
-		self->time.tm_min = (data / 100) % 100;
-		self->time.tm_sec = data % 100;
+		c50_time(&self->time, &self->frame);
 
 		self->partial_dst.fields |= DATA_TIME;
 		self->partial_dst.time = my_timegm(&self->time);
 		break;
 
 	case C50_TYPE_LAT:
-		self->partial_dst.lat = (int)((int32_t)data / 1e7) + ((int32_t)data % 10000000 / 60.0 * 100.0) / 1e7;
+		self->partial_dst.lat = c50_lat(&self->frame);
 		break;
 
 	case C50_TYPE_LON:
-		self->partial_dst.lon = (int)((int32_t)data / 1e7) + ((int32_t)data % 10000000 / 60.0 * 100.0) / 1e7;
+		self->partial_dst.lon = c50_lon(&self->frame);
 		break;
 
 	case C50_TYPE_ALT:
+		self->partial_dst.alt = c50_alt(&self->frame);
 		self->partial_dst.fields |= DATA_POS;
-		self->partial_dst.alt = data / 10.0f;
 		self->partial_dst.pressure = altitude_to_pressure(self->partial_dst.alt);
 		break;
 
 	case C50_TYPE_SN:
+		c50_serial(self->partial_dst.serial, &self->frame);
 		self->partial_dst.fields |= DATA_SERIAL;
-		sprintf(self->partial_dst.serial, "C50-%d", data);
 		break;
 
 	default:

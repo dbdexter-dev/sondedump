@@ -13,6 +13,8 @@
 
 #define CHUNKSIZE 1024
 
+static void append_data_point(SondeData *data);
+
 static ParserStatus (*active_decoder_decode)(void*, SondeData*, const float*, size_t);
 static void *active_decoder_ctx;
 static enum decoder active_decoder;
@@ -154,6 +156,10 @@ decode(const float *srcbuf, size_t len)
 
 	/* Parse based on decoder */
 	switch (active_decoder) {
+	case END:
+		/* Decoder is being changed: wait */
+		return PARSED;
+		break;
 	case AUTO:
 		while (rs41_decode(rs41decoder, &data, srcbuf, len) != PROCEED) {
 			if (data.fields) {
@@ -198,110 +204,9 @@ decode(const float *srcbuf, size_t len)
 			}
 		}
 		break;
-	case END:
-		/* Decoder is being changed: wait */
-		return PARSED;
-		break;
 	default:
 		while (active_decoder_decode(active_decoder_ctx, &data, srcbuf, len) != PROCEED) {
-			/* If no new data available, return */
-			if (!data.fields) continue;
-
-			/* Copy data from previous sample */
-			if (sample_count) {
-				memcpy(&track[sample_count], &track[sample_count-1], sizeof(track[sample_count]));
-			}
-
-			/* Add track point to list {{{ */
-			if (data.fields & DATA_PTU) {
-				track[sample_count].temp = data.temp;
-				track[sample_count].rh = data.rh;
-				track[sample_count].pressure = data.pressure;
-				track[sample_count].dewpt = dewpt(data.temp, data.rh);
-				track[sample_count].pressure = data.pressure;
-
-				printable.fields |= DATA_PTU;
-				printable.temp = data.temp;
-				printable.rh = data.rh;
-				printable.pressure = data.pressure;
-
-				printable.calib_percent = data.calib_percent;
-			}
-
-			if (data.fields & DATA_TIME) {
-				track[sample_count].utc_time = data.time;
-
-				printable.fields |= DATA_TIME;
-				printable.time = data.time;
-			}
-
-			if (data.fields & DATA_POS) {
-				track[sample_count].lat = data.lat;
-				track[sample_count].lon = data.lon;
-				track[sample_count].alt = data.alt;
-
-				printable.fields |= DATA_POS;
-				printable.lat = data.lat;
-				printable.lon = data.lon;
-				printable.alt = data.alt;
-			}
-
-			if (data.fields & DATA_SPEED) {
-				track[sample_count].spd = data.speed;
-				track[sample_count].hdg = data.heading;
-				track[sample_count].climb = data.climb;
-
-				printable.fields |= DATA_SPEED;
-				printable.speed = data.speed;
-				printable.heading = data.heading;
-				printable.climb = data.climb;
-			}
-
-			if (data.fields & DATA_SERIAL) {
-				printable.fields |= DATA_SERIAL;
-				strncpy(printable.serial, data.serial, sizeof(printable.serial) - 1);
-				printable.serial[sizeof(printable.serial) - 1] = 0;
-			}
-
-			if (data.fields & DATA_OZONE) {
-				printable.fields |= DATA_OZONE;
-				printable.o3_mpa = data.o3_mpa;
-			}
-
-			if (data.fields & DATA_SHUTDOWN) {
-				printable.fields |= DATA_SHUTDOWN;
-				printable.shutdown = data.shutdown;
-			}
-
-			if (data.fields & DATA_SEQ) {
-				/* Generate a unique ID for this packet. Ideally would be the
-				 * sequence number, but sondes like the DFM roll over every 256
-				 * packets, which is not nearly enough to uniquely identify
-				 * every packet sent during a flight */
-				track[sample_count].id = MAX((uint32_t)data.seq, sample_count ? track[sample_count - 1].id + 1 : 0);
-
-				printable.fields |= DATA_SEQ;
-				printable.seq = data.seq;
-			} else if (sample_count) {
-				track[sample_count].id = track[sample_count - 1].id + 1;
-			} else {
-				track[sample_count].id = 0;
-			}
-			/* }}} */
-
-			/* If pressure data is unavailable, derive it from the reported
-			 * altitude */
-			if (!(printable.pressure > 0)) {
-				printable.pressure = altitude_to_pressure(printable.alt);
-				track[sample_count].pressure = printable.pressure;
-			}
-
-			sample_count++;
-			if (sample_count >= reserved_count) {
-				reserved_count += CHUNKSIZE;
-				track = realloc(track, reserved_count * sizeof(*track));
-			}
-
+			append_data_point(&data);
 			return PARSED;
 		}
 		break;
@@ -351,4 +256,105 @@ get_track_data(void)
 }
 
 /* Static functions {{{ */
+static void
+append_data_point(SondeData *data)
+{
+	/* If no new data available, return */
+	if (!data->fields) return;
+
+	/* Copy data from previous sample */
+	if (sample_count) {
+		memcpy(&track[sample_count], &track[sample_count-1], sizeof(track[sample_count]));
+	}
+
+	/* Add track point to list {{{ */
+	if (data->fields & DATA_PTU) {
+		track[sample_count].temp = data->temp;
+		track[sample_count].rh = data->rh;
+		track[sample_count].pressure = data->pressure;
+		track[sample_count].dewpt = dewpt(data->temp, data->rh);
+		track[sample_count].pressure = data->pressure;
+
+		printable.fields |= DATA_PTU;
+		printable.temp = data->temp;
+		printable.rh = data->rh;
+		printable.pressure = data->pressure;
+
+		printable.calib_percent = data->calib_percent;
+	}
+
+	if (data->fields & DATA_TIME) {
+		track[sample_count].utc_time = data->time;
+
+		printable.fields |= DATA_TIME;
+		printable.time = data->time;
+	}
+
+	if (data->fields & DATA_POS) {
+		track[sample_count].lat = data->lat;
+		track[sample_count].lon = data->lon;
+		track[sample_count].alt = data->alt;
+
+		printable.fields |= DATA_POS;
+		printable.lat = data->lat;
+		printable.lon = data->lon;
+		printable.alt = data->alt;
+	}
+
+	if (data->fields & DATA_SPEED) {
+		track[sample_count].spd = data->speed;
+		track[sample_count].hdg = data->heading;
+		track[sample_count].climb = data->climb;
+
+		printable.fields |= DATA_SPEED;
+		printable.speed = data->speed;
+		printable.heading = data->heading;
+		printable.climb = data->climb;
+	}
+
+	if (data->fields & DATA_SERIAL) {
+		printable.fields |= DATA_SERIAL;
+		strncpy(printable.serial, data->serial, sizeof(printable.serial) - 1);
+		printable.serial[sizeof(printable.serial) - 1] = 0;
+	}
+
+	if (data->fields & DATA_OZONE) {
+		printable.fields |= DATA_OZONE;
+		printable.o3_mpa = data->o3_mpa;
+	}
+
+	if (data->fields & DATA_SHUTDOWN) {
+		printable.fields |= DATA_SHUTDOWN;
+		printable.shutdown = data->shutdown;
+	}
+
+	if (data->fields & DATA_SEQ) {
+		/* Generate a unique ID for this packet. Ideally would be the
+		 * sequence number, but sondes like the DFM roll over every 256
+		 * packets, which is not nearly enough to uniquely identify
+		 * every packet sent during a flight */
+		track[sample_count].id = MAX((uint32_t)data->seq, sample_count ? track[sample_count - 1].id + 1 : 0);
+
+		printable.fields |= DATA_SEQ;
+		printable.seq = data->seq;
+	} else if (sample_count) {
+		track[sample_count].id = track[sample_count - 1].id + 1;
+	} else {
+		track[sample_count].id = 0;
+	}
+	/* }}} */
+
+	/* If pressure data is unavailable, derive it from the reported
+	 * altitude */
+	if (!(printable.pressure > 0)) {
+		printable.pressure = altitude_to_pressure(printable.alt);
+		track[sample_count].pressure = printable.pressure;
+	}
+
+	sample_count++;
+	if (sample_count >= reserved_count) {
+		reserved_count += CHUNKSIZE;
+		track = realloc(track, reserved_count * sizeof(*track));
+	}
+}
 /* }}} */
