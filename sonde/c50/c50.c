@@ -34,7 +34,7 @@ c50_decoder_init(int samplerate)
 
 	memset(&d->partial_dst, 0, sizeof(d->partial_dst));
 	memset(&d->time, 0, sizeof(d->time));
-	gmtime_r(&zero, &d->time);
+	d->time = *gmtime(&zero);
 
 #ifndef NDEBUG
 	debug = fopen("/tmp/c50frames.data", "wb");
@@ -67,7 +67,9 @@ c50_decode(C50Decoder *self, SondeData *dst, const float *src, size_t len)
 	c50_frame_descramble(&self->frame, self->raw_frame);
 
 #ifndef NDEBUG
-	fwrite(&self->raw_frame[0], 2*sizeof(self->frame), 1, debug);
+	if (debug) {
+		fwrite(&self->raw_frame[0], 2*sizeof(self->frame), 1, debug);
+	}
 #endif
 
 

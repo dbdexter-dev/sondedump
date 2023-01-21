@@ -106,8 +106,10 @@ ims100_decode(IMS100Decoder *self, SondeData *dst, const float *src, size_t len)
 	ims100_frame_unpack(&self->frame, &self->ecc_frame);
 
 #ifndef NDEBUG
-	fwrite(&self->frame, sizeof(self->frame), 1, debug);
-	fflush(debug);
+	if (debug) {
+		fwrite(&self->frame, sizeof(self->frame), 1, debug);
+		fflush(debug);
+	}
 #endif
 
 	switch (self->frame.subtype) {

@@ -19,6 +19,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 if (MSVC)
+	add_definitions(D__global=)
 	set(CMAKE_C_STANDARD 11)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Wall /std:c11")
 	set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG -O2 -ftree-vectorize")
