@@ -6,7 +6,7 @@ option(FULL_OPTIMIZE "Enable platform-specific optimizations" OFF)
 option(UNINSTALL_TARGET "Generate uninstall target" ON)
 
 project(sondedump
-	VERSION 1.0
+	VERSION 1.1
 	DESCRIPTION "Radiosonde decoder"
 	LANGUAGES C)
 add_definitions(-DVERSION="${CMAKE_PROJECT_VERSION}")
@@ -94,8 +94,14 @@ set(LIBRARY_SOURCES
 	sonde/c50/parser.c sonde/c50/parser.h
 	sonde/c50/protocol.h
 
+	sonde/mrz-n1/mrzn1.c
+	sonde/mrz-n1/frame.c sonde/mrz-n1/frame.h
+	sonde/mrz-n1/parser.c sonde/mrz-n1/parser.h
+	sonde/mrz-n1/protocol.h
+
 	include/dfm09.h
 	include/m10.h
+	include/mrzn1.h
 	include/imet4.h
 	include/ims100.h
 	include/rs41.h

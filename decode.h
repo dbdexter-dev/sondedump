@@ -14,7 +14,7 @@ typedef struct {
 	float temp, rh, dewpt;
 } GeoPoint;
 
-enum decoder { AUTO=0, C50, DFM09, IMET4, IMS100, M10, RS41, END};
+enum decoder { AUTO=0, C50, DFM09, IMET4, IMS100, M10, MRZN1, RS41, END};
 
 int          decoder_init(int samplerate);
 void         decoder_deinit(void);

@@ -65,8 +65,8 @@ volatile int _interrupted;
 static FILE *_wav;
 static int _bps;
 
-const char *_decoder_names[] = {"Auto", "C50", "DFM", "iMet-4", "iMS100/RS11G", "M10/M20", "RS41"};
-const char *_decoder_argvs[] = {"auto", "c50", "dfm", "imet4", "ims100", "m10", "rs41"};
+const char *_decoder_names[] = {"Auto", "C50", "DFM", "iMet-4", "iMS100/RS11G", "M10/M20", "MRZ-N1", "RS41"};
+const char *_decoder_argvs[] = {"auto", "c50", "dfm", "imet4", "ims100", "m10", "mrz-n1", "rs41"};
 const int _decoder_count = LEN(_decoder_names);
 
 static struct option longopts[] = {
@@ -435,6 +435,7 @@ usage(const char *pname)
 			"                                imet4: InterMet iMet-4\n"
 			"                                ims100: Meisei iMS-100/RS-11G\n"
 			"                                m10: MeteoModem M10/M20\n"
+			"                                mrzn1: Meteo-Radiy MRZ-N1\n"
 			"                                rs41: Vaisala RS41-SG(P,M)\n"
 #ifdef ENABLE_TUI
 			"   -T, --tui                    Enable TUI display\n"

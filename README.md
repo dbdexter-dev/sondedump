@@ -25,6 +25,7 @@ Compatibility matrix:
 | Meisei       | RS-11G      | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |                    |
 | InterMet     | iMet-1/4    | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | Meteolabor   | SRS-C50     | :heavy_check_mark: | :heavy_check_mark: |                    |                    |
+| Meteo-Radiy  | MRZ-N1      | :heavy_check_mark: | :heavy_check_mark: |                    |                    |
 
 
 Build/install instructions

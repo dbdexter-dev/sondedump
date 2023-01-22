@@ -3,6 +3,7 @@
 #include <include/imet4.h>
 #include <include/ims100.h>
 #include <include/m10.h>
+#include <include/mrzn1.h>
 #include <include/rs41.h>
 #include <math.h>
 #include <string.h>
@@ -24,6 +25,7 @@ static RS41Decoder *rs41decoder = NULL;
 static DFM09Decoder *dfm09decoder = NULL;
 static IMS100Decoder *ims100decoder = NULL;
 static M10Decoder *m10decoder = NULL;
+static MRZN1Decoder *mrzn1decoder = NULL;
 static IMET4Decoder *imet4decoder = NULL;
 static C50Decoder *c50decoder = NULL;
 
@@ -48,6 +50,7 @@ decoder_init(int samplerate)
 	m10decoder = m10_decoder_init(samplerate);
 	imet4decoder = imet4_decoder_init(samplerate);
 	c50decoder = c50_decoder_init(samplerate);
+	mrzn1decoder = mrzn1_decoder_init(samplerate);
 
 	/* Initialize pointers to "no decoder" */
 	active_decoder_decode = NULL;
@@ -100,6 +103,10 @@ decoder_deinit(void)
 		c50_decoder_deinit(c50decoder);
 		c50decoder = NULL;
 	}
+	if (mrzn1decoder) {
+		mrzn1_decoder_deinit(mrzn1decoder);
+		mrzn1decoder = NULL;
+	}
 
 	/* Clear history buffers */
 	sample_count = 0;
@@ -146,6 +153,10 @@ decode(const float *srcbuf, size_t len)
 		case C50:
 			active_decoder_decode = (decoder_iface_t)&c50_decode;
 			active_decoder_ctx = c50decoder;
+			break;
+		case MRZN1:
+			active_decoder_decode = (decoder_iface_t)&mrzn1_decode;
+			active_decoder_ctx = mrzn1decoder;
 			break;
 		default:
 			break;
@@ -200,6 +211,13 @@ decode(const float *srcbuf, size_t len)
 			if (data.fields) {
 				log_info("Autodetected: SRS C50");
 				set_active_decoder(C50);
+				break;
+			}
+		}
+		while (mrzn1_decode(mrzn1decoder, &data, srcbuf, len) != PROCEED) {
+			if (data.fields) {
+				log_info("Autodetected: MRZ-N1");
+				set_active_decoder(MRZN1);
 				break;
 			}
 		}
