@@ -88,6 +88,7 @@ set(LIBRARY_SOURCES
 	sonde/imet4/protocol.h
 
 	sonde/mrz-n1/mrzn1.c
+	sonde/mrz-n1/frame.c sonde/mrz-n1/frame.h
 	sonde/mrz-n1/protocol.h
 
 	include/dfm09.h

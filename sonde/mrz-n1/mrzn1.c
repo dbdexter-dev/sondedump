@@ -3,11 +3,13 @@
 #include "protocol.h"
 #include "decode/framer.h"
 #include "decode/manchester.h"
+#include "frame.h"
+#include "log/log.h"
 
 
 struct mrzn1decoder {
 	Framer f;
-	MRZN1Frame raw_frame[2];
+	MRZN1RawFrame raw_frame[2];
 	MRZN1Frame frame;
 	size_t offset;
 };
@@ -54,10 +56,15 @@ mrzn1_decode(MRZN1Decoder *self, SondeData *dst, const float *src, size_t len)
 	}
 
 	manchester_decode(&self->frame, self->raw_frame, MRZN1_FRAME_LEN);
+	if (mrzn1_frame_correct(&self->frame) >= 0) {
+		log_info("OK");
+	} else {
+		log_error("KO");
+	}
 
 #ifndef NDEBUG
 	if (debug)
-		fwrite(&self->frame, MRZN1_FRAME_LEN/8, 1, debug);
+		fwrite(&self->frame, sizeof(self->frame), 1, debug);
 #endif
 
 

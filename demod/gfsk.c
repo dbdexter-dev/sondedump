@@ -6,7 +6,7 @@
 #include "utils.h"
 
 #ifndef NDEBUG
-//#define OUTPUT_GFSK
+#define OUTPUT_GFSK
 #endif
 
 #ifdef OUTPUT_GFSK
