@@ -23,6 +23,7 @@ Compatibility matrix:
 | GRAW         | DFM06/09/17 | :heavy_check_mark: | :heavy_check_mark: |                    |
 | Meisei       | iMS-100     | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | InterMet     | iMet-1/4    | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Meteo-Radiy  | MRZ-N1      | :heavy_check_mark: |                    |                    |
 
 
 Build/install instructions
