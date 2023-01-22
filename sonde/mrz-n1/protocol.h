@@ -38,8 +38,8 @@ PACK(typedef struct {
 	int16_t rh;
 
 	uint8_t _unk1[2];
-	int32_t _unk2;
-	int32_t _unk3;
+	int32_t raw_temp;
+	int32_t raw_rh;
 
 	uint8_t calib_frag_seq;
 	uint8_t calib_data[4];
@@ -48,8 +48,10 @@ PACK(typedef struct {
 }) MRZN1Frame;
 
 PACK(typedef struct {
-	float coeffs[9];
-	uint32_t serials[7];
+	float unk_coeffs[9];
+	uint32_t serials[5];
+	uint32_t cal_date;
+	uint32_t date;
 }) MRZN1Calibration;
 
 #endif

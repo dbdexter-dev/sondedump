@@ -3,6 +3,7 @@
 #include "parser.h"
 #include "protocol.h"
 #include "utils.h"
+#include "log/log.h"
 
 int
 mrzn1_seq(const MRZN1Frame *frame)
@@ -17,24 +18,26 @@ mrzn1_calib_seq(const MRZN1Frame *frame)
 }
 
 time_t
-mrzn1_time(const MRZN1Frame *frame)
+mrzn1_time(const MRZN1Frame *frame, const MRZN1Calibration *calib)
 {
 	struct tm datetime;
-	time_t now;
+	time_t time;
 
-	now = time(NULL);
-	datetime = *gmtime(&now);
+	if (calib->date) {
+		datetime.tm_hour = frame->hour;
+		datetime.tm_min = frame->min;
+		datetime.tm_sec = frame->sec;
 
-	if (abs(frame->hour - datetime.tm_hour) >= 12) {
-		now += (frame->hour < datetime.tm_hour) ? 86400 : -86400;
-		datetime = *gmtime(&now);
+		datetime.tm_year = 2000 + calib->date % 100 - 1900;
+		datetime.tm_mon = (calib->date / 100) % 100 - 1;
+		datetime.tm_mday = calib->date / 10000;
+
+		time = my_timegm(&datetime);
+	} else {
+		time = 3600 * frame->hour + 60 * frame->min + frame->sec;
 	}
 
-	datetime.tm_hour = frame->hour;
-	datetime.tm_min = frame->min;
-	datetime.tm_sec = frame->sec;
-
-	return my_timegm(&datetime);
+	return time;
 }
 
 float
@@ -86,5 +89,6 @@ mrzn1_serial(char *dst, const MRZN1Calibration *calib)
 	int manuf_year = 0;
 	int serial = 0;
 
-	sprintf(dst, "3МК%01d%05dK", manuf_year % 10, serial);
+	//sprintf(dst, "3МК%01d%05dK", manuf_year % 10, serial);
+	sprintf(dst, "MRZ-%06d", calib->serials[4]);
 }

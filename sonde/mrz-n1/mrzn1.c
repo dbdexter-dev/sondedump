@@ -98,8 +98,8 @@ mrzn1_parse_frame(SondeData *dst, const MRZN1Frame *frame, const MRZN1Metadata *
 	dst->seq = mrzn1_seq(frame);
 	dst->fields |= DATA_SEQ;
 
-	/* Parse time (uses today's date since that's not transmitted) */
-	dst->time = mrzn1_time(frame);
+	/* Parse time */
+	dst->time = mrzn1_time(frame, &calib->data);
 	dst->fields |= DATA_TIME;
 
 	/* Parse GPS coordinates */
@@ -128,7 +128,7 @@ mrzn1_parse_frame(SondeData *dst, const MRZN1Frame *frame, const MRZN1Metadata *
 
 	log_debug_hexdump(&calib->data, sizeof(calib->data));
 
-	if (BITMASK_CHECK(calib->bitmask, 0x1)) {
+	if (BITMASK_CHECK(calib->bitmask, 0x4)) {
 		mrzn1_serial(dst->serial, &calib->data);
 		dst->fields |= DATA_SERIAL;
 	}

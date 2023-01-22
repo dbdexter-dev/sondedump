@@ -6,7 +6,7 @@
 
 int mrzn1_seq(const MRZN1Frame *frame);
 int mrzn1_calib_seq(const MRZN1Frame *frame);
-time_t mrzn1_time(const MRZN1Frame *frame);
+time_t mrzn1_time(const MRZN1Frame *frame, const MRZN1Calibration *calib);
 float mrzn1_x(const MRZN1Frame *frame);
 float mrzn1_y(const MRZN1Frame *frame);
 float mrzn1_z(const MRZN1Frame *frame);
