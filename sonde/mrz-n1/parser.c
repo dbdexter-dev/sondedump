@@ -85,10 +85,7 @@ mrzn1_rh(const MRZN1Frame *frame)
 void
 mrzn1_serial(char *dst, const MRZN1Calibration *calib)
 {
-	/* TODO */
-	int manuf_year = 0;
-	int serial = 0;
+	int manuf_year = calib->cal_date % 100;
 
-	//sprintf(dst, "3МК%01d%05dK", manuf_year % 10, serial);
-	sprintf(dst, "MRZ-%06d", calib->serials[4]);
+	sprintf(dst, "MRZ-H1%02d%05d", manuf_year - 10, calib->serial);
 }

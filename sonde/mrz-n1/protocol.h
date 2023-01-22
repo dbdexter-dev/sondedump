@@ -36,8 +36,8 @@ PACK(typedef struct {
 	uint8_t _unk0[2];
 	int16_t temp;
 	int16_t rh;
+	uint8_t _unk1[2];   /* Presumably pressure, 0xFFFF = not installed */
 
-	uint8_t _unk1[2];
 	int32_t raw_temp;
 	int32_t raw_rh;
 
@@ -49,7 +49,8 @@ PACK(typedef struct {
 
 PACK(typedef struct {
 	float unk_coeffs[9];
-	uint32_t serials[5];
+	uint32_t serial;
+	uint32_t unk[4];
 	uint32_t cal_date;
 	uint32_t date;
 }) MRZN1Calibration;
