@@ -66,7 +66,7 @@ static FILE *_wav;
 static int _bps;
 
 const char *_decoder_names[] = {"Auto", "C50", "DFM", "iMet-4", "iMS100/RS11G", "M10/M20", "MRZ-N1", "RS41"};
-const char *_decoder_argvs[] = {"auto", "c50", "dfm", "imet4", "ims100", "m10", "mrz-n1", "rs41"};
+const char *_decoder_argvs[] = {"auto", "c50", "dfm", "imet4", "ims100", "m10", "mrzn1", "rs41"};
 const int _decoder_count = LEN(_decoder_names);
 
 static struct option longopts[] = {
